@@ -1,14 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
+import { nepalDateTimeToISO } from "../utils/timezone";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 
 /* ---------------- Attendance ---------------- */
 export function useAttendance(employeeId) {
   const qc = useQueryClient();
+  const key = ["attendance", employeeId];
 
   const query = useQuery({
-    queryKey: ["attendance", employeeId],
+    queryKey: key,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("attendance")
@@ -21,6 +24,8 @@ export function useAttendance(employeeId) {
     enabled: !!employeeId,
   });
 
+  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+
   const clockIn = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("attendance").insert({
@@ -30,8 +35,7 @@ export function useAttendance(employeeId) {
       });
       if (error) throw error;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["attendance", employeeId] }),
+    onSuccess: invalidate,
   });
 
   const clockOut = useMutation({
@@ -43,8 +47,26 @@ export function useAttendance(employeeId) {
         .eq("date", todayISO());
       if (error) throw error;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["attendance", employeeId] }),
+    onSuccess: invalidate,
+  });
+
+  const updateAttendance = useMutation({
+    mutationFn: async ({
+      attendanceId,
+      clockIn: newClockIn,
+      clockOut: newClockOut,
+    }) => {
+      const { error } = await supabase
+        .from("attendance")
+        .update({
+          clock_in: newClockIn ? nepalDateTimeToISO(newClockIn) : null,
+          clock_out: newClockOut ? nepalDateTimeToISO(newClockOut) : null,
+        })
+        .eq("id", attendanceId)
+        .eq("employee_id", employeeId);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
   });
 
   return {
@@ -52,15 +74,18 @@ export function useAttendance(employeeId) {
     isLoading: query.isLoading,
     clockIn: () => clockIn.mutateAsync(),
     clockOut: () => clockOut.mutateAsync(),
+    updateAttendance: (attendanceId, payload) =>
+      updateAttendance.mutateAsync({ attendanceId, ...payload }),
   };
 }
 
 /* ---------------- Work logs ---------------- */
 export function useWorkLogs(employeeId) {
   const qc = useQueryClient();
+  const key = ["work-logs", employeeId];
 
   const query = useQuery({
-    queryKey: ["work-logs", employeeId],
+    queryKey: key,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("work_logs")
@@ -74,23 +99,48 @@ export function useWorkLogs(employeeId) {
     enabled: !!employeeId,
   });
 
+  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+
   const addEntry = useMutation({
-    mutationFn: async (text) => {
-      const { error } = await supabase.from("work_logs").insert({
-        employee_id: employeeId,
-        date: todayISO(),
-        entry_text: text,
-      });
+    mutationFn: async ({ text, date = todayISO() }) => {
+      const { error } = await supabase
+        .from("work_logs")
+        .insert({ employee_id: employeeId, date, entry_text: text });
       if (error) throw error;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["work-logs", employeeId] }),
+    onSuccess: invalidate,
+  });
+
+  const updateEntry = useMutation({
+    mutationFn: async ({ entryId, text }) => {
+      const { error } = await supabase
+        .from("work_logs")
+        .update({ entry_text: text })
+        .eq("id", entryId)
+        .eq("employee_id", employeeId);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteEntry = useMutation({
+    mutationFn: async (entryId) => {
+      const { error } = await supabase
+        .from("work_logs")
+        .delete()
+        .eq("id", entryId)
+        .eq("employee_id", employeeId);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
   });
 
   return {
     entries: query.data ?? null,
     isLoading: query.isLoading,
-    addEntry: (text) => addEntry.mutateAsync(text),
+    addEntry: (text, date) => addEntry.mutateAsync({ text, date }),
+    updateEntry: (entryId, text) => updateEntry.mutateAsync({ entryId, text }),
+    deleteEntry: (entryId) => deleteEntry.mutateAsync(entryId),
   };
 }
 
@@ -114,8 +164,16 @@ export function useLeaveRequests(employeeId, scope = "mine") {
     enabled: scope === "org" || !!employeeId,
   });
 
+  // balance changes now happen via DB trigger (see schema) — always refresh roster too,
+  // since submit/decide/delete can all move leave_balance under the hood
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["leave-requests"] });
+    qc.invalidateQueries({ queryKey: ["roster"] });
+  };
+
   const submit = useMutation({
     mutationFn: async ({ type, startDate, endDate, days, reason }) => {
+      if (!LEAVE_TYPES.includes(type)) throw new Error("Invalid leave type.");
       const { error } = await supabase.from("leave_requests").insert({
         employee_id: employeeId,
         type,
@@ -126,7 +184,49 @@ export function useLeaveRequests(employeeId, scope = "mine") {
       });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["leave-requests"] }),
+    onSuccess: invalidate,
+  });
+
+  const updateRequest = useMutation({
+    mutationFn: async ({
+      requestId,
+      type,
+      startDate,
+      endDate,
+      days,
+      reason,
+    }) => {
+      const existing = query.data?.find((r) => r.id === requestId);
+      if (!existing) throw new Error("Leave request not found.");
+      if (existing.status === "Approved")
+        throw new Error("Approved leave cannot be edited.");
+      const { error } = await supabase
+        .from("leave_requests")
+        .update({
+          type,
+          start_date: startDate,
+          end_date: endDate,
+          days,
+          reason,
+        })
+        .eq("id", requestId)
+        .eq("employee_id", employeeId);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  // no manual balance-restore code needed anymore — the delete trigger handles it
+  const deleteRequest = useMutation({
+    mutationFn: async (requestId) => {
+      const { error } = await supabase
+        .from("leave_requests")
+        .delete()
+        .eq("id", requestId)
+        .eq("employee_id", employeeId);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
   });
 
   const decide = useMutation({
@@ -141,25 +241,28 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         .eq("id", requestId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["leave-requests"] });
-      qc.invalidateQueries({ queryKey: ["roster"] }); // balance changed too
-    },
+    onSuccess: invalidate,
   });
 
   return {
     requests: query.data ?? null,
     isLoading: query.isLoading,
     submit: (payload) => submit.mutateAsync(payload),
+    updateRequest: (requestId, payload) =>
+      updateRequest.mutateAsync({ requestId, ...payload }),
+    deleteRequest: (requestId) => deleteRequest.mutateAsync(requestId),
     decide: (requestId, status, decidedBy) =>
       decide.mutateAsync({ requestId, status, decidedBy }),
   };
 }
 
-/* ---------------- Roster ---------------- */
+/* ---------------- Org roster ---------------- */
 export function useRoster() {
+  const qc = useQueryClient();
+  const key = ["roster"];
+
   const query = useQuery({
-    queryKey: ["roster"],
+    queryKey: key,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
@@ -170,5 +273,8 @@ export function useRoster() {
     },
   });
 
-  return { employees: query.data ?? null, isLoading: query.isLoading };
+  return {
+    employees: query.data ?? null,
+    isLoading: query.isLoading,
+  };
 }
