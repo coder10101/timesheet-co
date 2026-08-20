@@ -5,6 +5,7 @@ import {
   Clock,
   FileText,
   Sunrise,
+  Tag,
   Users,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -31,6 +32,7 @@ export function Dashboard({ me, onLogout }) {
       icon: <FileText size={15} />,
     },
     { to: "worklogs", label: "Work Logs", icon: <ClipboardList size={15} /> },
+    { to: "projects", label: "Projects", icon: <Tag size={15} /> },
   ];
   const tabs = isAdmin ? adminTabs : employeeTabs;
 

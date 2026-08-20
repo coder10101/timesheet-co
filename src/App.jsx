@@ -10,6 +10,7 @@ import { AdminWorklogs } from "./features/Admin/WorkLogs";
 import { AdminAttendance } from "./features/Admin/Attendance";
 import { AdminLeave } from "./features/Admin/Leave";
 import { AdminOverview } from "./features/Admin/Overview";
+import { AdminProjects } from "./features/Admin/Project";
 
 export default function App() {
   return (
@@ -70,6 +71,7 @@ function Root() {
               element={<AdminLeave me={profile} />}
             />
             <Route path="worklogs" element={<AdminWorklogs />} />
+            <Route path="projects" element={<AdminProjects me={profile} />} />
           </>
         )}
         <Route path="*" element={<Navigate to="overview" replace />} />

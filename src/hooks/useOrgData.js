@@ -102,20 +102,23 @@ export function useWorkLogs(employeeId) {
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
 
   const addEntry = useMutation({
-    mutationFn: async ({ text, date = todayISO() }) => {
-      const { error } = await supabase
-        .from("work_logs")
-        .insert({ employee_id: employeeId, date, entry_text: text });
+    mutationFn: async ({ text, date = todayISO(), projectId }) => {
+      const { error } = await supabase.from("work_logs").insert({
+        employee_id: employeeId,
+        date,
+        entry_text: text,
+        project_id: projectId ?? null,
+      });
       if (error) throw error;
     },
     onSuccess: invalidate,
   });
 
   const updateEntry = useMutation({
-    mutationFn: async ({ entryId, text }) => {
+    mutationFn: async ({ entryId, text, projectId }) => {
       const { error } = await supabase
         .from("work_logs")
-        .update({ entry_text: text })
+        .update({ entry_text: text, project_id: projectId ?? null })
         .eq("id", entryId)
         .eq("employee_id", employeeId);
       if (error) throw error;
@@ -138,8 +141,10 @@ export function useWorkLogs(employeeId) {
   return {
     entries: query.data ?? null,
     isLoading: query.isLoading,
-    addEntry: (text, date) => addEntry.mutateAsync({ text, date }),
-    updateEntry: (entryId, text) => updateEntry.mutateAsync({ entryId, text }),
+    addEntry: (text, date, projectId) =>
+      addEntry.mutateAsync({ text, date, projectId }),
+    updateEntry: (entryId, text, projectId) =>
+      updateEntry.mutateAsync({ entryId, text, projectId }),
     deleteEntry: (entryId) => deleteEntry.mutateAsync(entryId),
   };
 }
@@ -366,4 +371,91 @@ export function useRoster() {
     employees: query.data ?? null,
     isLoading: query.isLoading,
   };
+}
+
+/* ---------------- Projects (tags) ---------------- */
+export function useProjects() {
+  const qc = useQueryClient();
+  const key = ["projects"];
+
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .order("archived", { ascending: true })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+
+  const createProject = useMutation({
+    mutationFn: async ({ name, color, orgId }) => {
+      const { error } = await supabase
+        .from("projects")
+        .insert({ name, color, org_id: orgId });
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const updateProject = useMutation({
+    mutationFn: async ({ id, name, color }) => {
+      const { error } = await supabase
+        .from("projects")
+        .update({ name, color })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const archiveProject = useMutation({
+    mutationFn: async ({ id, archived }) => {
+      const { error } = await supabase
+        .from("projects")
+        .update({ archived })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  return {
+    projects: query.data ?? null,
+    isLoading: query.isLoading,
+    createProject: (payload) => createProject.mutateAsync(payload),
+    updateProject: (id, payload) =>
+      updateProject.mutateAsync({ id, ...payload }),
+    archiveProject: (id, archived) =>
+      archiveProject.mutateAsync({ id, archived }),
+  };
+}
+
+/* ---------------- Org-wide work logs (admin, for the per-project rollup) ---------------- */
+export function useOrgWorkLogs() {
+  const query = useQuery({
+    queryKey: ["work-logs", "org"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("work_logs")
+        .select(
+          "*, profiles!work_logs_employee_id_fkey(name), projects(name, color)",
+        )
+        .order("date", { ascending: false });
+      if (error) throw error;
+      return data.map((e) => ({
+        ...e,
+        employeeName: e.profiles?.name,
+        projectName: e.projects?.name,
+        projectColor: e.projects?.color,
+      }));
+    },
+  });
+
+  return { entries: query.data ?? null, isLoading: query.isLoading };
 }
