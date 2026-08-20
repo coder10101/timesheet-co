@@ -1,6 +1,7 @@
 import { Card } from "../../components/Card";
 import { EmptyState } from "../../components/EmptyState";
 import { StatBlock } from "../../components/StatBlock";
+import { StatusPill } from "../../components/StatusPill";
 import { useLeaveRequests } from "../../hooks/useOrgData";
 import { fmtDate } from "../../utils/workTime";
 
