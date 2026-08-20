@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import { supabase } from "./supabaseClient";
 
 const AuthContext = createContext(null);
@@ -10,7 +16,11 @@ export function AuthProvider({ children }) {
 
   const fetchProfile = useCallback(async (userId) => {
     setProfileLoading(true);
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
     if (error) console.error("fetchProfile error:", error);
     setProfile(data || null);
     setProfileLoading(false);
@@ -34,17 +44,31 @@ export function AuthProvider({ children }) {
   // step 1: send a one-time code to the given email.
   // `name` is only used the first time this email signs up (stored as raw_user_meta_data.name
   // and picked up by the handle_new_user() trigger in schema.sql).
-  const sendOtp = async (email, name) => {
+  const sendOtp = async (email, name, orgCode) => {
+    const { data: isValid, error: codeError } = await supabase.rpc(
+      "validate_org_code",
+      { code: orgCode },
+    );
+    if (codeError) throw codeError;
+    if (!isValid)
+      throw new Error(
+        "That organization code isn't valid. Check with your admin.",
+      );
+
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { data: name ? { name } : undefined, shouldCreateUser: true },
+      options: { data: { name, org_code: orgCode }, shouldCreateUser: true },
     });
     if (error) throw error;
   };
 
   // step 2: verify the 6-digit code the user received by email
   const verifyOtp = async (email, token) => {
-    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
+    });
     if (error) throw error;
     return data;
   };
