@@ -1,369 +1,174 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
-import { nepalDateTimeToISO } from "../utils/timezone";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-/* ---------------- Attendance (single employee) ---------------- */
+/* ---------------- Attendance ---------------- */
 export function useAttendance(employeeId) {
-  const [records, setRecords] = useState(null);
+  const qc = useQueryClient();
 
-  const refresh = useCallback(async () => {
-    if (!employeeId) return;
+  const query = useQuery({
+    queryKey: ["attendance", employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("*")
+        .eq("employee_id", employeeId)
+        .order("date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!employeeId,
+  });
 
-    const { data, error } = await supabase
-      .from("attendance")
-      .select("*")
-      .eq("employee_id", employeeId)
-      .order("date", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setRecords(data || []);
-  }, [employeeId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const clockIn = async () => {
-    const { error } = await supabase.from("attendance").insert({
-      employee_id: employeeId,
-      date: todayISO(),
-      clock_in: new Date().toISOString(),
-    });
-
-    if (error) throw error;
-
-    await refresh();
-  };
-
-  const clockOut = async () => {
-    const { error } = await supabase
-      .from("attendance")
-      .update({
-        clock_out: new Date().toISOString(),
-      })
-      .eq("employee_id", employeeId)
-      .eq("date", todayISO());
-
-    if (error) throw error;
-
-    await refresh();
-  };
-
-  /**
-   * Edit an attendance record.
-   *
-   * We allow clock-in and clock-out changes,
-   * but not changing the attendance date.
-   */
-  const updateAttendance = async (
-    attendanceId,
-    { clockIn: newClockIn, clockOut: newClockOut },
-  ) => {
-    const { error } = await supabase
-      .from("attendance")
-      .update({
-        clock_in: newClockIn ? nepalDateTimeToISO(newClockIn) : null,
-
-        clock_out: newClockOut ? nepalDateTimeToISO(newClockOut) : null,
-      })
-      .eq("id", attendanceId)
-      .eq("employee_id", employeeId);
-
-    if (error) throw error;
-
-    await refresh();
-  };
-
-  return {
-    records,
-    clockIn,
-    clockOut,
-    updateAttendance,
-    refresh,
-  };
-}
-
-/* ---------------- Work logs (single employee) ---------------- */
-export function useWorkLogs(employeeId) {
-  const [entries, setEntries] = useState(null);
-
-  const refresh = useCallback(async () => {
-    if (!employeeId) return;
-
-    const { data, error } = await supabase
-      .from("work_logs")
-      .select("*")
-      .eq("employee_id", employeeId)
-      .order("date", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setEntries(data || []);
-  }, [employeeId]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const addEntry = async (text, date = todayISO()) => {
-    const { error } = await supabase.from("work_logs").insert({
-      employee_id: employeeId,
-      date,
-      entry_text: text,
-    });
-
-    if (error) throw error;
-
-    await refresh();
-  };
-
-  const updateEntry = async (entryId, text) => {
-    const { error } = await supabase
-      .from("work_logs")
-      .update({
-        entry_text: text,
-      })
-      .eq("id", entryId)
-      .eq("employee_id", employeeId);
-
-    if (error) throw error;
-
-    await refresh();
-  };
-
-  const deleteEntry = async (entryId) => {
-    const { error } = await supabase
-      .from("work_logs")
-      .delete()
-      .eq("id", entryId)
-      .eq("employee_id", employeeId);
-
-    if (error) throw error;
-
-    await refresh();
-  };
-
-  return {
-    entries,
-    addEntry,
-    updateEntry,
-    deleteEntry,
-    refresh,
-  };
-}
-
-/* ---------------- Leave requests ----------------
-   scope: "mine" (employee's own) or "org" (admin, sees everyone) */
-export function useLeaveRequests(employeeId, scope = "mine") {
-  const [requests, setRequests] = useState(null);
-
-  const refresh = useCallback(async () => {
-    let query = supabase
-      .from("leave_requests")
-      .select("*, profiles!leave_requests_employee_id_fkey(name)")
-      .order("created_at", {
-        ascending: false,
+  const clockIn = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("attendance").insert({
+        employee_id: employeeId,
+        date: todayISO(),
+        clock_in: new Date().toISOString(),
       });
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["attendance", employeeId] }),
+  });
 
-    if (scope === "mine") {
-      if (!employeeId) return;
+  const clockOut = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("attendance")
+        .update({ clock_out: new Date().toISOString() })
+        .eq("employee_id", employeeId)
+        .eq("date", todayISO());
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["attendance", employeeId] }),
+  });
 
-      query = query.eq("employee_id", employeeId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setRequests(
-      (data || []).map((r) => ({
-        ...r,
-        employeeName: r.profiles?.name,
-      })),
-    );
-  }, [employeeId, scope]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const submit = async ({ type, startDate, endDate, days, reason }) => {
-    if (!LEAVE_TYPES.includes(type)) {
-      throw new Error("Invalid leave type.");
-    }
-
-    const { error } = await supabase.from("leave_requests").insert({
-      employee_id: employeeId,
-      type,
-      start_date: startDate,
-      end_date: endDate,
-      days,
-      reason,
-    });
-
-    if (error) throw error;
-
-    await refresh();
+  return {
+    records: query.data ?? null,
+    isLoading: query.isLoading,
+    clockIn: () => clockIn.mutateAsync(),
+    clockOut: () => clockOut.mutateAsync(),
   };
+}
 
-  const updateRequest = async (
-    requestId,
-    { type, startDate, endDate, days, reason },
-  ) => {
-    const existing = requests?.find((r) => r.id === requestId);
+/* ---------------- Work logs ---------------- */
+export function useWorkLogs(employeeId) {
+  const qc = useQueryClient();
 
-    if (!existing) {
-      throw new Error("Leave request not found.");
-    }
+  const query = useQuery({
+    queryKey: ["work-logs", employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("work_logs")
+        .select("*")
+        .eq("employee_id", employeeId)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!employeeId,
+  });
 
-    if (existing.status === "Approved") {
-      throw new Error("Approved leave cannot be edited.");
-    }
+  const addEntry = useMutation({
+    mutationFn: async (text) => {
+      const { error } = await supabase.from("work_logs").insert({
+        employee_id: employeeId,
+        date: todayISO(),
+        entry_text: text,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["work-logs", employeeId] }),
+  });
 
-    const { error } = await supabase
-      .from("leave_requests")
-      .update({
+  return {
+    entries: query.data ?? null,
+    isLoading: query.isLoading,
+    addEntry: (text) => addEntry.mutateAsync(text),
+  };
+}
+
+/* ---------------- Leave requests ---------------- */
+export function useLeaveRequests(employeeId, scope = "mine") {
+  const qc = useQueryClient();
+  const key = ["leave-requests", scope, scope === "mine" ? employeeId : "org"];
+
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      let q = supabase
+        .from("leave_requests")
+        .select("*, profiles!leave_requests_employee_id_fkey(name)")
+        .order("created_at", { ascending: false });
+      if (scope === "mine") q = q.eq("employee_id", employeeId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data.map((r) => ({ ...r, employeeName: r.profiles?.name }));
+    },
+    enabled: scope === "org" || !!employeeId,
+  });
+
+  const submit = useMutation({
+    mutationFn: async ({ type, startDate, endDate, days, reason }) => {
+      const { error } = await supabase.from("leave_requests").insert({
+        employee_id: employeeId,
         type,
         start_date: startDate,
         end_date: endDate,
         days,
         reason,
-      })
-      .eq("id", requestId)
-      .eq("employee_id", employeeId);
-
-    if (error) throw error;
-
-    await refresh();
-  };
-
-  const deleteRequest = async (requestId) => {
-    const existing = requests?.find((r) => r.id === requestId);
-
-    if (!existing) {
-      throw new Error("Leave request not found.");
-    }
-
-    /*
-     * Approved leave:
-     *
-     * balance was already deducted,
-     * so restore it before deleting.
-     */
-    if (existing.status === "Approved") {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("leave_balance")
-        .eq("id", employeeId)
-        .single();
-
+      });
       if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["leave-requests"] }),
+  });
 
-      const balance = profile.leave_balance || {};
-
-      const current = Number(balance[existing.type] || 0);
-
-      const restoredBalance = {
-        ...balance,
-
-        [existing.type]: current + Number(existing.days || 0),
-      };
-
-      const { error: balanceError } = await supabase
-        .from("profiles")
+  const decide = useMutation({
+    mutationFn: async ({ requestId, status, decidedBy }) => {
+      const { error } = await supabase
+        .from("leave_requests")
         .update({
-          leave_balance: restoredBalance,
+          status,
+          decided_by: decidedBy,
+          decided_at: new Date().toISOString(),
         })
-        .eq("id", employeeId);
-
-      if (balanceError) {
-        throw balanceError;
-      }
-    }
-
-    const { error } = await supabase
-      .from("leave_requests")
-      .delete()
-      .eq("id", requestId)
-      .eq("employee_id", employeeId);
-
-    if (error) throw error;
-
-    await refresh();
-  };
-
-  const decide = async (requestId, status, decidedBy) => {
-    const { error } = await supabase
-      .from("leave_requests")
-      .update({
-        status,
-        decided_by: decidedBy,
-        decided_at: new Date().toISOString(),
-      })
-      .eq("id", requestId);
-
-    if (error) throw error;
-
-    await refresh();
-  };
+        .eq("id", requestId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leave-requests"] });
+      qc.invalidateQueries({ queryKey: ["roster"] }); // balance changed too
+    },
+  });
 
   return {
-    requests,
-    submit,
-    updateRequest,
-    deleteRequest,
-    decide,
-    refresh,
+    requests: query.data ?? null,
+    isLoading: query.isLoading,
+    submit: (payload) => submit.mutateAsync(payload),
+    decide: (requestId, status, decidedBy) =>
+      decide.mutateAsync({ requestId, status, decidedBy }),
   };
 }
 
-/* ---------------- Org roster (admin) ---------------- */
+/* ---------------- Roster ---------------- */
 export function useRoster() {
-  const [employees, setEmployees] = useState(null);
+  const query = useQuery({
+    queryKey: ["roster"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
 
-  const refresh = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: true });
-    if (error) console.error(error);
-    setEmployees(data || []);
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const adjustBalance = async (employeeId, type, delta) => {
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("leave_balance")
-      .eq("id", employeeId)
-      .single();
-    const nextBalance = {
-      ...prof.leave_balance,
-      [type]: Math.max(0, (prof.leave_balance[type] ?? 0) + delta),
-    };
-    const { error } = await supabase
-      .from("profiles")
-      .update({ leave_balance: nextBalance })
-      .eq("id", employeeId);
-    if (error) throw error;
-    await refresh();
-  };
-
-  return { employees, adjustBalance, refresh };
+  return { employees: query.data ?? null, isLoading: query.isLoading };
 }

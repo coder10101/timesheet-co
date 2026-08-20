@@ -1,22 +1,16 @@
 import { Card } from "../../components/Card";
 import { EmptyState } from "../../components/EmptyState";
 import { StatBlock } from "../../components/StatBlock";
-import { useLeaveRequests, useRoster } from "../../hooks/useOrgData";
+import { useLeaveRequests } from "../../hooks/useOrgData";
 import { fmtDate } from "../../utils/workTime";
 
 export function AdminLeave({ me }) {
   const { requests, decide } = useLeaveRequests(null, "org");
 
-  const { adjustBalance } = useRoster();
-
   if (requests === null) return null;
 
   const act = async (r, status) => {
     await decide(r.id, status, me.id);
-
-    if (status === "Approved" && r.type !== "Unpaid") {
-      await adjustBalance(r.employee_id, r.type, -r.days);
-    }
   };
 
   const pending = requests.filter((r) => r.status === "Pending");
