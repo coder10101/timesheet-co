@@ -42,12 +42,6 @@ export function EmployeeLeave({ me }) {
       return setErr("End date can't be before start date.");
     }
 
-    if (Number(leaveDays) > balance) {
-      return setErr(
-        `Not enough ${type} leave balance (have ${balance}, need ${leaveDays}).`,
-      );
-    }
-
     if (!reason.trim()) {
       return setErr("Please add a short reason.");
     }
@@ -203,12 +197,19 @@ export function EmployeeLeave({ me }) {
             </select>
 
             <div className="text-[10px] text-[#7A7362] mt-1">
-              Available:{" "}
+              {Number(leaveDays) > balance ? "Extra leave:" : "Available:"}
               <span className="font-medium text-[#292722]">
                 {balance} day
                 {balance !== 1 ? "s" : ""}
               </span>
             </div>
+            {Number(leaveDays) > balance && (
+              <p className="text-[11px] text-[#B5563A] mt-2 flex items-center gap-1">
+                <AlertCircle size={12} />
+                This exceeds your available {type} balance — it'll go negative
+                if approved.
+              </p>
+            )}
           </div>
 
           {/* START */}
