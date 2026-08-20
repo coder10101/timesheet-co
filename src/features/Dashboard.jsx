@@ -85,15 +85,23 @@ export function Dashboard({ me, onLogout }) {
             </div>
             <button
               onClick={onLogout}
-              className="text-[12px] text-[#8FA6AE] hover:text-[#EDE7DA] flex items-center gap-1"
+              className="text-[12px] text-[#8FA6AE] hover:text-[#EDE7DA] flex items-center gap-1 mb-4"
             >
               <ArrowLeft size={12} /> Sign out
             </button>
+            <p className="text-[10px] text-[#5B6B73] leading-relaxed pt-3 border-t border-[#1C2933]">
+              © 2026 Aditi Acharya. All rights reserved.
+            </p>
           </div>
         </aside>
 
-        <main className="flex-1 p-5 md:p-8">
-          <Outlet />
+        <main className="flex-1 p-5 md:p-8 flex flex-col min-h-screen md:min-h-0">
+          <div className="flex-1">
+            <Outlet />
+          </div>
+          <footer className="mt-10 pt-4 border-t border-[#E4DFD3] text-[10px] text-[#9A9383]">
+            © 2026 Aditi Acharya. All rights reserved.
+          </footer>
         </main>
       </div>
     </div>
