@@ -147,47 +147,75 @@ export function useWorkLogs(employeeId) {
 /* ---------------- Leave requests ---------------- */
 export function useLeaveRequests(employeeId, scope = "mine") {
   const qc = useQueryClient();
+
   const key = ["leave-requests", scope, scope === "mine" ? employeeId : "org"];
 
   const query = useQuery({
     queryKey: key,
+
     queryFn: async () => {
       let q = supabase
         .from("leave_requests")
         .select("*, profiles!leave_requests_employee_id_fkey(name)")
         .order("created_at", { ascending: false });
-      if (scope === "mine") q = q.eq("employee_id", employeeId);
+
+      if (scope === "mine") {
+        q = q.eq("employee_id", employeeId);
+      }
+
       const { data, error } = await q;
+
       if (error) throw error;
-      return data.map((r) => ({ ...r, employeeName: r.profiles?.name }));
+
+      return (data || []).map((r) => ({
+        ...r,
+        employeeName: r.profiles?.name,
+      }));
     },
+
     enabled: scope === "org" || !!employeeId,
   });
 
-  // balance changes now happen via DB trigger (see schema) — always refresh roster too,
-  // since submit/decide/delete can all move leave_balance under the hood
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["leave-requests"] });
-    qc.invalidateQueries({ queryKey: ["roster"] });
+    qc.invalidateQueries({
+      queryKey: ["leave-requests"],
+    });
+
+    qc.invalidateQueries({
+      queryKey: ["roster"],
+    });
   };
 
-  const submit = useMutation({
+  // ---------------- SUBMIT ----------------
+
+  const submitMutation = useMutation({
     mutationFn: async ({ type, startDate, endDate, days, reason }) => {
-      if (!LEAVE_TYPES.includes(type)) throw new Error("Invalid leave type.");
+      if (!["Annual", "Sick"].includes(type)) {
+        throw new Error("Invalid leave type.");
+      }
+
+      if (!days || Number(days) <= 0) {
+        throw new Error("Leave days must be greater than 0.");
+      }
+
       const { error } = await supabase.from("leave_requests").insert({
         employee_id: employeeId,
         type,
         start_date: startDate,
         end_date: endDate,
-        days,
-        reason,
+        days: Number(days),
+        reason: reason?.trim() || null,
       });
+
       if (error) throw error;
     },
+
     onSuccess: invalidate,
   });
 
-  const updateRequest = useMutation({
+  // ---------------- UPDATE ----------------
+
+  const updateMutation = useMutation({
     mutationFn: async ({
       requestId,
       type,
@@ -196,63 +224,124 @@ export function useLeaveRequests(employeeId, scope = "mine") {
       days,
       reason,
     }) => {
-      const existing = query.data?.find((r) => r.id === requestId);
-      if (!existing) throw new Error("Leave request not found.");
-      if (existing.status === "Approved")
-        throw new Error("Approved leave cannot be edited.");
-      const { error } = await supabase
+      console.log("UPDATING LEAVE:", {
+        requestId,
+        employeeId,
+        type,
+        startDate,
+        endDate,
+        days,
+        reason,
+      });
+
+      const { data, error } = await supabase
         .from("leave_requests")
         .update({
           type,
           start_date: startDate,
           end_date: endDate,
-          days,
-          reason,
+          days: Number(days),
+          reason: reason?.trim() || null,
         })
         .eq("id", requestId)
-        .eq("employee_id", employeeId);
-      if (error) throw error;
+        .eq("employee_id", employeeId)
+        .select("*");
+
+      console.log("UPDATE RESULT:", data);
+      console.log("UPDATE ERROR:", error);
+
+      if (error) {
+        throw error;
+      }
+
+      // This is important.
+      // If RLS prevents the update, data will be [].
+      if (!data || data.length === 0) {
+        throw new Error(
+          "No leave request was updated. The Supabase RLS UPDATE policy may be blocking this request.",
+        );
+      }
+
+      return data[0];
     },
-    onSuccess: invalidate,
+
+    onSuccess: async () => {
+      await qc.invalidateQueries({
+        queryKey: ["leave-requests"],
+      });
+
+      await qc.invalidateQueries({
+        queryKey: ["roster"],
+      });
+    },
   });
 
-  // no manual balance-restore code needed anymore — the delete trigger handles it
-  const deleteRequest = useMutation({
+  // ---------------- DELETE ----------------
+
+  const deleteMutation = useMutation({
     mutationFn: async (requestId) => {
+      const existing = query.data?.find((r) => r.id === requestId);
+
+      if (!existing) {
+        throw new Error("Leave request not found.");
+      }
+
       const { error } = await supabase
         .from("leave_requests")
         .delete()
         .eq("id", requestId)
         .eq("employee_id", employeeId);
+
       if (error) throw error;
     },
+
     onSuccess: invalidate,
   });
 
-  const decide = useMutation({
+  // ---------------- ADMIN DECISION ----------------
+
+  const decideMutation = useMutation({
     mutationFn: async ({ requestId, status, decidedBy }) => {
+      if (!["Approved", "Rejected", "Pending"].includes(status)) {
+        throw new Error("Invalid leave status.");
+      }
+
       const { error } = await supabase
         .from("leave_requests")
         .update({
           status,
           decided_by: decidedBy,
-          decided_at: new Date().toISOString(),
+          decided_at: status === "Pending" ? null : new Date().toISOString(),
         })
         .eq("id", requestId);
+
       if (error) throw error;
     },
+
     onSuccess: invalidate,
   });
 
   return {
     requests: query.data ?? null,
+
     isLoading: query.isLoading,
-    submit: (payload) => submit.mutateAsync(payload),
+
+    submit: (payload) => submitMutation.mutateAsync(payload),
+
     updateRequest: (requestId, payload) =>
-      updateRequest.mutateAsync({ requestId, ...payload }),
-    deleteRequest: (requestId) => deleteRequest.mutateAsync(requestId),
+      updateMutation.mutateAsync({
+        requestId,
+        ...payload,
+      }),
+
+    deleteRequest: (requestId) => deleteMutation.mutateAsync(requestId),
+
     decide: (requestId, status, decidedBy) =>
-      decide.mutateAsync({ requestId, status, decidedBy }),
+      decideMutation.mutateAsync({
+        requestId,
+        status,
+        decidedBy,
+      }),
   };
 }
 
