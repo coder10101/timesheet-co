@@ -22,6 +22,15 @@ export function AuthProvider({ children }) {
       .eq("id", userId)
       .single();
     if (error) console.error("fetchProfile error:", error);
+
+    if (data && !data.is_active) {
+      await supabase.auth.signOut();
+      setProfile(null);
+      setRevokedNotice(true);
+      setProfileLoading(false);
+      return;
+    }
+
     setProfile(data || null);
     setProfileLoading(false);
   }, []);

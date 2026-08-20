@@ -33,6 +33,7 @@ export function Dashboard({ me, onLogout }) {
     },
     { to: "worklogs", label: "Work Logs", icon: <ClipboardList size={15} /> },
     { to: "projects", label: "Projects", icon: <Tag size={15} /> },
+    { to: "team", label: "Team", icon: <Users size={15} /> },
   ];
   const tabs = isAdmin ? adminTabs : employeeTabs;
 

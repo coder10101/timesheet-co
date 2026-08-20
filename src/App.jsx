@@ -11,6 +11,7 @@ import { AdminAttendance } from "./features/Admin/Attendance";
 import { AdminLeave } from "./features/Admin/Leave";
 import { AdminOverview } from "./features/Admin/Overview";
 import { AdminProjects } from "./features/Admin/Project";
+import { AdminTeam } from "./features/Admin/Team";
 
 export default function App() {
   return (
@@ -21,7 +22,14 @@ export default function App() {
 }
 
 function Root() {
-  const { isAuthLoading, user, profile, profileLoading, signOut } = useAuth();
+  const {
+    isAuthLoading,
+    user,
+    profile,
+    profileLoading,
+    signOut,
+    revokedNotice,
+  } = useAuth();
 
   if (isAuthLoading || (user && profileLoading && !profile)) {
     return (
@@ -30,7 +38,19 @@ function Root() {
       </div>
     );
   }
-  if (!user) return <Login />;
+  if (!user) {
+    if (revokedNotice) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#101820] text-[#EDE7DA] text-sm flex-col gap-2">
+          <p>
+            Your access has been revoked. Contact your admin if this seems
+            wrong.
+          </p>
+        </div>
+      );
+    }
+    return <Login />;
+  }
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#101820] text-[#EDE7DA] text-sm gap-3 flex-col">
@@ -72,6 +92,7 @@ function Root() {
             />
             <Route path="worklogs" element={<AdminWorklogs />} />
             <Route path="projects" element={<AdminProjects me={profile} />} />
+            <Route path="team" element={<AdminTeam me={profile} />} />
           </>
         )}
         <Route path="*" element={<Navigate to="overview" replace />} />
