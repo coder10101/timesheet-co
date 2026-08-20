@@ -1,5 +1,6 @@
 export const WORK_DAY_MINUTES = 8 * 60;
 export const LUNCH_MINUTES = 60;
+export const todayISO = () => new Date().toISOString().slice(0, 10);
 
 /**
  * Calculates actual working time.
@@ -67,4 +68,32 @@ export const calculateLeaveDays = (startDate, endDate) => {
   }
 
   return Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1;
+};
+
+export const fmtTime = (value) => {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kathmandu",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(value));
+};
+
+export const fmtDate = (iso) =>
+  new Date(iso + "T00:00:00").toLocaleDateString([], {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+export const daysBetween = (a, b) =>
+  Math.round((new Date(b) - new Date(a)) / 86400000) + 1;
+
+export const LEAVE_TYPES = ["Annual", "Sick"];
+const STATUS_STYLES = {
+  Pending: "bg-[#F4E3C1] text-[#7A5A17] border-[#E0A458]",
+  Approved: "bg-[#DCE9DE] text-[#2F5233] border-[#6B8F71]",
+  Rejected: "bg-[#F1DAD2] text-[#8C3A20] border-[#B5563A]",
 };

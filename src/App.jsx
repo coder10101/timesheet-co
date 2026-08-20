@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Clock,
   LogIn,
@@ -34,6 +34,7 @@ import {
   WORK_DAY_MINUTES,
 } from "./utils/workTime";
 import { toNepalDateTimeLocal } from "./utils/timezone";
+import { EmployeeOverview } from "./features/Employee/EmployeeOverview";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 function fmtTime(value) {
@@ -57,7 +58,6 @@ const daysBetween = (a, b) =>
 
 /* ---------------- Working hours ---------------- */
 
-const LEAVE_TYPES = ["Annual", "Sick"];
 const STATUS_STYLES = {
   Pending: "bg-[#F4E3C1] text-[#7A5A17] border-[#E0A458]",
   Approved: "bg-[#DCE9DE] text-[#2F5233] border-[#6B8F71]",
@@ -258,491 +258,6 @@ function MiniStat({ label, value }) {
 }
 
 /* ================= Employee views ================= */
-function EmployeeOverview({ me }) {
-  const { records, clockIn, clockOut } = useAttendance(me.id);
-
-  const { entries, addEntry, updateEntry, deleteEntry } = useWorkLogs(me.id);
-
-  const { requests: myLeave } = useLeaveRequests(me.id, "mine");
-
-  const [err, setErr] = useState("");
-
-  const [showWorkInput, setShowWorkInput] = useState(false);
-  const [workText, setWorkText] = useState("");
-  const [editingWorkId, setEditingWorkId] = useState(null);
-  const [savingWork, setSavingWork] = useState(false);
-
-  if (records === null || entries === null || myLeave === null) {
-    return null;
-  }
-
-  const today = todayISO();
-
-  const todayRecord = records.find((r) => r.date === today);
-
-  const todayWorkLogs = entries.filter((entry) => entry.date === today);
-
-  const workedMinutes = todayRecord?.clock_in
-    ? getWorkedMinutes(todayRecord.clock_in, todayRecord.clock_out)
-    : 0;
-
-  const differenceMinutes = workedMinutes - WORK_DAY_MINUTES;
-
-  const presentDays = records.filter((r) => r.clock_in).length;
-
-  const pendingLeave = myLeave.filter((r) => r.status === "Pending").length;
-
-  const formatDifference = () => {
-    if (differenceMinutes === 0) return "—";
-
-    const value = formatDuration(Math.abs(differenceMinutes));
-
-    return differenceMinutes > 0 ? `+${value}` : `-${value}`;
-  };
-
-  const doClockIn = async () => {
-    setErr("");
-
-    try {
-      await clockIn();
-    } catch (e) {
-      setErr(e.message);
-    }
-  };
-
-  const doClockOut = async () => {
-    setErr("");
-
-    try {
-      await clockOut();
-    } catch (e) {
-      setErr(e.message);
-    }
-  };
-
-  const saveWork = async () => {
-    const text = workText.trim();
-
-    if (!text) return;
-
-    setSavingWork(true);
-    setErr("");
-
-    try {
-      if (editingWorkId) {
-        await updateEntry(editingWorkId, text);
-      } else {
-        await addEntry(text);
-      }
-
-      setWorkText("");
-      setEditingWorkId(null);
-      setShowWorkInput(false);
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setSavingWork(false);
-    }
-  };
-
-  const startEditWork = (entry) => {
-    setEditingWorkId(entry.id);
-    setWorkText(entry.entry_text);
-    setShowWorkInput(true);
-  };
-
-  const cancelWork = () => {
-    setEditingWorkId(null);
-    setWorkText("");
-    setShowWorkInput(false);
-  };
-
-  const removeWork = async (id) => {
-    if (!window.confirm("Delete this work log?")) {
-      return;
-    }
-
-    try {
-      await deleteEntry(id);
-    } catch (e) {
-      setErr(e.message);
-    }
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto">
-      {/* HEADER */}
-
-      <div className="flex items-end justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Welcome back, {me.name.split(" ")[0]}
-          </h1>
-
-          <p className="text-xs text-[#7A7362] mt-1">
-            {new Date().toLocaleDateString([], {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-        </div>
-
-        <div className="text-right hidden sm:block">
-          <div className="text-[10px] uppercase tracking-wider text-[#9A9383]">
-            Workday
-          </div>
-
-          <div className="font-mono text-sm">8h required</div>
-        </div>
-      </div>
-
-      {/* ERROR */}
-
-      {err && (
-        <div className="mb-4 px-3 py-2 rounded-lg bg-[#FCEDEA] text-[#B5563A] text-xs">
-          {err}
-        </div>
-      )}
-
-      {/* TODAY HERO */}
-
-      <div className="bg-[#1A2332] text-white rounded-xl px-5 py-4 mb-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                todayRecord?.clock_in ? "bg-[#6B8F71]" : "bg-white/10"
-              }`}
-            >
-              {todayRecord?.clock_in ? (
-                <Clock size={18} />
-              ) : (
-                <LogIn size={18} />
-              )}
-            </div>
-
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-white/50">
-                Today's attendance
-              </div>
-
-              <div className="text-sm font-medium mt-0.5">
-                {!todayRecord?.clock_in
-                  ? "You haven't clocked in yet"
-                  : todayRecord.clock_out
-                    ? "Workday completed"
-                    : "You're currently working"}
-              </div>
-            </div>
-          </div>
-
-          {/* TIMES */}
-
-          <div className="flex items-center gap-6">
-            <div>
-              <div className="text-[10px] text-white/40 uppercase">In</div>
-
-              <div className="font-mono text-sm">
-                {fmtTime(todayRecord?.clock_in)}
-              </div>
-            </div>
-
-            <div className="text-white/20">→</div>
-
-            <div>
-              <div className="text-[10px] text-white/40 uppercase">Out</div>
-
-              <div className="font-mono text-sm">
-                {fmtTime(todayRecord?.clock_out)}
-              </div>
-            </div>
-          </div>
-
-          {/* HOURS */}
-
-          <div className="flex items-center gap-5">
-            <div>
-              <div className="text-[10px] text-white/40 uppercase">Worked</div>
-
-              <div className="font-mono text-lg font-semibold">
-                {todayRecord?.clock_in ? formatDuration(workedMinutes) : "—"}
-              </div>
-            </div>
-
-            {todayRecord?.clock_in && (
-              <div>
-                <div className="text-[10px] text-white/40 uppercase">
-                  {differenceMinutes >= 0 ? "OT" : "Under"}
-                </div>
-
-                <div
-                  className={`font-mono text-sm font-semibold ${
-                    differenceMinutes >= 0 ? "text-[#A9C5AC]" : "text-[#F2A89A]"
-                  }`}
-                >
-                  {formatDifference()}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ACTION */}
-
-          {!todayRecord?.clock_in ? (
-            <button
-              onClick={doClockIn}
-              className="px-4 py-2 rounded-lg bg-[#6B8F71] hover:bg-[#5E8064] text-white text-xs font-medium flex items-center gap-2"
-            >
-              <LogIn size={14} />
-              Clock in
-            </button>
-          ) : !todayRecord.clock_out ? (
-            <button
-              onClick={doClockOut}
-              className="px-4 py-2 rounded-lg bg-[#B5563A] hover:bg-[#A44930] text-white text-xs font-medium flex items-center gap-2"
-            >
-              <LogOut size={14} />
-              Clock out
-            </button>
-          ) : (
-            <div className="text-xs text-white/50">Completed</div>
-          )}
-        </div>
-      </div>
-
-      {/* MAIN GRID */}
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mb-4">
-        {/* TODAY'S WORK */}
-
-        <Card
-          title="Today's work"
-          subtitle={
-            todayWorkLogs.length
-              ? `${todayWorkLogs.length} logged`
-              : "Nothing logged yet"
-          }
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] text-[#9A9383]">
-              Keep a quick record of what you worked on.
-            </span>
-
-            {!showWorkInput && (
-              <button
-                onClick={() => setShowWorkInput(true)}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#3D6B7D] hover:underline"
-              >
-                <Plus size={13} />
-                Add work
-              </button>
-            )}
-          </div>
-
-          {/* INLINE ADD / EDIT */}
-
-          {showWorkInput && (
-            <div className="mb-3">
-              <textarea
-                autoFocus
-                value={workText}
-                onChange={(e) => setWorkText(e.target.value)}
-                placeholder="What did you work on?"
-                rows={2}
-                className="w-full border border-[#DDD8CB] rounded-lg px-3 py-2 text-sm resize-none outline-none focus:border-[#3D6B7D]"
-              />
-
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={saveWork}
-                  disabled={!workText.trim() || savingWork}
-                  className="px-3 py-1.5 rounded-md bg-[#3D6B7D] text-white text-xs font-medium disabled:opacity-40"
-                >
-                  {savingWork ? "Saving..." : editingWorkId ? "Update" : "Add"}
-                </button>
-
-                <button
-                  onClick={cancelWork}
-                  className="px-3 py-1.5 rounded-md border border-[#DDD8CB] text-xs"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* LOGS */}
-
-          {todayWorkLogs.length === 0 ? (
-            <div className="py-4 text-center border border-dashed border-[#E4DFD3] rounded-lg">
-              <ClipboardList
-                size={20}
-                className="mx-auto text-[#B6B0A2] mb-1"
-              />
-
-              <div className="text-xs text-[#7A7362]">No work logged today</div>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {todayWorkLogs.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="group flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-[#F7F5F0]"
-                >
-                  <div className="flex items-start gap-2 min-w-0">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#3D6B7D] mt-1.5 shrink-0" />
-
-                    <span className="text-xs leading-relaxed">
-                      {entry.entry_text}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => startEditWork(entry)}
-                      className="p-1.5 rounded hover:bg-white"
-                      title="Edit"
-                    >
-                      <Pencil size={12} />
-                    </button>
-
-                    <button
-                      onClick={() => removeWork(entry.id)}
-                      className="p-1.5 rounded hover:bg-white text-[#B5563A]"
-                      title="Delete"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        {/* LEAVE */}
-
-        <Card
-          title="Leave balance"
-          subtitle={
-            pendingLeave ? `${pendingLeave} request pending` : "Available days"
-          }
-        >
-          <div className="grid grid-cols-2 gap-2">
-            {LEAVE_TYPES.map((type) => (
-              <div key={type} className="bg-[#F5F3EE] rounded-lg px-3 py-3">
-                <div className="text-[10px] uppercase tracking-wide text-[#8A8374]">
-                  {type}
-                </div>
-
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span className="font-mono text-xl font-semibold">
-                    {me.leave_balance?.[type] ?? 0}
-                  </span>
-
-                  <span className="text-[10px] text-[#8A8374]">days</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {pendingLeave > 0 && (
-            <div className="mt-3 px-3 py-2 rounded-lg bg-[#F8F2E3] text-[#7A5A17] text-[11px]">
-              You have {pendingLeave} leave request
-              {pendingLeave > 1 ? "s" : ""} waiting for approval.
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* QUICK STATS */}
-
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <MiniStat label="Days present" value={presentDays} />
-
-        <MiniStat label="Annual left" value={me.leave_balance?.Annual ?? 0} />
-
-        <MiniStat label="Sick left" value={me.leave_balance?.Sick ?? 0} />
-      </div>
-
-      {/* RECENT ACTIVITY */}
-
-      <Card title="Recent activity" subtitle="Your latest workdays">
-        {records.length === 0 ? (
-          <div className="text-xs text-[#7A7362] py-3">
-            No attendance records yet.
-          </div>
-        ) : (
-          <div className="divide-y divide-[#EDE9DF]">
-            {records
-              .filter((r) => r.clock_in)
-              .slice(0, 5)
-              .map((record) => {
-                const minutes = getWorkedMinutes(
-                  record.clock_in,
-                  record.clock_out,
-                );
-
-                const diff = minutes - WORK_DAY_MINUTES;
-
-                const dayLogs = entries.filter(
-                  (entry) => entry.date === record.date,
-                );
-
-                return (
-                  <div
-                    key={record.id}
-                    className="py-2.5 flex items-center justify-between gap-4"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-xs font-medium">
-                        {fmtDate(record.date)}
-                      </div>
-
-                      <div className="text-[11px] text-[#8A8374] truncate mt-0.5">
-                        {dayLogs.length
-                          ? dayLogs.map((x) => x.entry_text).join(" · ")
-                          : "No work log"}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-5 shrink-0">
-                      <div className="text-right">
-                        <div className="font-mono text-xs">
-                          {formatDuration(minutes)}
-                        </div>
-
-                        <div className="text-[9px] uppercase text-[#9A9383]">
-                          worked
-                        </div>
-                      </div>
-
-                      <div
-                        className={`font-mono text-xs w-12 text-right ${
-                          diff > 0
-                            ? "text-[#6B8F71]"
-                            : diff < 0
-                              ? "text-[#B5563A]"
-                              : "text-[#9A9383]"
-                        }`}
-                      >
-                        {diff > 0
-                          ? `+${formatDuration(diff)}`
-                          : diff < 0
-                            ? `-${formatDuration(diff)}`
-                            : "—"}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-}
 
 function EmployeeAttendance({ me }) {
   const { records, updateAttendance } = useAttendance(me.id);
@@ -1444,53 +959,181 @@ function EmployeeLeave({ me }) {
 function AdminOverview() {
   const { employees } = useRoster();
   const { requests: allLeave } = useLeaveRequests(null, "org");
+
   if (employees === null || allLeave === null) return null;
 
-  const pendingLeave = allLeave.filter((r) => r.status === "Pending").length;
+  const pendingLeave = allLeave.filter((r) => r.status === "Pending");
+
+  const approvedLeave = allLeave.filter((r) => r.status === "Approved");
+
+  const today = todayISO();
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-5">Team overview</h1>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    <div className="space-y-5">
+      {/* HEADER */}
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#292722]">
+            Team overview
+          </h1>
+          <p className="text-sm text-[#7A7362] mt-1">
+            A quick look at your team's attendance and leave.
+          </p>
+        </div>
+
+        <div className="text-xs font-mono text-[#7A7362]">{fmtDate(today)}</div>
+      </div>
+
+      {/* MAIN STATS */}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatBlock label="Employees" value={employees.length} />
+
         <StatBlock
           label="Pending leave"
-          value={pendingLeave}
-          accent={pendingLeave ? "text-[#7A5A17]" : undefined}
+          value={pendingLeave.length}
+          accent={pendingLeave.length ? "text-[#7A5A17]" : undefined}
         />
+
         <StatBlock
           label="Admins"
           value={employees.filter((e) => e.role === "admin").length}
         />
+
+        <StatBlock label="Approved leave" value={approvedLeave.length} />
       </div>
-      <Card title="Roster">
-        {employees.length === 0 ? (
-          <EmptyState text="No employees yet." />
-        ) : (
-          <div className="divide-y divide-[#EEEAE0]">
-            {employees.map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center justify-between py-2.5"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="w-7 h-7 rounded-full bg-[#3D6B7D] text-white flex items-center justify-center text-[11px] font-mono">
-                    {e.name.slice(0, 2).toUpperCase()}
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium">{e.name}</div>
-                    <div className="text-[11px] text-[#7A7362]">
-                      {e.title} · {e.role}
+
+      {/* TWO COLUMN AREA */}
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        {/* PENDING LEAVE */}
+
+        <Card
+          title="Leave requiring attention"
+          subtitle={`${pendingLeave.length} pending request${
+            pendingLeave.length !== 1 ? "s" : ""
+          }`}
+        >
+          {pendingLeave.length === 0 ? (
+            <div className="py-6 text-center">
+              <div className="text-2xl mb-1">✓</div>
+
+              <div className="text-sm font-medium">All caught up</div>
+
+              <div className="text-xs text-[#7A7362] mt-1">
+                No leave requests need your attention.
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {pendingLeave.slice(0, 5).map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-[#F8F6F1] px-3 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {r.employeeName}
+                    </div>
+
+                    <div className="text-xs text-[#7A7362] mt-0.5">
+                      {r.type} · {r.days} day
+                      {r.days !== 1 ? "s" : ""}
                     </div>
                   </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="text-[11px] font-mono text-[#7A7362]">
+                      {fmtDate(r.start_date)}
+                    </div>
+
+                    <StatusPill status={r.status} />
+                  </div>
                 </div>
-                <span className="font-mono text-[11px] text-[#7A7362]">
-                  joined {fmtDate(e.join_date)}
-                </span>
-              </div>
-            ))}
+              ))}
+
+              {pendingLeave.length > 5 && (
+                <div className="text-center text-xs text-[#7A7362] pt-2">
+                  + {pendingLeave.length - 5} more
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+
+        {/* TEAM */}
+
+        <Card title="Team" subtitle={`${employees.length} people`}>
+          {employees.length === 0 ? (
+            <EmptyState text="No employees yet." />
+          ) : (
+            <div className="space-y-1">
+              {employees.slice(0, 6).map((e) => (
+                <div
+                  key={e.id}
+                  className="flex items-center justify-between py-2"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-8 h-8 rounded-full bg-[#3D6B7D] text-white flex items-center justify-center text-[10px] font-medium">
+                      {e.name.slice(0, 2).toUpperCase()}
+                    </span>
+
+                    <div>
+                      <div className="text-sm font-medium">{e.name}</div>
+
+                      <div className="text-[11px] text-[#7A7362]">
+                        {e.title || "Employee"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] uppercase tracking-wide text-[#7A7362]">
+                    {e.role}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* QUICK INFO */}
+
+      <Card title="Quick summary">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <div className="text-[11px] uppercase text-[#7A7362]">
+              Leave requests
+            </div>
+
+            <div className="text-xl font-semibold mt-1">{allLeave.length}</div>
           </div>
-        )}
+
+          <div>
+            <div className="text-[11px] uppercase text-[#7A7362]">Pending</div>
+
+            <div className="text-xl font-semibold mt-1 text-[#7A5A17]">
+              {pendingLeave.length}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] uppercase text-[#7A7362]">Approved</div>
+
+            <div className="text-xl font-semibold mt-1">
+              {approvedLeave.length}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[11px] uppercase text-[#7A7362]">
+              Team size
+            </div>
+
+            <div className="text-xl font-semibold mt-1">{employees.length}</div>
+          </div>
+        </div>
       </Card>
     </div>
   );
@@ -1498,21 +1141,50 @@ function AdminOverview() {
 
 function AdminAttendance() {
   const { employees } = useRoster();
+
   const [sel, setSel] = useState(null);
+
   const { records } = useAttendance(sel);
 
+  useEffect(() => {
+    if (!sel && employees?.length) {
+      setSel(employees[0].id);
+    }
+  }, [employees, sel]);
+
   if (employees === null) return null;
+
+  const selectedEmployee = employees.find((e) => e.id === sel) || employees[0];
+
   const selected = sel || employees[0]?.id || null;
-  if (!sel && employees[0]) setSel(employees[0].id);
+
+  const today = todayISO();
+
+  const todayRecord = (records || []).find((r) => r.date === today) || null;
+
+  const workedMinutes = todayRecord
+    ? getWorkedMinutes(todayRecord.clock_in, todayRecord.clock_out)
+    : 0;
+
+  const difference = todayRecord?.clock_out ? workedMinutes - 8 * 60 : 0;
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-5">Attendance records</h1>
-      <Card>
+    <div className="space-y-5">
+      {/* HEADER */}
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Attendance</h1>
+
+          <p className="text-sm text-[#7A7362] mt-1">
+            Monitor attendance and working hours.
+          </p>
+        </div>
+
         <select
           value={selected || ""}
           onChange={(e) => setSel(e.target.value)}
-          className="border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm mb-4"
+          className="border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm bg-white min-w-[180px]"
         >
           {employees.map((e) => (
             <option key={e.id} value={e.id}>
@@ -1520,91 +1192,312 @@ function AdminAttendance() {
             </option>
           ))}
         </select>
-        {!selected ? (
-          <EmptyState text="No employees yet." />
-        ) : records === null ? null : records.length === 0 ? (
-          <EmptyState text="No attendance recorded for this employee." />
-        ) : (
-          <div className="divide-y divide-[#EEEAE0]">
-            {records.map((r) => (
-              <div
-                key={r.id}
-                className="flex items-center justify-between py-2.5 text-sm"
-              >
-                <span className="font-mono text-[#7A7362] w-32">
-                  {fmtDate(r.date)}
-                </span>
-                <span className="flex items-center gap-1.5 text-[#6B8F71]">
-                  <LogIn size={13} />
-                  {fmtTime(r.clock_in)}
-                </span>
-                <span className="flex items-center gap-1.5 text-[#B5563A]">
-                  <LogOut size={13} />
-                  {fmtTime(r.clock_out)}
-                </span>
-                <StatusPill status={r.clock_out ? "Approved" : "Pending"} />
+      </div>
+
+      {!selected ? (
+        <EmptyState text="No employees yet." />
+      ) : records === null ? null : (
+        <>
+          {/* TODAY */}
+
+          <Card
+            title={
+              selectedEmployee
+                ? `${selectedEmployee.name}'s day`
+                : "Today's attendance"
+            }
+            subtitle={fmtDate(today)}
+          >
+            {!todayRecord ? (
+              <div className="py-8 text-center">
+                <div className="text-sm font-medium">
+                  No attendance recorded today
+                </div>
+
+                <div className="text-xs text-[#7A7362] mt-1">
+                  This employee has not clocked in.
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </Card>
+            ) : (
+              <div className="space-y-5">
+                {/* TIMES */}
+
+                <div className="flex flex-wrap items-center gap-6">
+                  <div>
+                    <div className="text-[10px] uppercase text-[#7A7362] mb-1">
+                      Clock in
+                    </div>
+
+                    <div className="text-xl font-mono font-semibold text-[#6B8F71]">
+                      {fmtTime(todayRecord.clock_in)}
+                    </div>
+                  </div>
+
+                  <div className="text-[#BDB7AA]">→</div>
+
+                  <div>
+                    <div className="text-[10px] uppercase text-[#7A7362] mb-1">
+                      Clock out
+                    </div>
+
+                    <div className="text-xl font-mono font-semibold text-[#B5563A]">
+                      {todayRecord.clock_out
+                        ? fmtTime(todayRecord.clock_out)
+                        : "Still working"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* STATS */}
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <MiniStat
+                    label="Worked"
+                    value={
+                      todayRecord.clock_out
+                        ? formatDuration(workedMinutes)
+                        : "—"
+                    }
+                  />
+
+                  <MiniStat label="Expected" value="8h 00m" />
+
+                  <MiniStat
+                    label={difference >= 0 ? "Overtime" : "Undertime"}
+                    value={
+                      todayRecord.clock_out
+                        ? difference >= 0
+                          ? `+${formatDuration(difference)}`
+                          : `-${formatDuration(difference)}`
+                        : "—"
+                    }
+                  />
+
+                  <MiniStat label="Lunch" value="1h" />
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* HISTORY */}
+
+          <Card
+            title="Attendance history"
+            subtitle={`${records.length} record${
+              records.length !== 1 ? "s" : ""
+            }`}
+          >
+            {records.length === 0 ? (
+              <EmptyState text="No attendance recorded for this employee." />
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[650px]">
+                  <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-3 px-3 pb-2 text-[10px] uppercase tracking-wide text-[#8C8576]">
+                    <span>Date</span>
+                    <span>Clock in</span>
+                    <span>Clock out</span>
+                    <span>Worked</span>
+                    <span>Difference</span>
+                  </div>
+
+                  <div className="divide-y divide-[#EEEAE0]">
+                    {records.map((r) => {
+                      const worked = r.clock_out
+                        ? getWorkedMinutes(r.clock_in, r.clock_out)
+                        : null;
+
+                      const diff = worked !== null ? worked - 8 * 60 : null;
+
+                      return (
+                        <div
+                          key={r.id}
+                          className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-3 items-center px-3 py-3 text-sm"
+                        >
+                          <span className="font-mono text-[#7A7362]">
+                            {fmtDate(r.date)}
+                          </span>
+
+                          <span className="font-mono text-[#6B8F71]">
+                            {fmtTime(r.clock_in)}
+                          </span>
+
+                          <span className="font-mono text-[#B5563A]">
+                            {fmtTime(r.clock_out)}
+                          </span>
+
+                          <span>
+                            {worked !== null ? formatDuration(worked) : "—"}
+                          </span>
+
+                          <span
+                            className={
+                              diff === null
+                                ? "text-[#7A7362]"
+                                : diff >= 0
+                                  ? "text-[#6B8F71]"
+                                  : "text-[#B5563A]"
+                            }
+                          >
+                            {diff === null
+                              ? "—"
+                              : diff >= 0
+                                ? `+${formatDuration(diff)}`
+                                : `-${formatDuration(diff)}`}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
     </div>
   );
 }
 
 function AdminLeave({ me }) {
   const { requests, decide } = useLeaveRequests(null, "org");
+
   const { adjustBalance } = useRoster();
+
   if (requests === null) return null;
 
   const act = async (r, status) => {
     await decide(r.id, status, me.id);
-    if (status === "Approved" && r.type !== "Unpaid")
+
+    if (status === "Approved" && r.type !== "Unpaid") {
       await adjustBalance(r.employee_id, r.type, -r.days);
+    }
   };
 
   const pending = requests.filter((r) => r.status === "Pending");
+
   const decided = requests.filter((r) => r.status !== "Pending");
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-5">Leave approvals</h1>
-      <Card title="Pending" subtitle={`${pending.length} awaiting review`}>
+    <div className="space-y-5">
+      {/* HEADER */}
+
+      <div>
+        <h1 className="text-2xl font-semibold">Leave approvals</h1>
+
+        <p className="text-sm text-[#7A7362] mt-1">
+          Review and manage employee leave requests.
+        </p>
+      </div>
+
+      {/* SUMMARY */}
+
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <StatBlock
+          label="Pending"
+          value={pending.length}
+          accent={pending.length ? "text-[#7A5A17]" : undefined}
+        />
+
+        <StatBlock
+          label="Approved"
+          value={requests.filter((r) => r.status === "Approved").length}
+        />
+
+        <StatBlock
+          label="Rejected"
+          value={requests.filter((r) => r.status === "Rejected").length}
+        />
+      </div>
+
+      {/* PENDING */}
+
+      <Card
+        title="Pending requests"
+        subtitle={`${pending.length} awaiting review`}
+      >
         {pending.length === 0 ? (
-          <EmptyState text="Nothing pending." />
+          <div className="py-8 text-center">
+            <div className="text-2xl mb-1">✓</div>
+
+            <div className="text-sm font-medium">Nothing to review</div>
+
+            <div className="text-xs text-[#7A7362] mt-1">
+              All leave requests have been handled.
+            </div>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {pending.map((r) => (
               <div
                 key={r.id}
-                className="border border-[#EEEAE0] rounded-lg px-3 py-3"
+                className="border border-[#E8E3D8] rounded-xl p-4 bg-[#FCFBF8]"
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <div className="text-sm font-medium">
-                      {r.employeeName} · {r.type} · {r.days} day
-                      {r.days > 1 ? "s" : ""}
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex gap-3">
+                    <div className="w-9 h-9 rounded-full bg-[#3D6B7D] text-white flex items-center justify-center text-xs font-medium shrink-0">
+                      {r.employeeName?.slice(0, 2).toUpperCase()}
                     </div>
-                    <div className="text-[12px] text-[#7A7362] font-mono">
-                      {fmtDate(r.start_date)} – {fmtDate(r.end_date)}
-                    </div>
-                    <div className="text-[12px] text-[#7A7362] mt-1">
-                      "{r.reason}"
+
+                    <div>
+                      <div className="text-sm font-semibold">
+                        {r.employeeName}
+                      </div>
+
+                      <div className="text-xs text-[#7A7362] mt-0.5">
+                        {r.type} leave
+                      </div>
                     </div>
                   </div>
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => act(r, "Approved")}
-                      className="px-3 py-1.5 rounded-lg bg-[#6B8F71] text-white text-[12px] font-medium"
+                      className="px-3 py-1.5 rounded-lg bg-[#6B8F71] text-white text-xs font-medium hover:opacity-90"
                     >
                       Approve
                     </button>
+
                     <button
                       onClick={() => act(r, "Rejected")}
-                      className="px-3 py-1.5 rounded-lg bg-[#B5563A] text-white text-[12px] font-medium"
+                      className="px-3 py-1.5 rounded-lg bg-[#B5563A] text-white text-xs font-medium hover:opacity-90"
                     >
                       Reject
                     </button>
+                  </div>
+                </div>
+
+                {/* DETAILS */}
+
+                <div className="grid sm:grid-cols-3 gap-3 mt-4 pt-3 border-t border-[#EEEAE0]">
+                  <div>
+                    <div className="text-[10px] uppercase text-[#8C8576]">
+                      Dates
+                    </div>
+
+                    <div className="text-sm font-mono mt-1">
+                      {fmtDate(r.start_date)} – {fmtDate(r.end_date)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10px] uppercase text-[#8C8576]">
+                      Duration
+                    </div>
+
+                    <div className="text-sm mt-1">
+                      {r.days} day
+                      {r.days !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-[10px] uppercase text-[#8C8576]">
+                      Reason
+                    </div>
+
+                    <div className="text-sm mt-1 text-[#5E594E]">
+                      {r.reason || "No reason provided"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1612,23 +1505,37 @@ function AdminLeave({ me }) {
           </div>
         )}
       </Card>
-      <Card title="History">
+
+      {/* HISTORY */}
+
+      <Card
+        title="Decision history"
+        subtitle={`${decided.length} completed request${
+          decided.length !== 1 ? "s" : ""
+        }`}
+      >
         {decided.length === 0 ? (
           <EmptyState text="No decisions yet." />
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-[#EEEAE0]">
             {decided.map((r) => (
               <div
                 key={r.id}
-                className="flex flex-wrap items-center justify-between gap-2 border border-[#EEEAE0] rounded-lg px-3 py-2.5"
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
               >
-                <div className="text-sm">
-                  {r.employeeName} · {r.type} · {r.days} day
-                  {r.days > 1 ? "s" : ""}{" "}
-                  <span className="text-[#7A7362] font-mono text-[12px]">
-                    ({fmtDate(r.start_date)})
-                  </span>
+                <div>
+                  <div className="text-sm font-medium">
+                    {r.employeeName}
+                    <span className="text-[#7A7362]"> · {r.type}</span>
+                  </div>
+
+                  <div className="text-[11px] text-[#7A7362] font-mono mt-0.5">
+                    {fmtDate(r.start_date)} – {fmtDate(r.end_date)} · {r.days}{" "}
+                    day
+                    {r.days !== 1 ? "s" : ""}
+                  </div>
                 </div>
+
                 <StatusPill status={r.status} />
               </div>
             ))}
@@ -1641,25 +1548,52 @@ function AdminLeave({ me }) {
 
 function AdminWorklogs() {
   const { employees } = useRoster();
+
   const [sel, setSel] = useState(null);
+
   const { entries } = useWorkLogs(sel);
 
+  const { records } = useAttendance(sel);
+
+  useEffect(() => {
+    if (!sel && employees?.length) {
+      setSel(employees[0].id);
+    }
+  }, [employees, sel]);
+
   if (employees === null) return null;
+
   const selected = sel || employees[0]?.id || null;
-  if (!sel && employees[0]) setSel(employees[0].id);
+
+  const employee = employees.find((e) => e.id === selected);
+
   const grouped = (entries || []).reduce((acc, e) => {
     (acc[e.date] ||= []).push(e);
     return acc;
   }, {});
 
+  const attendanceByDate = (records || []).reduce((acc, r) => {
+    acc[r.date] = r;
+    return acc;
+  }, {});
+
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-5">Work logs</h1>
-      <Card>
+    <div className="space-y-5">
+      {/* HEADER */}
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Work logs</h1>
+
+          <p className="text-sm text-[#7A7362] mt-1">
+            See what each employee worked on and how long they worked.
+          </p>
+        </div>
+
         <select
           value={selected || ""}
           onChange={(e) => setSel(e.target.value)}
-          className="border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm mb-4"
+          className="border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm bg-white min-w-[180px]"
         >
           {employees.map((e) => (
             <option key={e.id} value={e.id}>
@@ -1667,28 +1601,110 @@ function AdminWorklogs() {
             </option>
           ))}
         </select>
-        {!selected ? (
-          <EmptyState text="No employees yet." />
-        ) : Object.keys(grouped).length === 0 ? (
-          <EmptyState text="No work logged by this employee yet." />
-        ) : (
-          Object.entries(grouped).map(([date, items]) => (
-            <div key={date} className="mb-4 last:mb-0">
-              <div className="font-mono text-[12px] text-[#7A7362] mb-1.5">
-                {fmtDate(date)}
-              </div>
-              <ul className="space-y-1.5">
-                {items.map((it) => (
-                  <li key={it.id} className="text-sm flex gap-2 items-start">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#3D6B7D] mt-1.5 shrink-0" />
-                    {it.entry_text}
-                  </li>
-                ))}
-              </ul>
+      </div>
+
+      {!selected ? (
+        <EmptyState text="No employees yet." />
+      ) : (
+        <Card
+          title={employee ? employee.name : "Employee"}
+          subtitle="Work history"
+        >
+          {Object.keys(grouped).length === 0 ? (
+            <EmptyState text="No work logged by this employee yet." />
+          ) : (
+            <div className="space-y-5">
+              {Object.entries(grouped).map(([date, items]) => {
+                const attendance = attendanceByDate[date];
+
+                const worked = attendance?.clock_out
+                  ? getWorkedMinutes(attendance.clock_in, attendance.clock_out)
+                  : null;
+
+                const difference = worked !== null ? worked - 8 * 60 : null;
+
+                return (
+                  <div
+                    key={date}
+                    className="border border-[#EEEAE0] rounded-xl overflow-hidden"
+                  >
+                    {/* DATE HEADER */}
+
+                    <div className="bg-[#F8F6F1] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold">
+                          {fmtDate(date)}
+                        </div>
+
+                        <div className="text-[11px] text-[#7A7362] mt-0.5">
+                          {items.length} work log
+                          {items.length !== 1 ? "s" : ""}
+                        </div>
+                      </div>
+
+                      {/* HOURS */}
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-[9px] uppercase text-[#8C8576]">
+                            Worked
+                          </div>
+
+                          <div className="font-mono text-sm font-semibold">
+                            {worked !== null ? formatDuration(worked) : "—"}
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <div className="text-[9px] uppercase text-[#8C8576]">
+                            {difference !== null && difference >= 0
+                              ? "OT"
+                              : "Undertime"}
+                          </div>
+
+                          <div
+                            className={`font-mono text-sm font-semibold ${
+                              difference === null
+                                ? "text-[#7A7362]"
+                                : difference >= 0
+                                  ? "text-[#6B8F71]"
+                                  : "text-[#B5563A]"
+                            }`}
+                          >
+                            {difference === null
+                              ? "—"
+                              : difference >= 0
+                                ? `+${formatDuration(difference)}`
+                                : `-${formatDuration(difference)}`}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* WORK */}
+
+                    <div className="px-4 py-3">
+                      <div className="text-[10px] uppercase tracking-wide text-[#8C8576] mb-2">
+                        Work completed
+                      </div>
+
+                      <div className="space-y-2">
+                        {items.map((it) => (
+                          <div key={it.id} className="flex gap-2.5 text-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#3D6B7D] mt-2 shrink-0" />
+
+                            <span>{it.entry_text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))
-        )}
-      </Card>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
