@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Clock,
   FileText,
+  PartyPopper,
   Sunrise,
   Tag,
   Users,
@@ -26,6 +27,7 @@ export function Dashboard({ me, onLogout }) {
     { to: "worklogs", label: "Logs", icon: <ClipboardList size={15} /> },
     { to: "projects", label: "Projects", icon: <Tag size={15} /> },
     { to: "team", label: "Team", icon: <Users size={15} /> },
+    { to: "holidays", label: "Holidays", icon: <PartyPopper size={15} /> }, // import from lucide-react
   ];
   const tabs = isAdmin ? adminTabs : employeeTabs;
 
@@ -117,9 +119,6 @@ export function Dashboard({ me, onLogout }) {
           <div className="flex-1">
             <Outlet />
           </div>
-          <footer className="mt-10 pt-4 border-t border-[#E4DFD3] text-[10px] text-[#9A9383]">
-            © 2026 Aditi Acharya. All rights reserved.
-          </footer>
         </main>
 
         {/* ================= MOBILE BOTTOM NAV (visible only on mobile) ================= */}

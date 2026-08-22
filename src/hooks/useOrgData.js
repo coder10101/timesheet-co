@@ -479,10 +479,10 @@ export function useHolidays() {
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
 
   const addHoliday = useMutation({
-    mutationFn: async ({ date, name, orgId }) => {
+    mutationFn: async ({ date, name, category = "public", orgId }) => {
       const { error } = await supabase
         .from("holidays")
-        .insert({ date, name, org_id: orgId });
+        .insert({ date, name, category, org_id: orgId });
       if (error) throw error;
     },
     onSuccess: invalidate,
