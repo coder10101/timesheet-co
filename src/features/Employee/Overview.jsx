@@ -3,10 +3,16 @@ import {
   Clock,
   LogIn,
   LogOut,
-  ClipboardList,
   Plus,
   Pencil,
   Trash2,
+  Sun,
+  HeartPulse,
+  Coffee,
+  Wallet,
+  Check,
+  X,
+  CalendarCheck,
 } from "lucide-react";
 import {
   useAttendance,
@@ -15,16 +21,20 @@ import {
   useProjects,
 } from "../../hooks/useOrgData";
 import {
-  fmtDate,
   fmtTime,
   formatDuration,
   getWorkedMinutes,
-  LEAVE_TYPES,
   todayISO,
   WORK_DAY_MINUTES,
 } from "../../utils/workTime";
 import { Card } from "../../components/Card";
-import { MiniStat } from "../../components/MiniStat";
+
+const LEAVE_VISUAL = {
+  Annual: { icon: Sun, color: "#3D6B7D", max: 24 },
+  Sick: { icon: HeartPulse, color: "#B5563A", max: 10 },
+  Casual: { icon: Coffee, color: "#E0A458", max: 7 },
+  Unpaid: { icon: Wallet, color: "#7A7362", max: 30 },
+};
 
 export function EmployeeOverview({ me }) {
   const { records, clockIn, clockOut } = useAttendance(me.id);
@@ -33,8 +43,6 @@ export function EmployeeOverview({ me }) {
   const { projects } = useProjects();
 
   const [err, setErr] = useState("");
-
-  const [showWorkInput, setShowWorkInput] = useState(false);
   const [workText, setWorkText] = useState("");
   const [workProjectId, setWorkProjectId] = useState("");
   const [editingWorkId, setEditingWorkId] = useState(null);
@@ -50,7 +58,6 @@ export function EmployeeOverview({ me }) {
   }
 
   const activeProjects = projects.filter((p) => !p.archived);
-
   const today = todayISO();
   const todayRecord = records.find((r) => r.date === today);
   const todayWorkLogs = entries.filter((entry) => entry.date === today);
@@ -61,6 +68,8 @@ export function EmployeeOverview({ me }) {
   const differenceMinutes = workedMinutes - WORK_DAY_MINUTES;
   const presentDays = records.filter((r) => r.clock_in).length;
   const pendingLeave = myLeave.filter((r) => r.status === "Pending").length;
+
+  const projectFor = (id) => projects.find((p) => p.id === id);
 
   const formatDifference = () => {
     if (differenceMinutes === 0) return "—";
@@ -76,7 +85,6 @@ export function EmployeeOverview({ me }) {
       setErr(e.message);
     }
   };
-
   const doClockOut = async () => {
     setErr("");
     try {
@@ -89,7 +97,6 @@ export function EmployeeOverview({ me }) {
   const saveWork = async () => {
     const text = workText.trim();
     if (!text) return;
-
     setSavingWork(true);
     setErr("");
     try {
@@ -101,7 +108,6 @@ export function EmployeeOverview({ me }) {
       setWorkText("");
       setWorkProjectId("");
       setEditingWorkId(null);
-      setShowWorkInput(false);
     } catch (e) {
       setErr(e.message);
     } finally {
@@ -113,14 +119,12 @@ export function EmployeeOverview({ me }) {
     setEditingWorkId(entry.id);
     setWorkText(entry.entry_text);
     setWorkProjectId(entry.project_id || "");
-    setShowWorkInput(true);
   };
 
   const cancelWork = () => {
     setEditingWorkId(null);
     setWorkText("");
     setWorkProjectId("");
-    setShowWorkInput(false);
   };
 
   const removeWork = async (id) => {
@@ -132,12 +136,10 @@ export function EmployeeOverview({ me }) {
     }
   };
 
-  const projectFor = (id) => projects.find((p) => p.id === id);
-
   return (
     <div className="max-w-6xl mx-auto">
       {/* HEADER */}
-      <div className="flex items-end justify-between mb-5">
+      <div className="flex items-end justify-between mb-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
             Welcome back, {me.name.split(" ")[0]}
@@ -150,333 +152,320 @@ export function EmployeeOverview({ me }) {
             })}
           </p>
         </div>
-        <div className="text-right hidden sm:block">
-          <div className="text-[10px] uppercase tracking-wider text-[#9A9383]">
-            Workday
-          </div>
-          <div className="font-mono text-sm">8h required</div>
+        <div className="hidden sm:flex items-center gap-1.5 text-[#7A7362] text-xs">
+          <CalendarCheck size={13} />
+          <span className="font-mono">{presentDays}</span> days present
         </div>
       </div>
 
       {err && (
-        <div className="mb-4 px-3 py-2 rounded-lg bg-[#FCEDEA] text-[#B5563A] text-xs">
+        <div className="mb-3 px-3 py-2 rounded-lg bg-[#FCEDEA] text-[#B5563A] text-xs">
           {err}
         </div>
       )}
 
-      {/* TODAY HERO — unchanged */}
-      <div className="bg-[#1A2332] text-white rounded-xl px-5 py-4 mb-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${todayRecord?.clock_in ? "bg-[#6B8F71]" : "bg-white/10"}`}
-            >
-              {todayRecord?.clock_in ? (
-                <Clock size={18} />
-              ) : (
-                <LogIn size={18} />
+      {/* TWO-COLUMN LAYOUT ON WIDE SCREENS: work on the left, leave as a sidebar on the right */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 items-start">
+        {/* LEFT COLUMN */}
+        <div>
+          {/* CLOCK IN/OUT */}
+          <div className="bg-[#1A2332] text-white rounded-xl p-4 mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${todayRecord?.clock_in ? "bg-[#6B8F71]" : "bg-white/10"}`}
+              >
+                {todayRecord?.clock_in ? (
+                  <Clock size={16} />
+                ) : (
+                  <LogIn size={16} />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-wider text-white/50">
+                  Today
+                </div>
+                <div className="text-sm font-medium truncate">
+                  {!todayRecord?.clock_in
+                    ? "Not clocked in yet"
+                    : todayRecord.clock_out
+                      ? "Workday completed"
+                      : "Currently working"}
+                </div>
+              </div>
+              {todayRecord?.clock_in && (
+                <div className="text-right shrink-0">
+                  <div className="font-mono text-base font-semibold leading-tight">
+                    {formatDuration(workedMinutes)}
+                  </div>
+                  <div
+                    className={`font-mono text-[10px] leading-tight ${differenceMinutes >= 0 ? "text-[#A9C5AC]" : "text-[#F2A89A]"}`}
+                  >
+                    {differenceMinutes >= 0 ? "OT " : "Under "}
+                    {formatDifference()}
+                  </div>
+                </div>
               )}
             </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-white/50">
-                Today's attendance
-              </div>
-              <div className="text-sm font-medium mt-0.5">
-                {!todayRecord?.clock_in
-                  ? "You haven't clocked in yet"
-                  : todayRecord.clock_out
-                    ? "Workday completed"
-                    : "You're currently working"}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <div>
-              <div className="text-[10px] text-white/40 uppercase">In</div>
-              <div className="font-mono text-sm">
-                {fmtTime(todayRecord?.clock_in)}
-              </div>
-            </div>
-            <div className="text-white/20">→</div>
-            <div>
-              <div className="text-[10px] text-white/40 uppercase">Out</div>
-              <div className="font-mono text-sm">
-                {fmtTime(todayRecord?.clock_out)}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-5">
-            <div>
-              <div className="text-[10px] text-white/40 uppercase">Worked</div>
-              <div className="font-mono text-lg font-semibold">
-                {todayRecord?.clock_in ? formatDuration(workedMinutes) : "—"}
-              </div>
-            </div>
-            {todayRecord?.clock_in && (
-              <div>
-                <div className="text-[10px] text-white/40 uppercase">
-                  {differenceMinutes >= 0 ? "OT" : "Under"}
-                </div>
-                <div
-                  className={`font-mono text-sm font-semibold ${differenceMinutes >= 0 ? "text-[#A9C5AC]" : "text-[#F2A89A]"}`}
-                >
-                  {formatDifference()}
-                </div>
-              </div>
-            )}
-          </div>
-          {!todayRecord?.clock_in ? (
-            <button
-              onClick={doClockIn}
-              className="px-4 py-2 rounded-lg bg-[#6B8F71] hover:bg-[#5E8064] text-white text-xs font-medium flex items-center gap-2"
-            >
-              <LogIn size={14} /> Clock in
-            </button>
-          ) : !todayRecord.clock_out ? (
-            <button
-              onClick={doClockOut}
-              className="px-4 py-2 rounded-lg bg-[#B5563A] hover:bg-[#A44930] text-white text-xs font-medium flex items-center gap-2"
-            >
-              <LogOut size={14} /> Clock out
-            </button>
-          ) : (
-            <div className="text-xs text-white/50">Completed</div>
-          )}
-        </div>
-      </div>
 
-      {/* MAIN GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mb-4">
-        {/* TODAY'S WORK */}
-        <Card
-          title="Today's work"
-          subtitle={
-            todayWorkLogs.length
-              ? `${todayWorkLogs.length} logged`
-              : "Nothing logged yet"
-          }
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] text-[#9A9383]">
-              Keep a quick record of what you worked on.
-            </span>
-            {!showWorkInput && (
+            {!todayRecord?.clock_in ? (
               <button
-                onClick={() => setShowWorkInput(true)}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#3D6B7D] hover:underline"
+                onClick={doClockIn}
+                className="w-full py-2 rounded-lg bg-[#6B8F71] hover:bg-[#5E8064] text-white text-sm font-medium flex items-center justify-center gap-2"
               >
-                <Plus size={13} /> Add work
+                <LogIn size={14} /> Clock in
               </button>
+            ) : !todayRecord.clock_out ? (
+              <button
+                onClick={doClockOut}
+                className="w-full py-2 rounded-lg bg-[#B5563A] hover:bg-[#A44930] text-white text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <LogOut size={14} /> Clock out
+              </button>
+            ) : (
+              <div className="text-center text-xs text-white/50 py-0.5">
+                Completed for today
+              </div>
             )}
           </div>
 
-          {showWorkInput && (
-            <div className="mb-3">
+          {/* TODAY'S WORK */}
+          <Card
+            title="Today's work"
+            subtitle={
+              todayWorkLogs.length
+                ? `${todayWorkLogs.length} logged`
+                : "Nothing logged yet"
+            }
+          >
+            <div className="flex gap-2 mb-3">
               <select
                 value={workProjectId}
                 onChange={(e) => setWorkProjectId(e.target.value)}
-                className="w-full border border-[#DDD8CB] rounded-lg px-2.5 py-1.5 text-xs mb-2 bg-white"
+                className="border border-[#DDD8CB] rounded-lg px-2 py-2 text-xs bg-white w-24 shrink-0"
               >
-                <option value="">No project tag</option>
+                <option value="">No tag</option>
                 {activeProjects.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
-                {editingWorkId && projectFor(workProjectId)?.archived && (
-                  <option value={workProjectId}>
-                    {projectFor(workProjectId).name} (archived)
-                  </option>
-                )}
               </select>
-
-              <textarea
-                autoFocus
+              <input
                 value={workText}
                 onChange={(e) => setWorkText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && saveWork()}
                 placeholder="What did you work on?"
-                rows={2}
-                className="w-full border border-[#DDD8CB] rounded-lg px-3 py-2 text-sm resize-none outline-none focus:border-[#3D6B7D]"
+                className="flex-1 min-w-0 border border-[#DDD8CB] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#3D6B7D]"
               />
-
-              <div className="flex gap-2 mt-2">
-                <button
-                  onClick={saveWork}
-                  disabled={!workText.trim() || savingWork}
-                  className="px-3 py-1.5 rounded-md bg-[#3D6B7D] text-white text-xs font-medium disabled:opacity-40"
-                >
-                  {savingWork ? "Saving..." : editingWorkId ? "Update" : "Add"}
-                </button>
+              <button
+                onClick={saveWork}
+                disabled={!workText.trim() || savingWork}
+                title={editingWorkId ? "Update" : "Add"}
+                className="shrink-0 w-9 h-9 rounded-lg bg-[#3D6B7D] text-white flex items-center justify-center disabled:opacity-40"
+              >
+                {editingWorkId ? <Check size={15} /> : <Plus size={15} />}
+              </button>
+              {editingWorkId && (
                 <button
                   onClick={cancelWork}
-                  className="px-3 py-1.5 rounded-md border border-[#DDD8CB] text-xs"
+                  title="Cancel edit"
+                  className="shrink-0 w-9 h-9 rounded-lg border border-[#DDD8CB] flex items-center justify-center"
                 >
-                  Cancel
+                  <X size={15} />
                 </button>
+              )}
+            </div>
+
+            {todayWorkLogs.length === 0 ? (
+              <div className="py-3 text-center border border-dashed border-[#E4DFD3] rounded-lg text-xs text-[#7A7362]">
+                No work logged today — add your first entry above
               </div>
-            </div>
-          )}
-
-          {todayWorkLogs.length === 0 ? (
-            <div className="py-4 text-center border border-dashed border-[#E4DFD3] rounded-lg">
-              <ClipboardList
-                size={20}
-                className="mx-auto text-[#B6B0A2] mb-1"
-              />
-              <div className="text-xs text-[#7A7362]">No work logged today</div>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              {todayWorkLogs.map((entry) => {
-                const proj = projectFor(entry.project_id);
-                return (
-                  <div
-                    key={entry.id}
-                    className="group flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-[#F7F5F0]"
-                  >
-                    <div className="flex items-start gap-2 min-w-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#3D6B7D] mt-1.5 shrink-0" />
-                      <span className="text-xs leading-relaxed">
-                        {proj && (
-                          <span
-                            className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 text-white align-middle"
-                            style={{ backgroundColor: proj.color }}
-                          >
-                            {proj.name}
-                          </span>
-                        )}
-                        {entry.entry_text}
-                      </span>
+            ) : (
+              <div className="space-y-0.5">
+                {todayWorkLogs.map((entry) => {
+                  const proj = projectFor(entry.project_id);
+                  return (
+                    <div
+                      key={entry.id}
+                      className="group flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-[#F7F5F0]"
+                    >
+                      <div className="flex items-start gap-2 min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#3D6B7D] mt-1.5 shrink-0" />
+                        <span className="text-xs leading-relaxed">
+                          {proj && (
+                            <span
+                              className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 text-white align-middle"
+                              style={{ backgroundColor: proj.color }}
+                            >
+                              {proj.name}
+                            </span>
+                          )}
+                          {entry.entry_text}
+                        </span>
+                      </div>
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          onClick={() => startEditWork(entry)}
+                          className="p-1.5 rounded hover:bg-white"
+                          title="Edit"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        <button
+                          onClick={() => removeWork(entry.id)}
+                          className="p-1.5 rounded hover:bg-white text-[#B5563A]"
+                          title="Delete"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => startEditWork(entry)}
-                        className="p-1.5 rounded hover:bg-white"
-                        title="Edit"
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        onClick={() => removeWork(entry.id)}
-                        className="p-1.5 rounded hover:bg-white text-[#B5563A]"
-                        title="Delete"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* LEAVE — unchanged */}
-        <Card
-          title="Leave balance"
-          subtitle={
-            pendingLeave ? `${pendingLeave} request pending` : "Available days"
-          }
-        >
-          <div className="grid grid-cols-2 gap-2">
-            {LEAVE_TYPES.map((type) => (
-              <div key={type} className="bg-[#F5F3EE] rounded-lg px-3 py-3">
-                <div className="text-[10px] uppercase tracking-wide text-[#8A8374]">
-                  {type}
-                </div>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span className="font-mono text-xl font-semibold">
-                    {me.leave_balance?.[type] ?? 0}
-                  </span>
-                  <span className="text-[10px] text-[#8A8374]">days</span>
-                </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-          {pendingLeave > 0 && (
-            <div className="mt-3 px-3 py-2 rounded-lg bg-[#F8F2E3] text-[#7A5A17] text-[11px]">
-              You have {pendingLeave} leave request{pendingLeave > 1 ? "s" : ""}{" "}
-              waiting for approval.
-            </div>
-          )}
-        </Card>
-      </div>
+            )}
+          </Card>
+        </div>
 
-      {/* QUICK STATS — unchanged */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <MiniStat label="Days present" value={presentDays} />
-        <MiniStat label="Annual left" value={me.leave_balance?.Annual ?? 0} />
-        <MiniStat label="Sick left" value={me.leave_balance?.Sick ?? 0} />
-      </div>
+        {/* RIGHT COLUMN — sidebar, fills the space that used to sit empty */}
+        <div className="lg:sticky lg:top-6">
+          <Card
+            title="Leave balance"
+            subtitle={
+              pendingLeave
+                ? `${pendingLeave} request${pendingLeave > 1 ? "s" : ""} pending`
+                : "Available days"
+            }
+          >
+            <div className="space-y-2">
+              {Object.entries(LEAVE_VISUAL).map(
+                ([type, { icon: Icon, color, max }]) => {
+                  const value = me.leave_balance?.[type];
+                  if (value === undefined) return null;
+                  const isOut = value <= 0;
+                  const pct = Math.max(0, Math.min(100, (value / max) * 100));
 
-      {/* RECENT ACTIVITY */}
-      <Card title="Recent activity" subtitle="Your latest workdays">
-        {records.length === 0 ? (
-          <div className="text-xs text-[#7A7362] py-3">
-            No attendance records yet.
-          </div>
-        ) : (
-          <div className="divide-y divide-[#EDE9DF]">
-            {records
-              .filter((r) => r.clock_in)
-              .slice(0, 5)
-              .map((record) => {
-                const minutes = getWorkedMinutes(
-                  record.clock_in,
-                  record.clock_out,
-                );
-                const diff = minutes - WORK_DAY_MINUTES;
-                const dayLogs = entries.filter(
-                  (entry) => entry.date === record.date,
-                );
-
-                return (
-                  <div
-                    key={record.id}
-                    className="py-2.5 flex items-center justify-between gap-4"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-xs font-medium">
-                        {fmtDate(record.date)}
-                      </div>
-                      <div className="text-[11px] text-[#8A8374] truncate mt-0.5">
-                        {dayLogs.length
-                          ? dayLogs
-                              .map((x) => {
-                                const proj = projectFor(x.project_id);
-                                return proj
-                                  ? `[${proj.name}] ${x.entry_text}`
-                                  : x.entry_text;
-                              })
-                              .join(" · ")
-                          : "No work log"}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-5 shrink-0">
-                      <div className="text-right">
-                        <div className="font-mono text-xs">
-                          {formatDuration(minutes)}
-                        </div>
-                        <div className="text-[9px] uppercase text-[#9A9383]">
-                          worked
-                        </div>
-                      </div>
+                  return (
+                    <div key={type} className="flex items-center gap-2.5">
                       <div
-                        className={`font-mono text-xs w-12 text-right ${diff > 0 ? "text-[#6B8F71]" : diff < 0 ? "text-[#B5563A]" : "text-[#9A9383]"}`}
+                        className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: `${color}1A`, color }}
                       >
-                        {diff > 0
-                          ? `+${formatDuration(diff)}`
-                          : diff < 0
-                            ? `-${formatDuration(diff)}`
-                            : "—"}
+                        <Icon size={13} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between mb-0.5">
+                          <span className="text-xs font-medium text-[#4A4738]">
+                            {type}
+                          </span>
+                          <span
+                            className={`font-mono text-xs font-semibold ${isOut ? "text-[#B5563A]" : "text-[#292722]"}`}
+                          >
+                            {value} {type !== "Unpaid" && "days"}
+                            {isOut && (
+                              <span className="ml-1 text-[9px] uppercase font-normal">
+                                out
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="h-1 rounded-full bg-[#EDE9DF] overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${pct}%`,
+                              backgroundColor: isOut ? "#B5563A" : color,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
+                  );
+                },
+              )}
+            </div>
+
+            {pendingLeave > 0 && (
+              <div className="mt-3 px-3 py-2 rounded-lg bg-[#F8F2E3] text-[#7A5A17] text-[11px]">
+                You have {pendingLeave} leave request
+                {pendingLeave > 1 ? "s" : ""} waiting for approval.
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* TODAY'S FOCUS — entry distribution across projects, not a time-tracked breakdown */}
+        {todayWorkLogs.length > 0 && (
+          <Card title="Today's focus" subtitle="Where your logged entries went">
+            {(() => {
+              const counts = {};
+              let untagged = 0;
+              todayWorkLogs.forEach((entry) => {
+                if (entry.project_id) {
+                  counts[entry.project_id] =
+                    (counts[entry.project_id] || 0) + 1;
+                } else {
+                  untagged += 1;
+                }
+              });
+
+              const total = todayWorkLogs.length;
+              const segments = Object.entries(counts)
+                .map(([projectId, count]) => ({
+                  projectId,
+                  count,
+                  project: projectFor(projectId),
+                }))
+                .filter((s) => s.project) // drop if project was deleted, not just archived
+                .sort((a, b) => b.count - a.count);
+
+              if (untagged > 0) {
+                segments.push({
+                  projectId: "untagged",
+                  count: untagged,
+                  project: { name: "No tag", color: "#B6B0A2" },
+                });
+              }
+
+              return (
+                <>
+                  <div className="h-2 rounded-full overflow-hidden flex mb-3">
+                    {segments.map((s) => (
+                      <div
+                        key={s.projectId}
+                        style={{
+                          width: `${(s.count / total) * 100}%`,
+                          backgroundColor: s.project.color,
+                        }}
+                        title={`${s.project.name}: ${s.count}`}
+                      />
+                    ))}
                   </div>
-                );
-              })}
-          </div>
+                  <div className="space-y-1.5">
+                    {segments.map((s) => (
+                      <div
+                        key={s.projectId}
+                        className="flex items-center justify-between text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: s.project.color }}
+                          />
+                          <span className="truncate">{s.project.name}</span>
+                        </div>
+                        <span className="font-mono text-[#7A7362] shrink-0">
+                          {s.count} {s.count === 1 ? "entry" : "entries"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </Card>
         )}
-      </Card>
+      </div>
     </div>
   );
 }
