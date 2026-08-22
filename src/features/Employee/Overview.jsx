@@ -8,8 +8,6 @@ import {
   Trash2,
   Sun,
   HeartPulse,
-  Coffee,
-  Wallet,
   Check,
   X,
   CalendarCheck,
@@ -30,6 +28,8 @@ import {
 } from "../../utils/workTime";
 import { Card } from "../../components/Card";
 import { NepaliCalendar } from "../../components/NepaliCalendar";
+import { getDailyMessage } from "../../utils/dailyMessage";
+import { getCurrentBSMonthInfo } from "../../utils/nepaliCalendar";
 
 const LEAVE_VISUAL = {
   Annual: { icon: Sun, color: "#3D6B7D", max: 24 },
@@ -74,6 +74,13 @@ export function EmployeeOverview({ me }) {
   const pendingLeave = myLeave.filter((r) => r.status === "Pending").length;
 
   const projectFor = (id) => projects.find((p) => p.id === id);
+  const dailyMessage = getDailyMessage(today, todayHoliday?.name);
+
+  const monthInfo = getCurrentBSMonthInfo();
+  const presentDaysThisMonth = records.filter(
+    (r) =>
+      r.clock_in && r.date >= monthInfo.startISO && r.date <= monthInfo.endISO,
+  ).length;
 
   const formatDifference = () => {
     if (differenceMinutes === 0) return "—";
@@ -143,13 +150,20 @@ export function EmployeeOverview({ me }) {
   return (
     <div className="max-w-6xl mx-auto">
       {/* HEADER */}
-      <div className="flex items-end justify-between mb-3">
+      <div className="flex items-end justify-between mb-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Welcome back, {me.name.split(" ")[0]}
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="leading-none">{dailyMessage.emoji}</span>
+              <span
+                className="font-semibold"
+                style={{ color: dailyMessage.color }}
+              >
+                {dailyMessage.text} {me.name.split(" ")[0]}.
+              </span>
+            </div>
           </h1>
-
-          <p className="text-xs text-[#7A7362] mt-1">
+          <p className="text-xs text-[#7A7362] mt-1 ml-1">
             {new Date().toLocaleDateString([], {
               weekday: "long",
               month: "long",
@@ -159,7 +173,10 @@ export function EmployeeOverview({ me }) {
         </div>
         <div className="hidden sm:flex items-center gap-1.5 text-[#7A7362] text-xs">
           <CalendarCheck size={13} />
-          <span className="font-mono">{presentDays}</span> days present
+          <span className="font-mono font-semibold text-[#292722]">
+            {presentDaysThisMonth}/{monthInfo.totalDays}
+          </span>{" "}
+          this month
         </div>
       </div>
 

@@ -87,3 +87,11 @@ export function isWeekendISO(isoDate) {
   const d = new Date(isoDate + "T00:00:00");
   return d.getDay() === 6;
 }
+
+export function getCurrentBSMonthInfo() {
+  const { year, month } = getTodayBS();
+  const totalDays = bs.daysInMonth(year, month);
+  const startISO = bsDateToISO(year, month, 1);
+  const endISO = bsDateToISO(year, month, totalDays);
+  return { year, month, totalDays, startISO, endISO };
+}
