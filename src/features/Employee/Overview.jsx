@@ -19,6 +19,7 @@ import {
   useWorkLogs,
   useLeaveRequests,
   useProjects,
+  useHolidays,
 } from "../../hooks/useOrgData";
 import {
   fmtTime,
@@ -28,12 +29,11 @@ import {
   WORK_DAY_MINUTES,
 } from "../../utils/workTime";
 import { Card } from "../../components/Card";
+import { NepaliCalendar } from "../../components/NepaliCalendar";
 
 const LEAVE_VISUAL = {
   Annual: { icon: Sun, color: "#3D6B7D", max: 24 },
-  Sick: { icon: HeartPulse, color: "#B5563A", max: 10 },
-  Casual: { icon: Coffee, color: "#E0A458", max: 7 },
-  Unpaid: { icon: Wallet, color: "#7A7362", max: 30 },
+  Sick: { icon: HeartPulse, color: "#B5563A", max: 6 },
 };
 
 export function EmployeeOverview({ me }) {
@@ -41,6 +41,7 @@ export function EmployeeOverview({ me }) {
   const { entries, addEntry, updateEntry, deleteEntry } = useWorkLogs(me.id);
   const { requests: myLeave } = useLeaveRequests(me.id, "mine");
   const { projects } = useProjects();
+  const { holidays } = useHolidays();
 
   const [err, setErr] = useState("");
   const [workText, setWorkText] = useState("");
@@ -52,7 +53,8 @@ export function EmployeeOverview({ me }) {
     records === null ||
     entries === null ||
     myLeave === null ||
-    projects === null
+    projects === null ||
+    holidays === null
   ) {
     return null;
   }
@@ -61,6 +63,8 @@ export function EmployeeOverview({ me }) {
   const today = todayISO();
   const todayRecord = records.find((r) => r.date === today);
   const todayWorkLogs = entries.filter((entry) => entry.date === today);
+
+  const todayHoliday = (holidays || []).find((h) => h.date === today);
 
   const workedMinutes = todayRecord?.clock_in
     ? getWorkedMinutes(todayRecord.clock_in, todayRecord.clock_out)
@@ -144,6 +148,7 @@ export function EmployeeOverview({ me }) {
           <h1 className="text-2xl font-semibold tracking-tight">
             Welcome back, {me.name.split(" ")[0]}
           </h1>
+
           <p className="text-xs text-[#7A7362] mt-1">
             {new Date().toLocaleDateString([], {
               weekday: "long",
@@ -325,6 +330,80 @@ export function EmployeeOverview({ me }) {
               </div>
             )}
           </Card>
+          {/* TODAY'S FOCUS — entry distribution across projects, not a time-tracked breakdown */}
+          {todayWorkLogs.length > 0 && (
+            <Card
+              title="Today's focus"
+              subtitle="Where your logged entries went"
+            >
+              {(() => {
+                const counts = {};
+                let untagged = 0;
+                todayWorkLogs.forEach((entry) => {
+                  if (entry.project_id) {
+                    counts[entry.project_id] =
+                      (counts[entry.project_id] || 0) + 1;
+                  } else {
+                    untagged += 1;
+                  }
+                });
+
+                const total = todayWorkLogs.length;
+                const segments = Object.entries(counts)
+                  .map(([projectId, count]) => ({
+                    projectId,
+                    count,
+                    project: projectFor(projectId),
+                  }))
+                  .filter((s) => s.project) // drop if project was deleted, not just archived
+                  .sort((a, b) => b.count - a.count);
+
+                if (untagged > 0) {
+                  segments.push({
+                    projectId: "untagged",
+                    count: untagged,
+                    project: { name: "No tag", color: "#B6B0A2" },
+                  });
+                }
+
+                return (
+                  <>
+                    <div className="h-2 rounded-full overflow-hidden flex mb-3">
+                      {segments.map((s) => (
+                        <div
+                          key={s.projectId}
+                          style={{
+                            width: `${(s.count / total) * 100}%`,
+                            backgroundColor: s.project.color,
+                          }}
+                          title={`${s.project.name}: ${s.count}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="space-y-1.5">
+                      {segments.map((s) => (
+                        <div
+                          key={s.projectId}
+                          className="flex items-center justify-between text-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: s.project.color }}
+                            />
+                            <span className="truncate">{s.project.name}</span>
+                          </div>
+                          <span className="font-mono text-[#7A7362] shrink-0">
+                            {s.count} {s.count === 1 ? "entry" : "entries"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
+            </Card>
+          )}
         </div>
 
         {/* RIGHT COLUMN — sidebar, fills the space that used to sit empty */}
@@ -392,79 +471,8 @@ export function EmployeeOverview({ me }) {
               </div>
             )}
           </Card>
+          <NepaliCalendar />
         </div>
-
-        {/* TODAY'S FOCUS — entry distribution across projects, not a time-tracked breakdown */}
-        {todayWorkLogs.length > 0 && (
-          <Card title="Today's focus" subtitle="Where your logged entries went">
-            {(() => {
-              const counts = {};
-              let untagged = 0;
-              todayWorkLogs.forEach((entry) => {
-                if (entry.project_id) {
-                  counts[entry.project_id] =
-                    (counts[entry.project_id] || 0) + 1;
-                } else {
-                  untagged += 1;
-                }
-              });
-
-              const total = todayWorkLogs.length;
-              const segments = Object.entries(counts)
-                .map(([projectId, count]) => ({
-                  projectId,
-                  count,
-                  project: projectFor(projectId),
-                }))
-                .filter((s) => s.project) // drop if project was deleted, not just archived
-                .sort((a, b) => b.count - a.count);
-
-              if (untagged > 0) {
-                segments.push({
-                  projectId: "untagged",
-                  count: untagged,
-                  project: { name: "No tag", color: "#B6B0A2" },
-                });
-              }
-
-              return (
-                <>
-                  <div className="h-2 rounded-full overflow-hidden flex mb-3">
-                    {segments.map((s) => (
-                      <div
-                        key={s.projectId}
-                        style={{
-                          width: `${(s.count / total) * 100}%`,
-                          backgroundColor: s.project.color,
-                        }}
-                        title={`${s.project.name}: ${s.count}`}
-                      />
-                    ))}
-                  </div>
-                  <div className="space-y-1.5">
-                    {segments.map((s) => (
-                      <div
-                        key={s.projectId}
-                        className="flex items-center justify-between text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: s.project.color }}
-                          />
-                          <span className="truncate">{s.project.name}</span>
-                        </div>
-                        <span className="font-mono text-[#7A7362] shrink-0">
-                          {s.count} {s.count === 1 ? "entry" : "entries"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              );
-            })()}
-          </Card>
-        )}
       </div>
     </div>
   );

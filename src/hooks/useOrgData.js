@@ -459,3 +459,46 @@ export function useOrgWorkLogs() {
 
   return { entries: query.data ?? null, isLoading: query.isLoading };
 }
+
+export function useHolidays() {
+  const qc = useQueryClient();
+  const key = ["holidays"];
+
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("holidays")
+        .select("*")
+        .order("date", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+
+  const addHoliday = useMutation({
+    mutationFn: async ({ date, name, orgId }) => {
+      const { error } = await supabase
+        .from("holidays")
+        .insert({ date, name, org_id: orgId });
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteHoliday = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("holidays").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  return {
+    holidays: query.data ?? null,
+    addHoliday: (payload) => addHoliday.mutateAsync(payload),
+    deleteHoliday: (id) => deleteHoliday.mutateAsync(id),
+  };
+}
