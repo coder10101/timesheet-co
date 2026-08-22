@@ -148,7 +148,7 @@ export function EmployeeOverview({ me }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {/* HEADER */}
       <div className="flex items-end justify-between mb-4">
         <div>
@@ -187,11 +187,11 @@ export function EmployeeOverview({ me }) {
       )}
 
       {/* TWO-COLUMN LAYOUT ON WIDE SCREENS: work on the left, leave as a sidebar on the right */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 items-start">
         {/* LEFT COLUMN */}
         <div>
           {/* CLOCK IN/OUT */}
-          <div className="bg-[#1A2332] text-white rounded-xl p-4 mb-4">
+          <div className="bg-[#1A2332] text-white rounded-xl p-5 mb-4">
             <div className="flex items-center gap-3 mb-3">
               <div
                 className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${todayRecord?.clock_in ? "bg-[#6B8F71]" : "bg-white/10"}`}
