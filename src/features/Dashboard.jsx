@@ -40,7 +40,7 @@ export function Dashboard({ me, onLogout }) {
     <div className="min-h-screen bg-[#F5F3EE] text-[#1A2332] font-sans">
       <div className="flex flex-col md:flex-row">
         {/* ================= DESKTOP SIDEBAR (unchanged, hidden on mobile) ================= */}
-        <aside className="hidden md:flex md:flex-col md:w-60 shrink-0 bg-[#101820] text-[#EDE7DA] md:min-h-screen">
+        <aside className="hidden md:flex md:flex-col md:w-60 shrink-0 bg-[#101820] text-[#EDE7DA] md:h-screen md:sticky md:top-0 md:overflow-y-auto">
           <div className="flex items-center gap-2 px-5 py-5 border-b border-[#26333F]">
             <div className="w-8 h-8 rounded bg-[#3D6B7D] flex items-center justify-center">
               <Clock size={16} />
@@ -54,7 +54,6 @@ export function Dashboard({ me, onLogout }) {
               </div>
             </div>
           </div>
-
           <nav className="px-3 py-4 flex flex-col gap-1">
             {tabs.map((t) => (
               <NavLink
@@ -73,7 +72,6 @@ export function Dashboard({ me, onLogout }) {
               </NavLink>
             ))}
           </nav>
-
           <div className="mt-auto px-4 py-4 border-t border-[#26333F]">
             <div className="flex items-center gap-2.5 mb-3">
               <span className="w-8 h-8 rounded-full bg-[#3D6B7D] flex items-center justify-center text-[11px] font-mono">
