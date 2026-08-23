@@ -110,3 +110,14 @@ export function isoToBSLabel(iso) {
   const d = bs.toBik(iso);
   return `${d.day} ${NEPALI_MONTHS[d.month - 1]} ${d.year}`;
 }
+
+export function fmtTimeAmPm(timeStr) {
+  if (!timeStr) return null;
+  const [hourStr, minuteStr] = timeStr.split(":");
+  let hour = parseInt(hourStr, 10);
+  const minute = minuteStr;
+  const period = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${minute} ${period}`;
+}

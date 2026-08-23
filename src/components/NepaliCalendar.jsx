@@ -1,11 +1,19 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, CalendarClock } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CalendarClock,
+  ArrowRight,
+  Clock,
+} from "lucide-react";
 import {
   NEPALI_MONTHS,
   WEEKDAY_LABELS,
   getTodayBS,
   buildMonthGrid,
   addMonths,
+  isoToBS,
+  fmtTimeAmPm,
 } from "../utils/nepaliCalendar";
 import { useHolidays, useEvents } from "../hooks/useOrgData";
 import { Card } from "./Card";
@@ -38,6 +46,7 @@ export function NepaliCalendar() {
         title: e.title,
         event_type: e.event_type,
         time: e.time,
+        description: e.description,
       });
     });
     return map;
@@ -53,6 +62,34 @@ export function NepaliCalendar() {
   const selectedCell = selectedDate
     ? weeks.flat().find((cell) => cell?.isoDate === selectedDate)
     : null;
+
+  const upcoming = useMemo(() => {
+    return (events || [])
+      .filter((e) => e.date >= todayISO)
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          (a.time || "").localeCompare(b.time || ""),
+      )
+      .slice(0, 2);
+  }, [events, todayISO]);
+
+  const jumpToEvent = (isoDate) => {
+    const bsDate = isoToBS(isoDate);
+    setView({ year: bsDate.year, month: bsDate.month });
+    setSelectedDate(isoDate);
+  };
+
+  const relativeDayLabel = (isoDate) => {
+    const diffDays = Math.round(
+      (new Date(isoDate) - new Date(todayISO)) / 86400000,
+    );
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Tomorrow";
+    if (diffDays <= 6) return `In ${diffDays} days`;
+    const d = new Date(isoDate + "T00:00:00");
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  };
 
   return (
     <Card>
@@ -106,6 +143,15 @@ export function NepaliCalendar() {
           const isSelectable = isHoliday || hasEvents;
           const isSelected = cell.isoDate === selectedDate;
 
+          const label = isHoliday
+            ? cell.holidayName
+            : hasEvents
+              ? cell.events[0].title +
+                (cell.events.length > 1 ? ` +${cell.events.length - 1}` : "")
+              : null;
+
+          const showDot = hasEvents && isHoliday;
+
           return (
             <button
               key={i}
@@ -128,16 +174,17 @@ export function NepaliCalendar() {
                       ? "bg-[#EEEAE0] text-[#292722] font-semibold"
                       : isHoliday
                         ? "bg-[#FBEEEA] text-[#B5563A] font-semibold"
-                        : cell.isWeekend
-                          ? "text-[#B5563A]"
-                          : "text-[#292722]"
+                        : hasEvents
+                          ? "bg-[#FBF3E3] text-[#292722]"
+                          : cell.isWeekend
+                            ? "text-[#B5563A]"
+                            : "text-[#292722]"
                 }
               `}
             >
               {cell.bsDay}
 
-              {/* Event dot — top-right, so it doesn't collide with the holiday label below */}
-              {hasEvents && (
+              {showDot && (
                 <span
                   className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
                     isToday ? "bg-white" : "bg-[#E0A458]"
@@ -145,10 +192,13 @@ export function NepaliCalendar() {
                 />
               )}
 
-              {/* Holiday label — unchanged from before */}
-              {isHoliday && !isToday && (
-                <span className="absolute bottom-1 left-1 right-1 font-mono text-[6px] text-[#B5563A] truncate">
-                  {cell.holidayName}
+              {label && !isToday && (
+                <span
+                  className={`absolute bottom-1 left-1 right-1 font-mono text-[6px] truncate ${
+                    isHoliday ? "text-[#B5563A]" : "text-[#9A6B1F]"
+                  }`}
+                >
+                  {label}
                 </span>
               )}
             </button>
@@ -176,13 +226,25 @@ export function NepaliCalendar() {
                 key={idx}
                 className="px-3 py-2.5 rounded-lg bg-[#F8F2E3] border border-[#EEDFC0]"
               >
-                <div className="text-[10px] uppercase tracking-wide text-[#9A9383] flex items-center gap-1">
-                  <CalendarClock size={10} /> {ev.event_type}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[10px] uppercase tracking-wide text-[#9A9383] flex items-center gap-1">
+                    <CalendarClock size={10} /> {ev.event_type}
+                  </div>
+                  {ev.time && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono font-medium text-[#7A5A17] bg-[#F0DFA8] px-1.5 py-0.5 rounded-full">
+                      <Clock size={9} />
+                      {fmtTimeAmPm(ev.time)}
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs font-medium text-[#5E594E] mt-0.5">
+                <div className="text-xs font-medium text-[#5E594E] mt-1">
                   {ev.title}
-                  {ev.time ? ` · ${ev.time}` : ""}
                 </div>
+                {ev.description && (
+                  <div className="text-[11px] text-[#8A8374] mt-1 leading-relaxed max-h-8 overflow-hidden relative">
+                    {ev.description}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -203,6 +265,45 @@ export function NepaliCalendar() {
           Event
         </span>
       </div>
+
+      {/* UPCOMING */}
+      {upcoming.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-[#EEEAE0] space-y-2">
+          {upcoming.map((ev) => (
+            <button
+              key={ev.id}
+              onClick={() => jumpToEvent(ev.date)}
+              className="w-full flex items-start justify-between gap-2 text-left group"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${ev.event_type === "deadline" ? "bg-[#B5563A]" : "bg-[#3D6B7D]"}`}
+                  />
+                  <span className="text-[11px] truncate group-hover:underline">
+                    {ev.title}
+                  </span>
+                </div>
+                {ev.time && (
+                  <div className="flex items-center gap-1 mt-1 ml-3">
+                    <span className="flex items-center gap-1 text-[9px] font-mono font-medium text-[#7A5A17] bg-[#F0DFA8] px-1.5 py-0.5 rounded-full">
+                      <Clock size={8} />
+                      {fmtTimeAmPm(ev.time)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <span className="text-[10px] text-[#9A9383] font-mono shrink-0 flex items-center gap-0.5 pt-0.5">
+                {relativeDayLabel(ev.date)}
+                <ArrowRight
+                  size={9}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
