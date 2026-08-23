@@ -502,3 +502,78 @@ export function useHolidays() {
     deleteHoliday: (id) => deleteHoliday.mutateAsync(id),
   };
 }
+
+export function useEvents() {
+  const qc = useQueryClient();
+  const key = ["events"];
+
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*, event_assignees(employee_id, profiles(name))")
+        .order("date", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+
+  const createEvent = useMutation({
+    mutationFn: async ({
+      title,
+      description,
+      eventType,
+      date,
+      time,
+      allOrg,
+      assigneeIds,
+      orgId,
+      createdBy,
+    }) => {
+      const { data: event, error } = await supabase
+        .from("events")
+        .insert({
+          title,
+          description,
+          event_type: eventType,
+          date,
+          time: time || null,
+          all_org: allOrg,
+          org_id: orgId,
+          created_by: createdBy,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      if (!allOrg && assigneeIds?.length) {
+        const rows = assigneeIds.map((employee_id) => ({
+          event_id: event.id,
+          employee_id,
+        }));
+        const { error: assignError } = await supabase
+          .from("event_assignees")
+          .insert(rows);
+        if (assignError) throw assignError;
+      }
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteEvent = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("events").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
+  return {
+    events: query.data ?? null,
+    createEvent: (payload) => createEvent.mutateAsync(payload),
+    deleteEvent: (id) => deleteEvent.mutateAsync(id),
+  };
+}

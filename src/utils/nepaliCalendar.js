@@ -43,7 +43,12 @@ function bsDateToISO(bsYear, bsMonth, bsDay) {
  * Returns an array of weeks, each an array of 7 cells (or null for padding).
  * Each cell: { bsDay, isoDate, isWeekend, holidayName }
  */
-export function buildMonthGrid(bsYear, bsMonth, holidaysByIso = {}) {
+export function buildMonthGrid(
+  bsYear,
+  bsMonth,
+  holidaysByIso = {},
+  eventsByIso = {},
+) {
   const daysInMonth = bs.daysInMonth(bsYear, bsMonth);
   const firstWeekday = weekdayOf(bsYear, bsMonth, 1);
 
@@ -56,8 +61,9 @@ export function buildMonthGrid(bsYear, bsMonth, holidaysByIso = {}) {
     cells.push({
       bsDay: d,
       isoDate,
-      isWeekend: weekday === 6, // Saturday
+      isWeekend: weekday === 6,
       holidayName: holidaysByIso[isoDate] || null,
+      events: eventsByIso[isoDate] || [],
     });
   }
 

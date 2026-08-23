@@ -12,7 +12,7 @@ import { AdminLeave } from "./features/Admin/Leave";
 import { AdminOverview } from "./features/Admin/Overview";
 import { AdminProjects } from "./features/Admin/Project";
 import { AdminTeam } from "./features/Admin/Team";
-import { AdminHolidays } from "./features/Admin/Holiday";
+import { AdminCalendar } from "./features/Admin/Calendar";
 
 export default function App() {
   return (
@@ -94,7 +94,7 @@ function Root() {
             <Route path="worklogs" element={<AdminWorklogs />} />
             <Route path="projects" element={<AdminProjects me={profile} />} />
             <Route path="team" element={<AdminTeam me={profile} />} />
-            <Route path="holidays" element={<AdminHolidays me={profile} />} />
+            <Route path="calendar" element={<AdminCalendar me={profile} />} />
           </>
         )}
         <Route path="*" element={<Navigate to="overview" replace />} />

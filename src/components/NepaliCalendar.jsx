@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Dot } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarClock } from "lucide-react";
 import {
   NEPALI_MONTHS,
   WEEKDAY_LABELS,
@@ -7,7 +7,7 @@ import {
   buildMonthGrid,
   addMonths,
 } from "../utils/nepaliCalendar";
-import { useHolidays } from "../hooks/useOrgData";
+import { useHolidays, useEvents } from "../hooks/useOrgData";
 import { Card } from "./Card";
 
 export function NepaliCalendar() {
@@ -21,23 +21,32 @@ export function NepaliCalendar() {
   const [selectedDate, setSelectedDate] = useState(null);
 
   const { holidays } = useHolidays();
+  const { events } = useEvents();
 
   const holidaysByIso = useMemo(() => {
     const map = {};
-
     (holidays || []).forEach((h) => {
       map[h.date] = h.name;
     });
-
     return map;
   }, [holidays]);
 
-  const weeks = useMemo(
-    () => buildMonthGrid(view.year, view.month, holidaysByIso),
-    [view, holidaysByIso],
-  );
+  const eventsByIso = useMemo(() => {
+    const map = {};
+    (events || []).forEach((e) => {
+      (map[e.date] ||= []).push({
+        title: e.title,
+        event_type: e.event_type,
+        time: e.time,
+      });
+    });
+    return map;
+  }, [events]);
 
-  console.log("weeks", weeks);
+  const weeks = useMemo(
+    () => buildMonthGrid(view.year, view.month, holidaysByIso, eventsByIso),
+    [view, holidaysByIso, eventsByIso],
+  );
 
   const todayISO = new Date().toISOString().slice(0, 10);
 
@@ -89,19 +98,19 @@ export function NepaliCalendar() {
       {/* CALENDAR */}
       <div className="grid grid-cols-7 gap-1">
         {weeks.flat().map((cell, i) => {
-          if (!cell) {
-            return <div key={i} />;
-          }
+          if (!cell) return <div key={i} />;
 
           const isToday = cell.isoDate === todayISO;
           const isHoliday = !!cell.holidayName;
+          const hasEvents = cell.events.length > 0;
+          const isSelectable = isHoliday || hasEvents;
           const isSelected = cell.isoDate === selectedDate;
 
           return (
             <button
               key={i}
               onClick={() => {
-                if (isHoliday) {
+                if (isSelectable) {
                   setSelectedDate(
                     selectedDate === cell.isoDate ? null : cell.isoDate,
                   );
@@ -126,14 +135,19 @@ export function NepaliCalendar() {
               `}
             >
               {cell.bsDay}
-              {/* Event indicator */}
-              {isHoliday && !isToday && (
+
+              {/* Event dot — top-right, so it doesn't collide with the holiday label below */}
+              {hasEvents && (
                 <span
-                  className="
-                    absolute bottom-1 left-1 right-1
-                   font-mono text-[6px] text-[#B5563A] truncate
-                  "
-                >
+                  className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
+                    isToday ? "bg-white" : "bg-[#E0A458]"
+                  }`}
+                />
+              )}
+
+              {/* Holiday label — unchanged from before */}
+              {isHoliday && !isToday && (
+                <span className="absolute bottom-1 left-1 right-1 font-mono text-[6px] text-[#B5563A] truncate">
                   {cell.holidayName}
                 </span>
               )}
@@ -142,29 +156,51 @@ export function NepaliCalendar() {
         })}
       </div>
 
-      {/* SELECTED DATE */}
-      {selectedCell?.holidayName && (
-        <div className="mt-3 px-3 py-2.5 rounded-lg bg-[#FBEEEA] border border-[#F0D8D0]">
-          <div className="text-[10px] uppercase tracking-wide text-[#9A9383]">
-            {selectedCell.bsDay} {NEPALI_MONTHS[view.month - 1]}
-          </div>
+      {/* SELECTED DATE DETAIL */}
+      {selectedCell &&
+        (selectedCell.holidayName || selectedCell.events.length > 0) && (
+          <div className="mt-3 space-y-2">
+            {selectedCell.holidayName && (
+              <div className="px-3 py-2.5 rounded-lg bg-[#FBEEEA] border border-[#F0D8D0]">
+                <div className="text-[10px] uppercase tracking-wide text-[#9A9383]">
+                  {selectedCell.bsDay} {NEPALI_MONTHS[view.month - 1]}
+                </div>
+                <div className="text-xs font-medium text-[#5E594E] mt-0.5">
+                  🎉 {selectedCell.holidayName}
+                </div>
+              </div>
+            )}
 
-          <div className="text-xs font-medium text-[#5E594E] mt-0.5">
-            🎉 {selectedCell.holidayName}
+            {selectedCell.events.map((ev, idx) => (
+              <div
+                key={idx}
+                className="px-3 py-2.5 rounded-lg bg-[#F8F2E3] border border-[#EEDFC0]"
+              >
+                <div className="text-[10px] uppercase tracking-wide text-[#9A9383] flex items-center gap-1">
+                  <CalendarClock size={10} /> {ev.event_type}
+                </div>
+                <div className="text-xs font-medium text-[#5E594E] mt-0.5">
+                  {ev.title}
+                  {ev.time ? ` · ${ev.time}` : ""}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
 
       {/* LEGEND */}
-      <div className="flex items-center gap-3 mt-3 text-[9px] text-[#9A9383]">
+      <div className="flex items-center gap-3 mt-3 text-[9px] text-[#9A9383] flex-wrap">
         <span className="flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-[#3D6B7D]" />
           Today
         </span>
-
         <span className="flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-[#B5563A]" />
           Holiday
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#E0A458]" />
+          Event
         </span>
       </div>
     </Card>

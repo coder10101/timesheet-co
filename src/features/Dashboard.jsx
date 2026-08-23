@@ -1,10 +1,10 @@
 import {
   ArrowLeft,
   Calendar,
+  CalendarDays,
   ClipboardList,
   Clock,
   FileText,
-  PartyPopper,
   Sunrise,
   Tag,
   Users,
@@ -27,7 +27,7 @@ export function Dashboard({ me, onLogout }) {
     { to: "worklogs", label: "Logs", icon: <ClipboardList size={15} /> },
     { to: "projects", label: "Projects", icon: <Tag size={15} /> },
     { to: "team", label: "Team", icon: <Users size={15} /> },
-    { to: "holidays", label: "Holidays", icon: <PartyPopper size={15} /> }, // import from lucide-react
+    { to: "calendar", label: "Calendar", icon: <CalendarDays size={15} /> },
   ];
   const tabs = isAdmin ? adminTabs : employeeTabs;
 
