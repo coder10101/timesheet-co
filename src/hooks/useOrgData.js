@@ -73,6 +73,7 @@ export function useAttendance(employeeId) {
     records: query.data ?? null,
     isLoading: query.isLoading,
     clockIn: () => clockIn.mutateAsync(),
+    clockInPending: clockIn.isPending,
     clockOut: () => clockOut.mutateAsync(),
     updateAttendance: (attendanceId, payload) =>
       updateAttendance.mutateAsync({ attendanceId, ...payload }),

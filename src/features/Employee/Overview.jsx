@@ -37,7 +37,7 @@ const LEAVE_VISUAL = {
 };
 
 export function EmployeeOverview({ me }) {
-  const { records, clockIn, clockOut } = useAttendance(me.id);
+  const { records, clockIn, clockOut, clockInPending } = useAttendance(me.id);
   const { entries, addEntry, updateEntry, deleteEntry } = useWorkLogs(me.id);
   const { requests: myLeave } = useLeaveRequests(me.id, "mine");
   const { projects } = useProjects();
@@ -233,6 +233,7 @@ export function EmployeeOverview({ me }) {
               <button
                 onClick={doClockIn}
                 className="w-full py-2 rounded-lg bg-[#6B8F71] hover:bg-[#5E8064] text-white text-sm font-medium flex items-center justify-center gap-2"
+                disabled={!!todayRecord || clockInPending}
               >
                 <LogIn size={14} /> Clock in
               </button>

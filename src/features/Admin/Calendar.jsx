@@ -12,6 +12,7 @@ import {
 import { useHolidays, useEvents, useRoster } from "../../hooks/useOrgData";
 import { Card } from "../../components/Card";
 import { fmtDate } from "../../utils/workTime";
+import { NepaliDatePicker } from "../../components/NepaliDatePicker";
 
 const HOLIDAY_CATEGORIES = [
   {
@@ -167,11 +168,10 @@ export function AdminCalendar({ me }) {
               </select>
             </div>
             <div className="grid md:grid-cols-2 gap-2 mb-2">
-              <input
-                type="date"
+              <NepaliDatePicker
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm"
+                onChange={setDate}
+                placeholder="Select date"
               />
               <input
                 type="time"
@@ -281,11 +281,10 @@ export function AdminCalendar({ me }) {
         <>
           <Card title="Add a holiday">
             <div className="grid md:grid-cols-4 gap-2 mb-2">
-              <input
-                type="date"
+              <NepaliDatePicker
                 value={hDate}
-                onChange={(e) => setHDate(e.target.value)}
-                className="border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm"
+                onChange={setHDate}
+                placeholder="Select date"
               />
               <input
                 value={hName}

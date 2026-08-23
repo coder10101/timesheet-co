@@ -101,3 +101,12 @@ export function getCurrentBSMonthInfo() {
   const endISO = bsDateToISO(year, month, totalDays);
   return { year, month, totalDays, startISO, endISO };
 }
+
+export function isoToBS(iso) {
+  return bs.toBik(iso);
+}
+
+export function isoToBSLabel(iso) {
+  const d = bs.toBik(iso);
+  return `${d.day} ${NEPALI_MONTHS[d.month - 1]} ${d.year}`;
+}
