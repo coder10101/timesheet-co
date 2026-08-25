@@ -169,7 +169,7 @@ export function Today({
           <button
             onClick={doClockIn}
             disabled={!!todayRecord || clockInPending}
-            className="w-full py-2.5 rounded-xl bg-success hover:bg-success-dark active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:active:scale-100"
+            className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:active:scale-100"
           >
             <LogIn size={15} />
             Clock in

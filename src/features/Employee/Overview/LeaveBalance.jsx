@@ -1,16 +1,16 @@
 import { Sun, HeartPulse, Umbrella } from "lucide-react";
-import { useLeaveRequests } from "../../../hooks/useOrgData";
 import { Card } from "../../../components/Card";
+import { COLORS } from "../../../constants/colors";
 
 const LEAVE_VISUAL = {
   Annual: {
     icon: Sun,
-    color: "#3D6B7D",
+    color: COLORS.primary,
     max: 24,
   },
   Sick: {
     icon: HeartPulse,
-    color: "#B5563A",
+    color: COLORS.alert,
     max: 6,
   },
 };

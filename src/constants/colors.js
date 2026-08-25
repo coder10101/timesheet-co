@@ -1,17 +1,17 @@
 export const COLORS = {
   // Brand
-  primary: "#3D6B7D",
-  primaryDark: "#345B69",
-  primaryLight: "#F0F5F6",
+  primary: "#63537E",
+  primaryDark: "#514366",
+  primaryLight: "#EEEAF2",
 
   // Status
-  success: "#6B8F71",
-  successDark: "#5E8064",
-  successLight: "#E3EFE5",
+  success: "#497833",
+  successDark: "#3E8F18",
+  successLight: "#E8F5E2",
 
-  alert: "#B5563A",
-  alertDark: "#A44930",
-  alertLight: "#FCEDEA",
+  alert: "#913030",
+  alertDark: "#8F1E1E",
+  alertLight: "#F7E3E3",
 
   warning: "#7A5A17",
   warningLight: "#F8F2E3",
