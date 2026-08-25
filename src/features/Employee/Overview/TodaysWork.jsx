@@ -81,7 +81,7 @@ export function TodaysWork({
     >
       {/* Compose bar */}
       <div className="flex items-center gap-2 mb-5">
-        <div className="flex-1 flex items-center gap-2 bg-[#F7F5F0] rounded-full pl-1.5 pr-1 py-1 border border-transparent focus-within:border-[#3D6B7D] focus-within:bg-white transition-colors">
+        <div className="flex-1 flex items-center gap-2 bg-[#F7F5F0] rounded-full pl-1.5 pr-1 py-1 border border-transparent focus-within:border-primary focus-within:bg-white transition-colors">
           <select
             value={workProjectId}
             onChange={(e) => setWorkProjectId(e.target.value)}
@@ -122,7 +122,7 @@ export function TodaysWork({
           onClick={saveWork}
           disabled={!workText.trim() || savingWork}
           title={editingWorkId ? "Update" : "Add"}
-          className="w-9 h-9 rounded-full bg-[#3D6B7D] hover:bg-[#345B69] active:scale-95 text-white flex items-center justify-center disabled:opacity-40 disabled:active:scale-100 transition-all shrink-0"
+          className="w-9 h-9 rounded-full bg-primary hover:bg-[#345B69] active:scale-95 text-white flex items-center justify-center disabled:opacity-40 disabled:active:scale-100 transition-all shrink-0"
         >
           {editingWorkId ? <Check size={15} /> : <Plus size={15} />}
         </button>

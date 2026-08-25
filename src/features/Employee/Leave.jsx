@@ -265,7 +265,7 @@ export function EmployeeLeave({ me }) {
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={2}
-          className="w-full border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm mb-3 outline-none focus:border-[#3D6B7D]"
+          className="w-full border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm mb-3 outline-none focus:border-primary"
           placeholder="Brief reason for HR"
         />
 
@@ -283,7 +283,7 @@ export function EmployeeLeave({ me }) {
         <button
           onClick={doSubmit}
           disabled={saving || !reason.trim()}
-          className="px-4 py-2 rounded-lg bg-[#3D6B7D] text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {saving ? "Submitting..." : "Submit request"}
         </button>
@@ -471,7 +471,7 @@ export function EmployeeLeave({ me }) {
                 })
               }
               rows={3}
-              className="w-full border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#3D6B7D]"
+              className="w-full border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
             />
 
             {err && (
@@ -492,7 +492,7 @@ export function EmployeeLeave({ me }) {
               <button
                 onClick={saveEdit}
                 disabled={saving}
-                className="px-4 py-2 rounded-lg bg-[#3D6B7D] text-white text-sm font-medium disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save changes"}
               </button>

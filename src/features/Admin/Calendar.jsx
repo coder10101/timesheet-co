@@ -191,13 +191,13 @@ export function AdminCalendar({ me }) {
             <div className="flex gap-2 mb-3">
               <button
                 onClick={() => setAllOrg(true)}
-                className={`flex-1 py-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 ${allOrg ? "bg-[#3D6B7D] text-white border-[#3D6B7D]" : "border-[#E4DFD3] text-[#7A7362]"}`}
+                className={`flex-1 py-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 ${allOrg ? "bg-primary text-white border-primary" : "border-[#E4DFD3] text-[#7A7362]"}`}
               >
                 <Users size={13} /> Whole office
               </button>
               <button
                 onClick={() => setAllOrg(false)}
-                className={`flex-1 py-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 ${!allOrg ? "bg-[#3D6B7D] text-white border-[#3D6B7D]" : "border-[#E4DFD3] text-[#7A7362]"}`}
+                className={`flex-1 py-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 ${!allOrg ? "bg-primary text-white border-primary" : "border-[#E4DFD3] text-[#7A7362]"}`}
               >
                 <User size={13} /> Specific people
               </button>
@@ -211,7 +211,7 @@ export function AdminCalendar({ me }) {
                     onClick={() => toggleAssignee(emp.id)}
                     className={`px-2.5 py-1 rounded-full text-[11px] border ${
                       assigneeIds.includes(emp.id)
-                        ? "bg-[#3D6B7D] text-white border-[#3D6B7D]"
+                        ? "bg-primary text-white border-primary"
                         : "border-[#E4DFD3] text-[#7A7362]"
                     }`}
                   >
@@ -224,7 +224,7 @@ export function AdminCalendar({ me }) {
             {eErr && <p className="text-[12px] text-[#B5563A] mb-2">{eErr}</p>}
             <button
               onClick={addEventHandler}
-              className="px-4 py-2 rounded-lg bg-[#3D6B7D] text-white text-sm font-medium flex items-center gap-1.5"
+              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium flex items-center gap-1.5"
             >
               <Plus size={15} /> Add event
             </button>
@@ -246,7 +246,7 @@ export function AdminCalendar({ me }) {
                     className="flex items-center justify-between py-2.5"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-[#3D6B7D]/10 text-[#3D6B7D] flex items-center justify-center shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                         <CalendarClock size={13} />
                       </div>
                       <div>
@@ -306,7 +306,7 @@ export function AdminCalendar({ me }) {
             </div>
             <button
               onClick={addHolidayHandler}
-              className="px-4 py-2 rounded-lg bg-[#3D6B7D] text-white text-sm font-medium flex items-center gap-1.5"
+              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium flex items-center gap-1.5"
             >
               <Plus size={15} /> Add holiday
             </button>

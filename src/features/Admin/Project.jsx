@@ -96,7 +96,7 @@ export function AdminProjects({ me }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Riverside Office Fitout"
-              className="w-full border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#3D6B7D]"
+              className="w-full border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
           <div>
@@ -116,7 +116,7 @@ export function AdminProjects({ me }) {
           </div>
           <button
             onClick={create}
-            className="px-4 py-2 rounded-lg bg-[#3D6B7D] text-white text-sm font-medium flex items-center gap-1.5"
+            className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium flex items-center gap-1.5"
           >
             <Plus size={15} /> Create
           </button>
@@ -152,7 +152,7 @@ export function AdminProjects({ me }) {
                           <input
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="w-full border border-[#E4DFD3] rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-[#3D6B7D]"
+                            className="w-full border border-[#E4DFD3] rounded-lg px-2.5 py-1.5 text-sm outline-none focus:border-primary"
                           />
                         </div>
                         <div>

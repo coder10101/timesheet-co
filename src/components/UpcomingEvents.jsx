@@ -55,7 +55,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
         </h3>
         <NavLink
           to="/calendar"
-          className="flex items-center gap-1 text-xs font-medium text-[#3D6B7D] hover:text-[#294D5B] transition shrink-0"
+          className="flex items-center gap-1 text-xs font-medium text-primary hover:text-[#294D5B] transition shrink-0"
         >
           <span>View full calendar</span>
           <ArrowRight size={12} />
@@ -80,7 +80,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                   className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                     isHoliday
                       ? "bg-[#FBEEEA] text-[#B5563A]"
-                      : "bg-[#EEF3F4] text-[#3D6B7D]"
+                      : "bg-[#EEF3F4] text-primary"
                   }`}
                 >
                   {isHoliday ? (
@@ -98,7 +98,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                   <div className="flex items-center gap-2 mt-0.5">
                     <span
                       className={`text-[10px] ${
-                        isHoliday ? "text-[#B5563A]" : "text-[#3D6B7D]"
+                        isHoliday ? "text-[#B5563A]" : "text-primary"
                       }`}
                     >
                       {formatDate(item.date)}
@@ -120,7 +120,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                   className={`hidden sm:block text-[9px] px-1.5 py-0.5 rounded-full ${
                     isHoliday
                       ? "bg-[#FBEEEA] text-[#B5563A]"
-                      : "bg-[#EEF3F4] text-[#3D6B7D]"
+                      : "bg-[#EEF3F4] text-primary"
                   }`}
                 >
                   {isHoliday ? "Holiday" : "Event"}

@@ -124,7 +124,7 @@ export function AdminOverview() {
                   className="flex items-center justify-between py-2"
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="w-8 h-8 rounded-full bg-[#3D6B7D] text-white flex items-center justify-center text-[10px] font-medium">
+                    <span className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-[10px] font-medium">
                       {e.name.slice(0, 2).toUpperCase()}
                     </span>
 

@@ -86,7 +86,7 @@ export function NepaliDatePicker({
                   key={i}
                   onClick={() => selectDay(cell.isoDate)}
                   className={`aspect-square rounded-lg flex items-center justify-center text-[11px] font-mono transition
-                    ${isSelected ? "bg-[#3D6B7D] text-white font-semibold" : isToday ? "bg-[#EEEAE0] font-semibold" : "text-[#292722] hover:bg-[#F5F3EE]"}
+                    ${isSelected ? "bg-primary text-white font-semibold" : isToday ? "bg-[#EEEAE0] font-semibold" : "text-[#292722] hover:bg-[#F5F3EE]"}
                   `}
                 >
                   {cell.bsDay}

@@ -240,7 +240,7 @@ export function EmployeeAttendance({ me }) {
                       <button
                         onClick={saveEdit}
                         disabled={saving}
-                        className="px-3 py-1.5 rounded-lg bg-[#3D6B7D] text-white text-xs font-medium disabled:opacity-40"
+                        className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium disabled:opacity-40"
                       >
                         {saving ? "Saving..." : "Save"}
                       </button>

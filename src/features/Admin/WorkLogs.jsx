@@ -153,7 +153,7 @@ export function AdminWorklogs() {
                       <div className="space-y-2">
                         {items.map((it) => (
                           <div key={it.id} className="flex gap-2.5 text-sm">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#3D6B7D] mt-2 shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
 
                             <span>{it.entry_text}</span>
                           </div>

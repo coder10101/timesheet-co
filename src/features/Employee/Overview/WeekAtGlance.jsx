@@ -71,7 +71,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
                   min-w-0 rounded-xl p-2 text-center border
                   ${
                     isToday
-                      ? "border-[#3D6B7D] bg-[#F0F5F6]"
+                      ? "border-primary bg-[#F0F5F6]"
                       : "border-[#EEEAE0] bg-[#FAF9F6]"
                   }
                 `}
@@ -79,7 +79,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
               {/* Gregorian weekday */}
               <div
                 className={`text-[9px] uppercase tracking-wide font-medium ${
-                  isToday ? "text-[#3D6B7D]" : "text-[#9A9383]"
+                  isToday ? "text-primary" : "text-[#9A9383]"
                 }`}
               >
                 {WEEKDAY_LABELS[index]}
@@ -88,7 +88,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
               {/* Nepali date */}
               <div
                 className={`mt-1 text-sm font-mono font-semibold ${
-                  isToday ? "text-[#3D6B7D]" : "text-[#292722]"
+                  isToday ? "text-primary" : "text-[#292722]"
                 }`}
               >
                 {bs?.day}
@@ -107,7 +107,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
 
                 {status === "leave" && (
                   <div
-                    className="text-[8px] font-medium text-[#3D6B7D]
+                    className="text-[8px] font-medium text-primary
                       truncate"
                   >
                     Leave
@@ -130,7 +130,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
 
               {/* Today label */}
               {isToday && (
-                <div className="mt-1 text-[7px] uppercase tracking-wide text-[#3D6B7D] font-semibold">
+                <div className="mt-1 text-[7px] uppercase tracking-wide text-primary font-semibold">
                   Today
                 </div>
               )}
@@ -156,7 +156,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
         </div>
 
         <div className="flex items-center gap-1.5 text-[9px] text-[#7A7362]">
-          <span className="w-2 h-2 rounded-full bg-[#3D6B7D]" />
+          <span className="w-2 h-2 rounded-full bg-primary" />
           Leave
         </div>
       </div>

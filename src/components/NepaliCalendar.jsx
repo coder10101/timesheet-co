@@ -169,7 +169,7 @@ export function NepaliCalendar() {
                 transition
                 ${
                   isToday
-                    ? "bg-[#3D6B7D] text-white font-semibold"
+                    ? "bg-primary text-white font-semibold"
                     : isSelected
                       ? "bg-[#EEEAE0] text-[#292722] font-semibold"
                       : isHoliday
@@ -253,7 +253,7 @@ export function NepaliCalendar() {
       {/* LEGEND */}
       <div className="flex items-center gap-3 mt-3 text-[9px] text-[#9A9383] flex-wrap">
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#3D6B7D]" />
+          <span className="w-2 h-2 rounded-full bg-primary" />
           Today
         </span>
         <span className="flex items-center gap-1">
@@ -278,7 +278,7 @@ export function NepaliCalendar() {
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${ev.event_type === "deadline" ? "bg-[#B5563A]" : "bg-[#3D6B7D]"}`}
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${ev.event_type === "deadline" ? "bg-[#B5563A]" : "bg-primary"}`}
                   />
                   <span className="text-[11px] truncate group-hover:underline">
                     {ev.title}

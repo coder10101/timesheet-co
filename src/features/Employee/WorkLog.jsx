@@ -124,7 +124,7 @@ export function EmployeeWorklog({ me }) {
           <button
             onClick={saveEntry}
             disabled={!text.trim() || saving}
-            className="px-3 py-1.5 rounded-lg bg-[#3D6B7D] text-white text-xs font-medium disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium disabled:opacity-40"
           >
             {saving ? "Saving..." : editingId ? "Update" : "Add work"}
           </button>
@@ -205,7 +205,7 @@ export function EmployeeWorklog({ me }) {
                           className="group flex items-start justify-between gap-3 px-2 py-2 rounded-lg hover:bg-[#F7F5F0]"
                         >
                           <div className="flex gap-2 text-xs items-start">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#3D6B7D] mt-1.5 shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
                             <span>
                               {proj && (
                                 <span

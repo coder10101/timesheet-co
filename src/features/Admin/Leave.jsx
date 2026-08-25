@@ -56,7 +56,7 @@ export function AdminLeave({ me }) {
                 className="flex items-center justify-between py-2.5"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#3D6B7D] text-white flex items-center justify-center text-[11px] font-medium shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-[11px] font-medium shrink-0">
                     {e.name?.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="text-sm font-medium">{e.name}</div>
@@ -104,7 +104,7 @@ export function AdminLeave({ me }) {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#3D6B7D] text-white flex items-center justify-center text-xs font-medium shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-xs font-medium shrink-0">
                         {r.employeeName?.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
