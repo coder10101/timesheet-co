@@ -86,7 +86,7 @@ export function Dashboard({ me, onLogout }) {
   return (
     <div className="min-h-screen bg-surface text-text">
       <div className="flex min-h-screen">
-        <aside className="hidden md:flex flex-col w-56 lg:w-60 shrink-0 bg-[#0E1117] text-white sticky top-0 h-screen">
+        <aside className="hidden md:flex flex-col w-56 lg:w-60 shrink-0 bg-[#011E26] text-white sticky top-0 h-screen">
           {/* LOGO */}
 
           <div className="px-5 py-6 border-b border-white/5">
