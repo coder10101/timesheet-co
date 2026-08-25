@@ -60,7 +60,7 @@ export function Today({
   };
 
   return (
-    <section className="relative bg-gradient-to-br from-[#11151F] via-[#2B2B33] to-[#3C4042] text-white rounded-2xl p-5 sm:p-6 overflow-hidden">
+    <section className="relative bg-gradient-to-br from-[#011E26] via-[#012A30] to-[#02353D] text-white rounded-2xl p-5 sm:p-6 overflow-hidden">
       <style>{`
     @keyframes ripple-pop {
       0% { transform: scale(0.5); opacity: 0.55; }
