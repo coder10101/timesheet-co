@@ -50,9 +50,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
     <Card>
       {/* HEADER — title left, calendar link right */}
       <div className="flex items-center justify-between mb-1">
-        <h3 className="text-sm font-semibold text-[#292722]">
-          Upcoming events
-        </h3>
+        <h3 className="text-sm font-semibold text-text">Upcoming events</h3>
         <NavLink
           to="/calendar"
           className="flex items-center gap-1 text-xs font-medium text-primary hover:text-[#294D5B] transition shrink-0"
@@ -63,7 +61,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
       </div>
 
       {upcoming.length === 0 ? (
-        <div className="py-4 text-center text-xs text-[#9A9383]">
+        <div className="py-4 text-center text-xs text-text-subtle">
           Nothing coming up
         </div>
       ) : (
@@ -107,7 +105,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                     {!isHoliday && item.time && (
                       <>
                         <span className="text-[#DDD8CB]">·</span>
-                        <span className="flex items-center gap-1 text-[10px] font-mono text-[#7A7362]">
+                        <span className="flex items-center gap-1 text-[10px] font-mono text-text-muted">
                           <Clock size={9} />
                           {fmtTimeAmPm(item.time)}
                         </span>

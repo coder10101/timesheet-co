@@ -125,7 +125,7 @@ export function AdminCalendar({ me }) {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-semibold">Calendar</h1>
-        <p className="text-sm text-[#7A7362] mt-1">
+        <p className="text-sm text-text-muted mt-1">
           Holidays, meetings, and deadlines for the whole office.
         </p>
       </div>
@@ -133,13 +133,13 @@ export function AdminCalendar({ me }) {
       <div className="flex gap-1 bg-[#EEEAE0] rounded-lg p-1 w-fit">
         <button
           onClick={() => setTab("events")}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium ${tab === "events" ? "bg-white shadow-sm" : "text-[#7A7362]"}`}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium ${tab === "events" ? "bg-white shadow-sm" : "text-text-muted"}`}
         >
           Events
         </button>
         <button
           onClick={() => setTab("holidays")}
-          className={`px-3 py-1.5 rounded-md text-xs font-medium ${tab === "holidays" ? "bg-white shadow-sm" : "text-[#7A7362]"}`}
+          className={`px-3 py-1.5 rounded-md text-xs font-medium ${tab === "holidays" ? "bg-white shadow-sm" : "text-text-muted"}`}
         >
           Holidays
         </button>
@@ -191,13 +191,13 @@ export function AdminCalendar({ me }) {
             <div className="flex gap-2 mb-3">
               <button
                 onClick={() => setAllOrg(true)}
-                className={`flex-1 py-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 ${allOrg ? "bg-primary text-white border-primary" : "border-[#E4DFD3] text-[#7A7362]"}`}
+                className={`flex-1 py-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 ${allOrg ? "bg-primary text-white border-primary" : "border-[#E4DFD3] text-text-muted"}`}
               >
                 <Users size={13} /> Whole office
               </button>
               <button
                 onClick={() => setAllOrg(false)}
-                className={`flex-1 py-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 ${!allOrg ? "bg-primary text-white border-primary" : "border-[#E4DFD3] text-[#7A7362]"}`}
+                className={`flex-1 py-2 rounded-lg border text-xs font-medium flex items-center justify-center gap-1.5 ${!allOrg ? "bg-primary text-white border-primary" : "border-[#E4DFD3] text-text-muted"}`}
               >
                 <User size={13} /> Specific people
               </button>
@@ -212,7 +212,7 @@ export function AdminCalendar({ me }) {
                     className={`px-2.5 py-1 rounded-full text-[11px] border ${
                       assigneeIds.includes(emp.id)
                         ? "bg-primary text-white border-primary"
-                        : "border-[#E4DFD3] text-[#7A7362]"
+                        : "border-[#E4DFD3] text-text-muted"
                     }`}
                   >
                     {emp.name}
@@ -235,7 +235,7 @@ export function AdminCalendar({ me }) {
             subtitle={`${events.length} total`}
           >
             {events.length === 0 ? (
-              <div className="py-6 text-center text-xs text-[#7A7362] border border-dashed border-[#E4DFD3] rounded-lg">
+              <div className="py-6 text-center text-xs text-text-muted border border-dashed border-[#E4DFD3] rounded-lg">
                 No events yet.
               </div>
             ) : (
@@ -251,7 +251,7 @@ export function AdminCalendar({ me }) {
                       </div>
                       <div>
                         <div className="text-sm font-medium">{ev.title}</div>
-                        <div className="text-[11px] text-[#7A7362] font-mono">
+                        <div className="text-[11px] text-text-muted font-mono">
                           {fmtDate(ev.date)}
                           {ev.time ? ` · ${ev.time}` : ""} · {ev.event_type}
                           {" · "}
@@ -315,7 +315,7 @@ export function AdminCalendar({ me }) {
 
           <Card title="All holidays" subtitle={`${holidays.length} total`}>
             {holidays.length === 0 ? (
-              <div className="py-6 text-center text-xs text-[#7A7362] border border-dashed border-[#E4DFD3] rounded-lg">
+              <div className="py-6 text-center text-xs text-text-muted border border-dashed border-[#E4DFD3] rounded-lg">
                 No holidays added yet.
               </div>
             ) : (
@@ -340,7 +340,7 @@ export function AdminCalendar({ me }) {
                         </div>
                         <div>
                           <div className="text-sm font-medium">{h.name}</div>
-                          <div className="text-[11px] text-[#7A7362] font-mono">
+                          <div className="text-[11px] text-text-muted font-mono">
                             {fmtDate(h.date)} · {meta.label}
                           </div>
                         </div>

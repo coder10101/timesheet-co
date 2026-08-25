@@ -81,7 +81,7 @@ export function AdminProjects({ me }) {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-semibold">Projects</h1>
-        <p className="text-sm text-[#7A7362] mt-1">
+        <p className="text-sm text-text-muted mt-1">
           Create project tags and see who's working on what.
         </p>
       </div>
@@ -89,7 +89,7 @@ export function AdminProjects({ me }) {
       <Card title="New project tag">
         <div className="flex flex-col md:flex-row gap-3 items-start md:items-end">
           <div className="flex-1 w-full">
-            <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+            <label className="block text-[11px] uppercase text-text-muted mb-1">
               Name
             </label>
             <input
@@ -100,7 +100,7 @@ export function AdminProjects({ me }) {
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+            <label className="block text-[11px] uppercase text-text-muted mb-1">
               Color
             </label>
             <div className="flex gap-1.5">
@@ -146,7 +146,7 @@ export function AdminProjects({ me }) {
                     <div className="mb-2">
                       <div className="flex flex-col md:flex-row gap-3 items-start md:items-end mb-2">
                         <div className="flex-1 w-full">
-                          <label className="block text-[10px] uppercase text-[#7A7362] mb-1">
+                          <label className="block text-[10px] uppercase text-text-muted mb-1">
                             Name
                           </label>
                           <input
@@ -156,7 +156,7 @@ export function AdminProjects({ me }) {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] uppercase text-[#7A7362] mb-1">
+                          <label className="block text-[10px] uppercase text-text-muted mb-1">
                             Color
                           </label>
                           <div className="flex gap-1.5">
@@ -205,14 +205,14 @@ export function AdminProjects({ me }) {
                         <button
                           onClick={() => startEdit(p)}
                           title="Rename or recolor"
-                          className="p-1.5 rounded-lg text-[#7A7362] hover:bg-[#F5F3EE]"
+                          className="p-1.5 rounded-lg text-text-muted hover:bg-[#F5F3EE]"
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => archiveProject(p.id, true)}
                           title="Archive project"
-                          className="p-1.5 rounded-lg text-[#7A7362] hover:bg-[#F5F3EE]"
+                          className="p-1.5 rounded-lg text-text-muted hover:bg-[#F5F3EE]"
                         >
                           <Archive size={14} />
                         </button>
@@ -220,7 +220,7 @@ export function AdminProjects({ me }) {
                     </div>
                   )}
 
-                  <div className="text-xs text-[#7A7362] mb-2">
+                  <div className="text-xs text-text-muted mb-2">
                     {projectEntries.length} log entr
                     {projectEntries.length !== 1 ? "ies" : "y"} ·{" "}
                     {contributors.length} contributor
@@ -261,12 +261,12 @@ export function AdminProjects({ me }) {
                     className="w-2.5 h-2.5 rounded-full opacity-50"
                     style={{ backgroundColor: p.color }}
                   />
-                  <span className="text-sm text-[#7A7362]">{p.name}</span>
+                  <span className="text-sm text-text-muted">{p.name}</span>
                 </div>
                 <button
                   onClick={() => archiveProject(p.id, false)}
                   title="Restore project"
-                  className="p-1.5 rounded-lg text-[#7A7362] hover:bg-[#F5F3EE]"
+                  className="p-1.5 rounded-lg text-text-muted hover:bg-[#F5F3EE]"
                 >
                   <ArchiveRestore size={14} />
                 </button>

@@ -23,7 +23,7 @@ export function AdminLeave({ me }) {
       {/* HEADER */}
       <div>
         <h1 className="text-2xl font-semibold">Leave approvals</h1>
-        <p className="text-sm text-[#7A7362] mt-1">
+        <p className="text-sm text-text-muted mt-1">
           Review and manage employee leave requests.
         </p>
       </div>
@@ -63,11 +63,11 @@ export function AdminLeave({ me }) {
                 </div>
                 <div className="flex gap-4 text-sm font-mono">
                   <span title="Annual leave remaining">
-                    <span className="text-[#7A7362] text-xs mr-1">Annual</span>
+                    <span className="text-text-muted text-xs mr-1">Annual</span>
                     {e.leave_balance?.Annual ?? 0}
                   </span>
                   <span title="Sick leave remaining">
-                    <span className="text-[#7A7362] text-xs mr-1">Sick</span>
+                    <span className="text-text-muted text-xs mr-1">Sick</span>
                     {e.leave_balance?.Sick ?? 0}
                   </span>
                 </div>
@@ -85,7 +85,7 @@ export function AdminLeave({ me }) {
           <div className="py-8 text-center">
             <div className="text-2xl mb-1">✓</div>
             <div className="text-sm font-medium">Nothing to review</div>
-            <div className="text-xs text-[#7A7362] mt-1">
+            <div className="text-xs text-text-muted mt-1">
               All leave requests have been handled.
             </div>
           </div>
@@ -111,7 +111,7 @@ export function AdminLeave({ me }) {
                         <div className="text-sm font-semibold">
                           {r.employeeName}
                         </div>
-                        <div className="text-xs text-[#7A7362] mt-0.5">
+                        <div className="text-xs text-text-muted mt-0.5">
                           {r.type} leave
                           {typeof balanceForType === "number" && (
                             <span className="ml-1.5">
@@ -198,9 +198,9 @@ export function AdminLeave({ me }) {
                 <div>
                   <div className="text-sm font-medium">
                     {r.employeeName}
-                    <span className="text-[#7A7362]"> · {r.type}</span>
+                    <span className="text-text-muted"> · {r.type}</span>
                   </div>
-                  <div className="text-[11px] text-[#7A7362] font-mono mt-0.5">
+                  <div className="text-[11px] text-text-muted font-mono mt-0.5">
                     {fmtDate(r.start_date)} – {fmtDate(r.end_date)} · {r.days}{" "}
                     day{r.days !== 1 ? "s" : ""}
                   </div>

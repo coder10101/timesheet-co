@@ -47,7 +47,7 @@ export function AdminTeam({ me }) {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-semibold">Team</h1>
-        <p className="text-sm text-[#7A7362] mt-1">
+        <p className="text-sm text-text-muted mt-1">
           Manage who has access to Trihaus's workspace.
         </p>
       </div>
@@ -67,7 +67,7 @@ export function AdminTeam({ me }) {
                 </span>
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">{e.name}</div>
-                  <div className="text-[11px] text-[#7A7362] flex items-center gap-1.5">
+                  <div className="text-[11px] text-text-muted flex items-center gap-1.5">
                     {e.role === "admin" ? (
                       <ShieldCheck size={11} />
                     ) : (
@@ -94,7 +94,7 @@ export function AdminTeam({ me }) {
                   {e.is_active ? "Revoke access" : "Restore access"}
                 </button>
               ) : (
-                <span className="text-[11px] text-[#7A7362] italic shrink-0">
+                <span className="text-[11px] text-text-muted italic shrink-0">
                   You
                 </span>
               )}

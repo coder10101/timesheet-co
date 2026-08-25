@@ -47,7 +47,7 @@ export function AdminWorklogs() {
         <div>
           <h1 className="text-2xl font-semibold">Work logs</h1>
 
-          <p className="text-sm text-[#7A7362] mt-1">
+          <p className="text-sm text-text-muted mt-1">
             See what each employee worked on and how long they worked.
           </p>
         </div>
@@ -98,7 +98,7 @@ export function AdminWorklogs() {
                           {fmtDate(date)}
                         </div>
 
-                        <div className="text-[11px] text-[#7A7362] mt-0.5">
+                        <div className="text-[11px] text-text-muted mt-0.5">
                           {items.length} work log
                           {items.length !== 1 ? "s" : ""}
                         </div>
@@ -127,7 +127,7 @@ export function AdminWorklogs() {
                           <div
                             className={`font-mono text-sm font-semibold ${
                               difference === null
-                                ? "text-[#7A7362]"
+                                ? "text-text-muted"
                                 : difference >= 0
                                   ? "text-success"
                                   : "text-alert"

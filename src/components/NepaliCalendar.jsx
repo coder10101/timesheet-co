@@ -125,7 +125,7 @@ export function NepaliCalendar() {
         {WEEKDAY_LABELS.map((d) => (
           <div
             key={d}
-            className="text-[9px] uppercase text-[#9A9383] font-medium"
+            className="text-[9px] uppercase text-text-subtle font-medium"
           >
             {d}
           </div>
@@ -171,14 +171,14 @@ export function NepaliCalendar() {
                   isToday
                     ? "bg-primary text-white font-semibold"
                     : isSelected
-                      ? "bg-[#EEEAE0] text-[#292722] font-semibold"
+                      ? "bg-[#EEEAE0] text-text font-semibold"
                       : isHoliday
                         ? "bg-[#FBEEEA] text-alert font-semibold"
                         : hasEvents
-                          ? "bg-[#FBF3E3] text-[#292722]"
+                          ? "bg-[#FBF3E3] text-text"
                           : cell.isWeekend
                             ? "text-alert"
-                            : "text-[#292722]"
+                            : "text-text"
                 }
               `}
             >
@@ -212,7 +212,7 @@ export function NepaliCalendar() {
           <div className="mt-3 space-y-2">
             {selectedCell.holidayName && (
               <div className="px-3 py-2.5 rounded-lg bg-[#FBEEEA] border border-[#F0D8D0]">
-                <div className="text-[10px] uppercase tracking-wide text-[#9A9383]">
+                <div className="text-[10px] uppercase tracking-wide text-text-subtle">
                   {selectedCell.bsDay} {NEPALI_MONTHS[view.month - 1]}
                 </div>
                 <div className="text-xs font-medium text-[#5E594E] mt-0.5">
@@ -227,7 +227,7 @@ export function NepaliCalendar() {
                 className="px-3 py-2.5 rounded-lg bg-warning-light border border-[#EEDFC0]"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-[10px] uppercase tracking-wide text-[#9A9383] flex items-center gap-1">
+                  <div className="text-[10px] uppercase tracking-wide text-text-subtle flex items-center gap-1">
                     <CalendarClock size={10} /> {ev.event_type}
                   </div>
                   {ev.time && (
@@ -251,7 +251,7 @@ export function NepaliCalendar() {
         )}
 
       {/* LEGEND */}
-      <div className="flex items-center gap-3 mt-3 text-[9px] text-[#9A9383] flex-wrap">
+      <div className="flex items-center gap-3 mt-3 text-[9px] text-text-subtle flex-wrap">
         <span className="flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-primary" />
           Today
@@ -293,7 +293,7 @@ export function NepaliCalendar() {
                   </div>
                 )}
               </div>
-              <span className="text-[10px] text-[#9A9383] font-mono shrink-0 flex items-center gap-0.5 pt-0.5">
+              <span className="text-[10px] text-text-subtle font-mono shrink-0 flex items-center gap-0.5 pt-0.5">
                 {relativeDayLabel(ev.date)}
                 <ArrowRight
                   size={9}

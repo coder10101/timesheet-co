@@ -80,7 +80,7 @@ export function EmployeeAttendance({ me }) {
       <div className="mb-5">
         <h1 className="text-2xl font-semibold">Attendance</h1>
 
-        <p className="text-xs text-[#7A7362] mt-1">
+        <p className="text-xs text-text-muted mt-1">
           Your attendance and working hours
         </p>
       </div>
@@ -104,7 +104,7 @@ export function EmployeeAttendance({ me }) {
 
       {/* NOTE */}
 
-      <div className="mb-4 px-3 py-2 rounded-lg bg-[#F5F3EE] text-[11px] text-[#7A7362]">
+      <div className="mb-4 px-3 py-2 rounded-lg bg-[#F5F3EE] text-[11px] text-text-muted">
         Working hours are calculated from clock-in to clock-out, with a 1-hour
         lunch automatically deducted.
       </div>
@@ -121,7 +121,7 @@ export function EmployeeAttendance({ me }) {
 
       <div className="bg-white border border-[#E4DFD3] rounded-xl overflow-hidden">
         {records.length === 0 ? (
-          <div className="p-8 text-center text-xs text-[#7A7362]">
+          <div className="p-8 text-center text-xs text-text-muted">
             No attendance records yet.
           </div>
         ) : (
@@ -147,14 +147,14 @@ export function EmployeeAttendance({ me }) {
                         {fmtDate(record.date)}
                       </div>
 
-                      <div className="text-[10px] text-[#9A9383] mt-0.5">
+                      <div className="text-[10px] text-text-subtle mt-0.5">
                         {record.clock_in ? "Present" : "Absent"}
                       </div>
                     </div>
 
                     <div className="font-mono text-xs">
                       {fmtTime(record.clock_in)}
-                      <span className="mx-2 text-[#B6B0A2]">→</span>
+                      <span className="mx-2 text-text-faint">→</span>
                       {fmtTime(record.clock_out)}
                     </div>
 
@@ -171,7 +171,7 @@ export function EmployeeAttendance({ me }) {
                             ? "text-success"
                             : difference < 0
                               ? "text-alert"
-                              : "text-[#9A9383]"
+                              : "text-text-subtle"
                         }`}
                       >
                         {record.clock_out
@@ -199,13 +199,13 @@ export function EmployeeAttendance({ me }) {
                         Edit attendance · {fmtDate(record.date)}
                       </div>
 
-                      <div className="text-[10px] text-[#9A9383]">
+                      <div className="text-[10px] text-text-subtle">
                         Date cannot be changed
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                      <label className="text-[11px] text-[#7A7362]">
+                      <label className="text-[11px] text-text-muted">
                         Clock in
                         <input
                           type="datetime-local"
@@ -220,7 +220,7 @@ export function EmployeeAttendance({ me }) {
                         />
                       </label>
 
-                      <label className="text-[11px] text-[#7A7362]">
+                      <label className="text-[11px] text-text-muted">
                         Clock out
                         <input
                           type="datetime-local"

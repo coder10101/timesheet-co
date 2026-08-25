@@ -65,7 +65,7 @@ export function EmployeeWorklog({ me }) {
     <div className="max-w-5xl mx-auto">
       <div className="mb-5">
         <h1 className="text-2xl font-semibold">Work Log</h1>
-        <p className="text-xs text-[#7A7362] mt-1">
+        <p className="text-xs text-text-muted mt-1">
           What you worked on and how long you worked
         </p>
       </div>
@@ -77,7 +77,7 @@ export function EmployeeWorklog({ me }) {
             <div className="text-sm font-medium">
               {editingId ? "Edit work log" : "Add work"}
             </div>
-            <div className="text-[10px] text-[#9A9383]">
+            <div className="text-[10px] text-text-subtle">
               Log work against a specific day
             </div>
           </div>
@@ -176,7 +176,7 @@ export function EmployeeWorklog({ me }) {
                       {formatDuration(worked)}
                     </div>
                     <div
-                      className={`font-mono text-[10px] ${difference > 0 ? "text-success" : difference < 0 ? "text-alert" : "text-[#9A9383]"}`}
+                      className={`font-mono text-[10px] ${difference > 0 ? "text-success" : difference < 0 ? "text-alert" : "text-text-subtle"}`}
                     >
                       {difference > 0
                         ? `+${formatDuration(difference)} OT`
@@ -190,7 +190,7 @@ export function EmployeeWorklog({ me }) {
 
               <div className="p-3">
                 {dayEntries.length === 0 ? (
-                  <div className="text-xs text-[#9A9383] py-2">
+                  <div className="text-xs text-text-subtle py-2">
                     No work logged for this day.
                   </div>
                 ) : (

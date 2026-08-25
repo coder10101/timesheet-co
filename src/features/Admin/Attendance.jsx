@@ -48,7 +48,7 @@ export function AdminAttendance() {
         <div>
           <h1 className="text-2xl font-semibold">Attendance</h1>
 
-          <p className="text-sm text-[#7A7362] mt-1">
+          <p className="text-sm text-text-muted mt-1">
             Monitor attendance and working hours.
           </p>
         </div>
@@ -86,7 +86,7 @@ export function AdminAttendance() {
                   No attendance recorded today
                 </div>
 
-                <div className="text-xs text-[#7A7362] mt-1">
+                <div className="text-xs text-text-muted mt-1">
                   This employee has not clocked in.
                 </div>
               </div>
@@ -96,7 +96,7 @@ export function AdminAttendance() {
 
                 <div className="flex flex-wrap items-center gap-6">
                   <div>
-                    <div className="text-[10px] uppercase text-[#7A7362] mb-1">
+                    <div className="text-[10px] uppercase text-text-muted mb-1">
                       Clock in
                     </div>
 
@@ -108,7 +108,7 @@ export function AdminAttendance() {
                   <div className="text-[#BDB7AA]">→</div>
 
                   <div>
-                    <div className="text-[10px] uppercase text-[#7A7362] mb-1">
+                    <div className="text-[10px] uppercase text-text-muted mb-1">
                       Clock out
                     </div>
 
@@ -185,7 +185,7 @@ export function AdminAttendance() {
                           key={r.id}
                           className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-3 items-center px-3 py-3 text-sm"
                         >
-                          <span className="font-mono text-[#7A7362]">
+                          <span className="font-mono text-text-muted">
                             {fmtDate(r.date)}
                           </span>
 
@@ -204,7 +204,7 @@ export function AdminAttendance() {
                           <span
                             className={
                               diff === null
-                                ? "text-[#7A7362]"
+                                ? "text-text-muted"
                                 : diff >= 0
                                   ? "text-success"
                                   : "text-alert"

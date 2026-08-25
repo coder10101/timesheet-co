@@ -33,7 +33,7 @@ export default function Header({ title, subtitle, action, titleStyle }) {
         </h1>
 
         {subtitle && (
-          <p className="text-xs sm:text-sm text-[#7A7362] mt-1">{subtitle}</p>
+          <p className="text-xs sm:text-sm text-text-muted mt-1">{subtitle}</p>
         )}
       </div>
 
@@ -44,7 +44,7 @@ export default function Header({ title, subtitle, action, titleStyle }) {
           <p className="font-mono text-sm font-semibold text-[#1A2332]">
             {timeStr}
           </p>
-          <p className="text-[11px] text-[#9A9383]">{dateStr}</p>
+          <p className="text-[11px] text-text-subtle">{dateStr}</p>
         </div>
       </div>
     </div>

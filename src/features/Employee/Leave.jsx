@@ -168,7 +168,7 @@ export function EmployeeLeave({ me }) {
       <div>
         <h1 className="text-2xl font-semibold">Leave requests</h1>
 
-        <p className="text-sm text-[#7A7362] mt-1">
+        <p className="text-sm text-text-muted mt-1">
           Request time off and manage your leave.
         </p>
       </div>
@@ -182,7 +182,7 @@ export function EmployeeLeave({ me }) {
           {/* TYPE */}
 
           <div>
-            <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+            <label className="block text-[11px] uppercase text-text-muted mb-1">
               Type
             </label>
 
@@ -196,9 +196,9 @@ export function EmployeeLeave({ me }) {
               <option value="Sick">Sick</option>
             </select>
 
-            <div className="text-[10px] text-[#7A7362] mt-1">
+            <div className="text-[10px] text-text-muted mt-1">
               {Number(leaveDays) > balance ? "Extra leave:" : "Available:"}
-              <span className="font-medium text-[#292722]">
+              <span className="font-medium text-text">
                 {balance} day
                 {balance !== 1 ? "s" : ""}
               </span>
@@ -215,7 +215,7 @@ export function EmployeeLeave({ me }) {
           {/* START */}
 
           <div>
-            <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+            <label className="block text-[11px] uppercase text-text-muted mb-1">
               Start date
             </label>
 
@@ -230,7 +230,7 @@ export function EmployeeLeave({ me }) {
           {/* END */}
 
           <div>
-            <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+            <label className="block text-[11px] uppercase text-text-muted mb-1">
               End date
             </label>
 
@@ -245,7 +245,7 @@ export function EmployeeLeave({ me }) {
 
           {/* DAYS */}
           <div>
-            <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+            <label className="block text-[11px] uppercase text-text-muted mb-1">
               Days
             </label>
 
@@ -257,7 +257,7 @@ export function EmployeeLeave({ me }) {
 
         {/* REASON */}
 
-        <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+        <label className="block text-[11px] uppercase text-text-muted mb-1">
           Reason
         </label>
 
@@ -314,12 +314,12 @@ export function EmployeeLeave({ me }) {
                     {r.days !== 1 ? "s" : ""}
                   </div>
 
-                  <div className="text-[12px] text-[#7A7362] font-mono mt-0.5">
+                  <div className="text-[12px] text-text-muted font-mono mt-0.5">
                     {fmtDate(r.start_date)} – {fmtDate(r.end_date)}
                   </div>
 
                   {r.reason && (
-                    <div className="text-[11px] text-[#9A9383] mt-1">
+                    <div className="text-[11px] text-text-subtle mt-1">
                       {r.reason}
                     </div>
                   )}
@@ -365,7 +365,7 @@ export function EmployeeLeave({ me }) {
               <div>
                 <h2 className="text-lg font-semibold">Edit leave request</h2>
 
-                <p className="text-xs text-[#7A7362] mt-1">
+                <p className="text-xs text-text-muted mt-1">
                   Only pending requests can be edited.
                 </p>
               </div>
@@ -382,7 +382,7 @@ export function EmployeeLeave({ me }) {
               {/* TYPE */}
 
               <div>
-                <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+                <label className="block text-[11px] uppercase text-text-muted mb-1">
                   Type
                 </label>
 
@@ -405,7 +405,7 @@ export function EmployeeLeave({ me }) {
               {/* DAYS */}
 
               <div>
-                <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+                <label className="block text-[11px] uppercase text-text-muted mb-1">
                   Days
                 </label>
 
@@ -417,7 +417,7 @@ export function EmployeeLeave({ me }) {
               {/* START */}
 
               <div>
-                <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+                <label className="block text-[11px] uppercase text-text-muted mb-1">
                   Start date
                 </label>
 
@@ -437,7 +437,7 @@ export function EmployeeLeave({ me }) {
               {/* END */}
 
               <div>
-                <label className="block text-[11px] uppercase text-[#7A7362] mb-1">
+                <label className="block text-[11px] uppercase text-text-muted mb-1">
                   End date
                 </label>
 
@@ -458,7 +458,7 @@ export function EmployeeLeave({ me }) {
 
             {/* REASON */}
 
-            <label className="block text-[11px] uppercase text-[#7A7362] mb-1 mt-3">
+            <label className="block text-[11px] uppercase text-text-muted mb-1 mt-3">
               Reason
             </label>
 

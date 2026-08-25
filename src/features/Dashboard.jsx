@@ -84,7 +84,7 @@ export function Dashboard({ me, onLogout }) {
   const tabs = isAdmin ? adminTabs : employeeTabs;
 
   return (
-    <div className="min-h-screen bg-[#F5F3EE] text-[#292722]">
+    <div className="min-h-screen bg-[#F5F3EE] text-text">
       <div className="flex min-h-screen">
         {/* =================================================
             DESKTOP SIDEBAR

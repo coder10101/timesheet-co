@@ -1,7 +1,7 @@
 export function StatBlock({ label, value, accent }) {
   return (
     <div className="bg-white border border-[#E4DFD3] rounded-xl p-4">
-      <div className="text-[11px] uppercase tracking-wide text-[#7A7362] mb-1">
+      <div className="text-[11px] uppercase tracking-wide text-text-muted mb-1">
         {label}
       </div>
       <div

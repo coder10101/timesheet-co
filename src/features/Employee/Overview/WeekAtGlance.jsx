@@ -79,7 +79,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
               {/* Gregorian weekday */}
               <div
                 className={`text-[9px] uppercase tracking-wide font-medium ${
-                  isToday ? "text-primary" : "text-[#9A9383]"
+                  isToday ? "text-primary" : "text-text-subtle"
                 }`}
               >
                 {WEEKDAY_LABELS[index]}
@@ -88,7 +88,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
               {/* Nepali date */}
               <div
                 className={`mt-1 text-sm font-mono font-semibold ${
-                  isToday ? "text-primary" : "text-[#292722]"
+                  isToday ? "text-primary" : "text-text"
                 }`}
               >
                 {bs?.day}
@@ -124,7 +124,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
                 )}
 
                 {status === "future" && (
-                  <div className="text-[#B6B0A2] text-xs">—</div>
+                  <div className="text-text-faint text-xs">—</div>
                 )}
               </div>
 
@@ -145,17 +145,17 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-[#EEEAE0]">
-        <div className="flex items-center gap-1.5 text-[9px] text-[#7A7362]">
+        <div className="flex items-center gap-1.5 text-[9px] text-text-muted">
           <span className="w-2 h-2 rounded-full bg-success" />
           Logged
         </div>
 
-        <div className="flex items-center gap-1.5 text-[9px] text-[#7A7362]">
+        <div className="flex items-center gap-1.5 text-[9px] text-text-muted">
           <span className="w-2 h-2 rounded-full bg-alert" />
           Missing
         </div>
 
-        <div className="flex items-center gap-1.5 text-[9px] text-[#7A7362]">
+        <div className="flex items-center gap-1.5 text-[9px] text-text-muted">
           <span className="w-2 h-2 rounded-full bg-primary" />
           Leave
         </div>

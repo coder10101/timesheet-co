@@ -36,10 +36,10 @@ export function NepaliDatePicker({
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between gap-2 border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm bg-white text-left"
       >
-        <span className={value ? "text-[#292722]" : "text-[#9A9383]"}>
+        <span className={value ? "text-text" : "text-text-subtle"}>
           {value ? isoToBSLabel(value) : placeholder}
         </span>
-        <Calendar size={14} className="text-[#7A7362] shrink-0" />
+        <Calendar size={14} className="text-text-muted shrink-0" />
       </button>
 
       {open && (
@@ -68,7 +68,7 @@ export function NepaliDatePicker({
             {WEEKDAY_LABELS.map((d) => (
               <div
                 key={d}
-                className="text-[9px] uppercase text-[#9A9383] font-medium"
+                className="text-[9px] uppercase text-text-subtle font-medium"
               >
                 {d}
               </div>
@@ -86,7 +86,7 @@ export function NepaliDatePicker({
                   key={i}
                   onClick={() => selectDay(cell.isoDate)}
                   className={`aspect-square rounded-lg flex items-center justify-center text-[11px] font-mono transition
-                    ${isSelected ? "bg-primary text-white font-semibold" : isToday ? "bg-[#EEEAE0] font-semibold" : "text-[#292722] hover:bg-[#F5F3EE]"}
+                    ${isSelected ? "bg-primary text-white font-semibold" : isToday ? "bg-[#EEEAE0] font-semibold" : "text-text hover:bg-[#F5F3EE]"}
                   `}
                 >
                   {cell.bsDay}

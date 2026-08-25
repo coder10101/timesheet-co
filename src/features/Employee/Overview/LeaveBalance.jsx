@@ -80,11 +80,11 @@ export function LeaveBalance({ myLeave, me }) {
                       style={{ color: stubColor }}
                       className="shrink-0"
                     />
-                    <span className="text-xs font-semibold text-[#292722] truncate">
+                    <span className="text-xs font-semibold text-text truncate">
                       {type}
                     </span>
                   </div>
-                  <span className="text-[10px] text-[#7A7362]">
+                  <span className="text-[10px] text-text-muted">
                     {used}/{max} used
                   </span>
                 </div>

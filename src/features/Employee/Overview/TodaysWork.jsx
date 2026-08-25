@@ -85,7 +85,7 @@ export function TodaysWork({
           <select
             value={workProjectId}
             onChange={(e) => setWorkProjectId(e.target.value)}
-            className="bg-transparent text-xs rounded-full px-3 py-2 outline-none text-[#7A7362] w-24 sm:w-32 shrink-0"
+            className="bg-transparent text-xs rounded-full px-3 py-2 outline-none text-text-muted w-24 sm:w-32 shrink-0"
           >
             <option value="">No tag</option>
             {activeProjects.map((project) => (
@@ -112,7 +112,7 @@ export function TodaysWork({
           <button
             onClick={cancelWork}
             title="Cancel edit"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-[#7A7362] hover:bg-[#F7F5F0] transition-colors shrink-0"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-text-muted hover:bg-[#F7F5F0] transition-colors shrink-0"
           >
             <X size={15} />
           </button>
@@ -132,9 +132,9 @@ export function TodaysWork({
       {todayWorkLogs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-4 text-center">
           <div className="w-8 h-8 rounded-full bg-[#F7F5F0] flex items-center justify-center mb-1.5">
-            <ClipboardList size={14} className="text-[#B6B0A2]" />
+            <ClipboardList size={14} className="text-text-faint" />
           </div>
-          <p className="text-xs text-[#9A9383]">Nothing logged yet</p>
+          <p className="text-xs text-text-subtle">Nothing logged yet</p>
         </div>
       ) : (
         <div className="pl-1">

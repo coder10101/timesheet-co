@@ -13,7 +13,7 @@ export function Header({ holidays, records, me, today }) {
           <span className="text-xl">{dailyMessage.emoji}</span>
 
           <h1
-            className="text-xl sm:text-2xl font-bold tracking-tight text-[#292722]"
+            className="text-xl sm:text-2xl font-bold tracking-tight text-text"
             style={{
               fontWeight: 800,
               color: dailyMessage.color,
@@ -25,14 +25,14 @@ export function Header({ holidays, records, me, today }) {
       </div>
       <div className="flex items-center gap-2 text-right">
         <div className="hidden sm:block">
-          <p className="font-mono text-sm font-medium text-[#292722]">
+          <p className="font-mono text-sm font-medium text-text">
             {new Date().toLocaleTimeString("en-US", {
               hour: "2-digit",
               minute: "2-digit",
             })}
           </p>
 
-          <div className="flex items-center gap-1.5 text-xs text-[#7A7362]">
+          <div className="flex items-center gap-1.5 text-xs text-text-muted">
             {presentDay}
           </div>
         </div>
