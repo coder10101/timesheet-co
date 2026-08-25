@@ -1,9 +1,9 @@
 import { CheckCircle2, Clock3, XCircle } from "lucide-react";
 
 const STATUS_STYLES = {
-  Pending: "bg-[#F4E3C1] text-warning border-[#E0A458]",
-  Approved: "bg-[#DCE9DE] text-[#2F5233] border-success",
-  Rejected: "bg-[#F1DAD2] text-[#8C3A20] border-alert",
+  Pending: "bg-warning-light text-warning border-warning",
+  Approved: "bg-success-light text-success border-success",
+  Rejected: "bg-alert-light text-alert border-alert",
 };
 
 export function StatusPill({ status }) {

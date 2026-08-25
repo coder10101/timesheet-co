@@ -173,7 +173,7 @@ export function NepaliCalendar() {
                     : isSelected
                       ? "bg-border text-text font-semibold"
                       : isHoliday
-                        ? "bg-[#FBEEEA] text-alert font-semibold"
+                        ? "bg-alert-light text-alert font-semibold"
                         : hasEvents
                           ? "bg-[#FBF3E3] text-text"
                           : cell.isWeekend
@@ -211,7 +211,7 @@ export function NepaliCalendar() {
         (selectedCell.holidayName || selectedCell.events.length > 0) && (
           <div className="mt-3 space-y-2">
             {selectedCell.holidayName && (
-              <div className="px-3 py-2.5 rounded-lg bg-[#FBEEEA] border border-[#F0D8D0]">
+              <div className="px-3 py-2.5 rounded-lg bg-alert-light border border-[#F0D8D0]">
                 <div className="text-[10px] uppercase tracking-wide text-text-subtle">
                   {selectedCell.bsDay} {NEPALI_MONTHS[view.month - 1]}
                 </div>

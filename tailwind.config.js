@@ -31,6 +31,7 @@ export default {
 
         text: {
           DEFAULT: COLORS.text,
+          title: COLORS.textTitle,
           muted: COLORS.textMuted,
           subtle: COLORS.textSubtle,
           faint: COLORS.textFaint,
@@ -54,6 +55,8 @@ export default {
           mid: COLORS.attendanceMid,
           light: COLORS.attendanceLight,
         },
+
+        dot: COLORS.dot,
       },
     },
   },

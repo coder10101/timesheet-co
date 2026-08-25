@@ -77,8 +77,8 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                     isHoliday
-                      ? "bg-[#FBEEEA] text-alert"
-                      : "bg-[#EEF3F4] text-primary"
+                      ? "bg-alert-light text-alert"
+                      : "bg-primary-light text-primary"
                   }`}
                 >
                   {isHoliday ? (
@@ -89,7 +89,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[#4A4738] truncate">
+                  <p className="text-xs font-medium text-text-title truncate">
                     {item.title}
                   </p>
 
@@ -104,7 +104,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
 
                     {!isHoliday && item.time && (
                       <>
-                        <span className="text-[#DDD8CB]">·</span>
+                        <span className="text-dot">·</span>
                         <span className="flex items-center gap-1 text-[10px] font-mono text-text-muted">
                           <Clock size={9} />
                           {fmtTimeAmPm(item.time)}
@@ -117,8 +117,8 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                 <span
                   className={`hidden sm:block text-[9px] px-1.5 py-0.5 rounded-full ${
                     isHoliday
-                      ? "bg-[#FBEEEA] text-alert"
-                      : "bg-[#EEF3F4] text-primary"
+                      ? "bg-alert-light text-alert"
+                      : "bg-primary-light text-primary"
                   }`}
                 >
                   {isHoliday ? "Holiday" : "Event"}

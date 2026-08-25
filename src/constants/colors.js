@@ -18,6 +18,7 @@ export const COLORS = {
 
   // Text
   text: "#292722",
+  textTitle: "#4A4738",
   textMuted: "#7A7362",
   textSubtle: "#9A9383",
   textFaint: "#B6B0A2",
@@ -32,4 +33,5 @@ export const COLORS = {
   // Other
   overtime: "#F2B463",
   undertime: "#F2A89A",
+  dot: "#DDD8CB",
 };
