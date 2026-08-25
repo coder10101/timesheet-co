@@ -112,7 +112,7 @@ export function AdminAttendance() {
                       Clock out
                     </div>
 
-                    <div className="text-xl font-mono font-semibold text-[#B5563A]">
+                    <div className="text-xl font-mono font-semibold text-alert">
                       {todayRecord.clock_out
                         ? fmtTime(todayRecord.clock_out)
                         : "Still working"}
@@ -193,7 +193,7 @@ export function AdminAttendance() {
                             {fmtTime(r.clock_in)}
                           </span>
 
-                          <span className="font-mono text-[#B5563A]">
+                          <span className="font-mono text-alert">
                             {fmtTime(r.clock_out)}
                           </span>
 
@@ -207,7 +207,7 @@ export function AdminAttendance() {
                                 ? "text-[#7A7362]"
                                 : diff >= 0
                                   ? "text-success"
-                                  : "text-[#B5563A]"
+                                  : "text-alert"
                             }
                           >
                             {diff === null

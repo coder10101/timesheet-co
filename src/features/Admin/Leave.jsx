@@ -131,7 +131,7 @@ export function AdminLeave({ me }) {
                       </button>
                       <button
                         onClick={() => act(r, "Rejected")}
-                        className="px-3 py-1.5 rounded-lg bg-[#B5563A] text-white text-xs font-medium hover:opacity-90"
+                        className="px-3 py-1.5 rounded-lg bg-alert text-white text-xs font-medium hover:opacity-90"
                       >
                         Reject
                       </button>
@@ -139,7 +139,7 @@ export function AdminLeave({ me }) {
                   </div>
 
                   {insufficientBalance && (
-                    <div className="mt-3 text-xs text-[#8C3A20] bg-[#F1DAD2] border border-[#B5563A] rounded-lg px-3 py-2">
+                    <div className="mt-3 text-xs text-[#8C3A20] bg-[#F1DAD2] border border-alert rounded-lg px-3 py-2">
                       Heads up: {r.employeeName} only has {balanceForType}{" "}
                       {r.type} day
                       {balanceForType !== 1 ? "s" : ""} left, but this request

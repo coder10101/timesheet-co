@@ -177,7 +177,7 @@ export function Today({
         ) : !todayRecord.clock_out ? (
           <button
             onClick={doClockOut}
-            className="w-full py-2.5 rounded-xl bg-[#B5563A] hover:bg-[#A44930] active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all"
+            className="w-full py-2.5 rounded-xl bg-alert hover:bg-alert-dark active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all"
           >
             <LogOut size={15} />
             Clock out

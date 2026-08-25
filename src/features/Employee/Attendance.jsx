@@ -112,7 +112,7 @@ export function EmployeeAttendance({ me }) {
       {/* ERROR */}
 
       {error && (
-        <div className="mb-4 px-3 py-2 rounded-lg bg-[#FCEDEA] text-[#B5563A] text-xs">
+        <div className="mb-4 px-3 py-2 rounded-lg bg-alert-light text-alert text-xs">
           {error}
         </div>
       )}
@@ -170,7 +170,7 @@ export function EmployeeAttendance({ me }) {
                           difference > 0
                             ? "text-success"
                             : difference < 0
-                              ? "text-[#B5563A]"
+                              ? "text-alert"
                               : "text-[#9A9383]"
                         }`}
                       >

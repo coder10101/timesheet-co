@@ -173,11 +173,11 @@ export function NepaliCalendar() {
                     : isSelected
                       ? "bg-[#EEEAE0] text-[#292722] font-semibold"
                       : isHoliday
-                        ? "bg-[#FBEEEA] text-[#B5563A] font-semibold"
+                        ? "bg-[#FBEEEA] text-alert font-semibold"
                         : hasEvents
                           ? "bg-[#FBF3E3] text-[#292722]"
                           : cell.isWeekend
-                            ? "text-[#B5563A]"
+                            ? "text-alert"
                             : "text-[#292722]"
                 }
               `}
@@ -195,7 +195,7 @@ export function NepaliCalendar() {
               {label && !isToday && (
                 <span
                   className={`absolute bottom-1 left-1 right-1 font-mono text-[6px] truncate ${
-                    isHoliday ? "text-[#B5563A]" : "text-[#9A6B1F]"
+                    isHoliday ? "text-alert" : "text-[#9A6B1F]"
                   }`}
                 >
                   {label}
@@ -257,7 +257,7 @@ export function NepaliCalendar() {
           Today
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#B5563A]" />
+          <span className="w-2 h-2 rounded-full bg-alert" />
           Holiday
         </span>
         <span className="flex items-center gap-1">
@@ -278,7 +278,7 @@ export function NepaliCalendar() {
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${ev.event_type === "deadline" ? "bg-[#B5563A]" : "bg-primary"}`}
+                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${ev.event_type === "deadline" ? "bg-alert" : "bg-primary"}`}
                   />
                   <span className="text-[11px] truncate group-hover:underline">
                     {ev.title}

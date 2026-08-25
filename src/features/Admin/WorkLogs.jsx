@@ -130,7 +130,7 @@ export function AdminWorklogs() {
                                 ? "text-[#7A7362]"
                                 : difference >= 0
                                   ? "text-success"
-                                  : "text-[#B5563A]"
+                                  : "text-alert"
                             }`}
                           >
                             {difference === null

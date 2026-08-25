@@ -116,7 +116,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
 
                 {status === "missing" && (
                   <div
-                    className="mx-auto w-5 h-5 rounded-full bg-[#FCEDEA] text-[#B5563A]
+                    className="mx-auto w-5 h-5 rounded-full bg-alert-light text-alert
                       flex items-center justify-center text-[9px]"
                   >
                     !
@@ -136,7 +136,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
               )}
 
               {!isToday && status === "missing" && (
-                <div className="mt-1 text-[7px] text-[#B5563A]">Missing</div>
+                <div className="mt-1 text-[7px] text-alert">Missing</div>
               )}
             </div>
           );
@@ -151,7 +151,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
         </div>
 
         <div className="flex items-center gap-1.5 text-[9px] text-[#7A7362]">
-          <span className="w-2 h-2 rounded-full bg-[#B5563A]" />
+          <span className="w-2 h-2 rounded-full bg-alert" />
           Missing
         </div>
 

@@ -204,7 +204,7 @@ export function EmployeeLeave({ me }) {
               </span>
             </div>
             {Number(leaveDays) > balance && (
-              <p className="text-[11px] text-[#B5563A] mt-2 flex items-center gap-1">
+              <p className="text-[11px] text-alert mt-2 flex items-center gap-1">
                 <AlertCircle size={12} />
                 This exceeds your available {type} balance — it'll go negative
                 if approved.
@@ -272,7 +272,7 @@ export function EmployeeLeave({ me }) {
         {/* ERROR */}
 
         {err && (
-          <p className="text-[12px] text-[#B5563A] mb-3 flex items-center gap-1">
+          <p className="text-[12px] text-alert mb-3 flex items-center gap-1">
             <AlertCircle size={13} />
             {err}
           </p>
@@ -341,7 +341,7 @@ export function EmployeeLeave({ me }) {
                       <button
                         onClick={() => handleDelete(r)}
                         title="Delete request"
-                        className="p-1.5 rounded-lg text-[#B5563A] hover:bg-[#FDEDEA]"
+                        className="p-1.5 rounded-lg text-alert hover:bg-[#FDEDEA]"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -475,7 +475,7 @@ export function EmployeeLeave({ me }) {
             />
 
             {err && (
-              <p className="text-[12px] text-[#B5563A] mt-3 flex items-center gap-1">
+              <p className="text-[12px] text-alert mt-3 flex items-center gap-1">
                 <AlertCircle size={13} />
                 {err}
               </p>

@@ -221,7 +221,7 @@ export function AdminCalendar({ me }) {
               </div>
             )}
 
-            {eErr && <p className="text-[12px] text-[#B5563A] mb-2">{eErr}</p>}
+            {eErr && <p className="text-[12px] text-alert mb-2">{eErr}</p>}
             <button
               onClick={addEventHandler}
               className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium flex items-center gap-1.5"
@@ -265,7 +265,7 @@ export function AdminCalendar({ me }) {
                     </div>
                     <button
                       onClick={() => deleteEvent(ev.id)}
-                      className="p-1.5 rounded-lg text-[#B5563A] hover:bg-[#FDEDEA]"
+                      className="p-1.5 rounded-lg text-alert hover:bg-[#FDEDEA]"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -310,7 +310,7 @@ export function AdminCalendar({ me }) {
             >
               <Plus size={15} /> Add holiday
             </button>
-            {hErr && <p className="text-[12px] text-[#B5563A] mt-2">{hErr}</p>}
+            {hErr && <p className="text-[12px] text-alert mt-2">{hErr}</p>}
           </Card>
 
           <Card title="All holidays" subtitle={`${holidays.length} total`}>
@@ -347,7 +347,7 @@ export function AdminCalendar({ me }) {
                       </div>
                       <button
                         onClick={() => deleteHoliday(h.id)}
-                        className="p-1.5 rounded-lg text-[#B5563A] hover:bg-[#FDEDEA]"
+                        className="p-1.5 rounded-lg text-alert hover:bg-[#FDEDEA]"
                       >
                         <Trash2 size={14} />
                       </button>

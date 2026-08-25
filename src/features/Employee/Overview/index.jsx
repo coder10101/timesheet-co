@@ -48,7 +48,7 @@ export function EmployeeOverview({ me }) {
       <Header holidays={holidays} records={records} me={me} today={today} />
 
       {err && (
-        <div className="mb-4 px-3 py-2.5 rounded-lg bg-[#FCEDEA] text-[#B5563A] text-xs flex items-center gap-2">
+        <div className="mb-4 px-3 py-2.5 rounded-lg bg-alert-light text-alert text-xs flex items-center gap-2">
           <AlertCircle size={14} />
           {err}
         </div>

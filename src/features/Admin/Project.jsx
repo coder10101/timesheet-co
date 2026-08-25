@@ -121,7 +121,7 @@ export function AdminProjects({ me }) {
             <Plus size={15} /> Create
           </button>
         </div>
-        {err && <p className="text-[12px] text-[#B5563A] mt-3">{err}</p>}
+        {err && <p className="text-[12px] text-alert mt-3">{err}</p>}
       </Card>
 
       <Card
@@ -189,7 +189,7 @@ export function AdminProjects({ me }) {
                         </div>
                       </div>
                       {editErr && (
-                        <p className="text-[11px] text-[#B5563A]">{editErr}</p>
+                        <p className="text-[11px] text-alert">{editErr}</p>
                       )}
                     </div>
                   ) : (

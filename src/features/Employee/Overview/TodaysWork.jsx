@@ -179,7 +179,7 @@ export function TodaysWork({
                     </button>
                     <button
                       onClick={() => removeWork(entry.id)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#F7F5F0] text-[#B5563A]"
+                      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#F7F5F0] text-alert"
                       title="Delete"
                     >
                       <Trash2 size={14} />

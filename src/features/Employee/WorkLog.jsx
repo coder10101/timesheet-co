@@ -176,7 +176,7 @@ export function EmployeeWorklog({ me }) {
                       {formatDuration(worked)}
                     </div>
                     <div
-                      className={`font-mono text-[10px] ${difference > 0 ? "text-success" : difference < 0 ? "text-[#B5563A]" : "text-[#9A9383]"}`}
+                      className={`font-mono text-[10px] ${difference > 0 ? "text-success" : difference < 0 ? "text-alert" : "text-[#9A9383]"}`}
                     >
                       {difference > 0
                         ? `+${formatDuration(difference)} OT`
@@ -227,7 +227,7 @@ export function EmployeeWorklog({ me }) {
                             </button>
                             <button
                               onClick={() => deleteEntry(entry.id)}
-                              className="p-1.5 text-[#B5563A]"
+                              className="p-1.5 text-alert"
                             >
                               <Trash2 size={12} />
                             </button>

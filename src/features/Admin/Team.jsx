@@ -52,7 +52,7 @@ export function AdminTeam({ me }) {
         </p>
       </div>
 
-      {err && <p className="text-[12px] text-[#B5563A]">{err}</p>}
+      {err && <p className="text-[12px] text-alert">{err}</p>}
 
       <Card title="Members" subtitle={`${employees.length} total`}>
         <div className="divide-y divide-[#EEEAE0]">
@@ -75,9 +75,7 @@ export function AdminTeam({ me }) {
                     )}
                     {e.role}
                     {!e.is_active && (
-                      <span className="text-[#B5563A] font-medium">
-                        · revoked
-                      </span>
+                      <span className="text-alert font-medium">· revoked</span>
                     )}
                   </div>
                 </div>
@@ -88,7 +86,7 @@ export function AdminTeam({ me }) {
                   onClick={() => act(e.id, !e.is_active)}
                   className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1 shrink-0 ${
                     e.is_active
-                      ? "bg-[#B5563A] text-white"
+                      ? "bg-alert text-white"
                       : "bg-success text-white"
                   }`}
                 >

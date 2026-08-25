@@ -79,7 +79,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                     isHoliday
-                      ? "bg-[#FBEEEA] text-[#B5563A]"
+                      ? "bg-[#FBEEEA] text-alert"
                       : "bg-[#EEF3F4] text-primary"
                   }`}
                 >
@@ -98,7 +98,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                   <div className="flex items-center gap-2 mt-0.5">
                     <span
                       className={`text-[10px] ${
-                        isHoliday ? "text-[#B5563A]" : "text-primary"
+                        isHoliday ? "text-alert" : "text-primary"
                       }`}
                     >
                       {formatDate(item.date)}
@@ -119,7 +119,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                 <span
                   className={`hidden sm:block text-[9px] px-1.5 py-0.5 rounded-full ${
                     isHoliday
-                      ? "bg-[#FBEEEA] text-[#B5563A]"
+                      ? "bg-[#FBEEEA] text-alert"
                       : "bg-[#EEF3F4] text-primary"
                   }`}
                 >
