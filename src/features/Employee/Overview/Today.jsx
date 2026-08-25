@@ -126,12 +126,7 @@ export function Today({
 
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-[0.12em] text-white/40">
-              Today .
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-              })}
+              Today
             </p>
 
             <div className="flex items-center gap-1.5 mt-0.5">

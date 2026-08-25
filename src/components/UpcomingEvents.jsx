@@ -1,11 +1,10 @@
 import { CalendarDays, Clock, ArrowRight, PartyPopper } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { fmtTimeAmPm } from "../utils/nepaliCalendar";
+import { isoToBSLabel } from "../utils/nepaliCalendar";
 import { Card } from "./Card";
+import { fmtTimeAmPm } from "../utils/workTime";
 
-export default function UpcomingEvents({ events = [], holidays = [] }) {
-  const today = new Date().toISOString().slice(0, 10);
-
+export default function UpcomingEvents({ events = [], holidays = [], today }) {
   const upcomingHolidays = holidays
     .filter((holiday) => holiday.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -44,10 +43,7 @@ export default function UpcomingEvents({ events = [], holidays = [] }) {
     if (diff === 0) return "Today";
     if (diff === 1) return "Tomorrow";
 
-    return eventDate.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
+    return isoToBSLabel(date);
   };
 
   return (

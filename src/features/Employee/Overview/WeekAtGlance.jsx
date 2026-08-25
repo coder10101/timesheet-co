@@ -1,25 +1,8 @@
 import { useMemo } from "react";
-import { todayISO } from "../../../utils/workTime";
 import { Card } from "../../../components/Card";
-import { isoToBS } from "../../../utils/nepaliCalendar";
+import { isoToBS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import { Check } from "lucide-react";
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function getWeekDates(isoDate) {
-  const date = new Date(`${isoDate}T00:00:00`);
-
-  // Sunday = 0
-  const sunday = new Date(date);
-  sunday.setDate(date.getDate() - date.getDay());
-
-  return Array.from({ length: 7 }, (_, index) => {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + index);
-
-    return d.toISOString().slice(0, 10);
-  });
-}
+import { getWeekDates } from "../../../utils/workTime";
 
 export function WeekAtGlance({ records, leaveRequests, today }) {
   const weekDates = useMemo(() => {
@@ -72,17 +55,13 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
           const bs = isoToBS(date);
 
           let status = "future";
-          let statusText = "—";
 
           if (isLeave) {
             status = "leave";
-            statusText = "Leave";
           } else if (isLogged) {
             status = "logged";
-            statusText = "✓";
           } else if (!isFuture) {
             status = "missing";
-            statusText = "Missing";
           }
 
           return (
@@ -103,7 +82,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
                   isToday ? "text-[#3D6B7D]" : "text-[#9A9383]"
                 }`}
               >
-                {WEEKDAYS[index]}
+                {WEEKDAY_LABELS[index]}
               </div>
 
               {/* Nepali date */}

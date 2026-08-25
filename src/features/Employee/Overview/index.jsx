@@ -9,7 +9,6 @@ import {
   useEvents,
 } from "../../../hooks/useOrgData";
 import { todayISO } from "../../../utils/workTime";
-import { getCurrentBSMonthInfo, isoToBS } from "../../../utils/nepaliCalendar";
 import UpcomingEvents from "../../../components/UpcomingEvents";
 import { LeaveBalance } from "./LeaveBalance";
 import { TodaysWork } from "./TodaysWork";
@@ -43,7 +42,6 @@ export function EmployeeOverview({ me }) {
     return null;
   }
   const today = todayISO();
-  const monthInfo = getCurrentBSMonthInfo();
 
   return (
     <div className="w-full max-w-7xl mx-auto">
@@ -80,7 +78,7 @@ export function EmployeeOverview({ me }) {
         />
         <div className="space-y-4">
           <LeaveBalance myLeave={myLeave} me={me} />
-          <UpcomingEvents events={events} holidays={holidays} />
+          <UpcomingEvents events={events} holidays={holidays} today={today} />
         </div>
       </div>
     </div>

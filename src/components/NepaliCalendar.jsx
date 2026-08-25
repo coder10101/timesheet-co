@@ -13,10 +13,10 @@ import {
   buildMonthGrid,
   addMonths,
   isoToBS,
-  fmtTimeAmPm,
 } from "../utils/nepaliCalendar";
 import { useHolidays, useEvents } from "../hooks/useOrgData";
 import { Card } from "./Card";
+import { fmtTimeAmPm } from "../utils/workTime";
 
 export function NepaliCalendar() {
   const todayBS = useMemo(() => getTodayBS(), []);

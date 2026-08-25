@@ -92,8 +92,29 @@ export const daysBetween = (a, b) =>
   Math.round((new Date(b) - new Date(a)) / 86400000) + 1;
 
 export const LEAVE_TYPES = ["Annual", "Sick"];
-const STATUS_STYLES = {
-  Pending: "bg-[#F4E3C1] text-[#7A5A17] border-[#E0A458]",
-  Approved: "bg-[#DCE9DE] text-[#2F5233] border-[#6B8F71]",
-  Rejected: "bg-[#F1DAD2] text-[#8C3A20] border-[#B5563A]",
-};
+
+export function fmtTimeAmPm(timeStr) {
+  if (!timeStr) return null;
+  const [hourStr, minuteStr] = timeStr.split(":");
+  let hour = parseInt(hourStr, 10);
+  const minute = minuteStr;
+  const period = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12;
+  if (hour === 0) hour = 12;
+  return `${hour}:${minute} ${period}`;
+}
+
+export function getWeekDates(isoDate) {
+  const date = new Date(`${isoDate}T00:00:00`);
+
+  // Sunday = 0
+  const sunday = new Date(date);
+  sunday.setDate(date.getDate() - date.getDay());
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + index);
+
+    return d.toISOString().slice(0, 10);
+  });
+}
