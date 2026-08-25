@@ -16,6 +16,7 @@ export function Header({ holidays, records, me, today }) {
             className="text-xl sm:text-2xl font-bold tracking-tight text-[#292722]"
             style={{
               fontWeight: 800,
+              color: dailyMessage.color,
             }}
           >
             {dailyMessage.text} {me.name.split(" ")[0]}.
