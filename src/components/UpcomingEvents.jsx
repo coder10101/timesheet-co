@@ -72,7 +72,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
             return (
               <div
                 key={item.id}
-                className="flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-[#F7F5F0] transition"
+                className="flex items-center gap-3 px-2 py-2.5 rounded-lg hover:bg-surface-muted transition"
               >
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${

@@ -108,7 +108,7 @@ export function AdminProjects({ me }) {
                 <button
                   key={c}
                   onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full border-2 ${color === c ? "border-[#1A2332]" : "border-transparent"}`}
+                  className={`w-7 h-7 rounded-full border-2 ${color === c ? "border-dark" : "border-transparent"}`}
                   style={{ backgroundColor: c }}
                 />
               ))}
@@ -164,7 +164,7 @@ export function AdminProjects({ me }) {
                               <button
                                 key={c}
                                 onClick={() => setEditColor(c)}
-                                className={`w-6 h-6 rounded-full border-2 ${editColor === c ? "border-[#1A2332]" : "border-transparent"}`}
+                                className={`w-6 h-6 rounded-full border-2 ${editColor === c ? "border-dark" : "border-transparent"}`}
                                 style={{ backgroundColor: c }}
                               />
                             ))}
@@ -250,7 +250,7 @@ export function AdminProjects({ me }) {
           title="Archived projects"
           subtitle={`${archivedProjects.length} archived`}
         >
-          <div className="divide-y divide-[#EEEAE0]">
+          <div className="divide-y divide-border">
             {archivedProjects.map((p) => (
               <div
                 key={p.id}

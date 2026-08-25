@@ -130,7 +130,7 @@ export function AdminCalendar({ me }) {
         </p>
       </div>
 
-      <div className="flex gap-1 bg-[#EEEAE0] rounded-lg p-1 w-fit">
+      <div className="flex gap-1 bg-border rounded-lg p-1 w-fit">
         <button
           onClick={() => setTab("events")}
           className={`px-3 py-1.5 rounded-md text-xs font-medium ${tab === "events" ? "bg-white shadow-sm" : "text-text-muted"}`}
@@ -239,7 +239,7 @@ export function AdminCalendar({ me }) {
                 No events yet.
               </div>
             ) : (
-              <div className="divide-y divide-[#EEEAE0]">
+              <div className="divide-y divide-border">
                 {events.map((ev) => (
                   <div
                     key={ev.id}
@@ -319,7 +319,7 @@ export function AdminCalendar({ me }) {
                 No holidays added yet.
               </div>
             ) : (
-              <div className="divide-y divide-[#EEEAE0]">
+              <div className="divide-y divide-border">
                 {holidays.map((h) => {
                   const meta = holidayCategoryMeta(h.category);
                   const Icon = meta.icon;

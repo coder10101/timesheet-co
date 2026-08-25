@@ -160,7 +160,7 @@ export function EmployeeWorklog({ me }) {
               key={date}
               className="bg-white border border-[#E4DFD3] rounded-xl overflow-hidden"
             >
-              <div className="px-4 py-3 bg-[#FAF9F6] border-b border-[#EDE9DF] flex items-center justify-between">
+              <div className="px-4 py-3 bg-surface border-b border-border-light flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold">{fmtDate(date)}</div>
                   {attendance?.clock_in && (
@@ -202,7 +202,7 @@ export function EmployeeWorklog({ me }) {
                       return (
                         <div
                           key={entry.id}
-                          className="group flex items-start justify-between gap-3 px-2 py-2 rounded-lg hover:bg-[#F7F5F0]"
+                          className="group flex items-start justify-between gap-3 px-2 py-2 rounded-lg hover:bg-surface-muted"
                         >
                           <div className="flex gap-2 text-xs items-start">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />

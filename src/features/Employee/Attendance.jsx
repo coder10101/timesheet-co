@@ -138,7 +138,7 @@ export function EmployeeAttendance({ me }) {
             return (
               <div
                 key={record.id}
-                className="border-b border-[#EDE9DF] last:border-0"
+                className="border-b border-border-light last:border-0"
               >
                 {!isEditing ? (
                   <div className="px-4 py-3 flex items-center justify-between gap-4">
@@ -193,7 +193,7 @@ export function EmployeeAttendance({ me }) {
                     </button>
                   </div>
                 ) : (
-                  <div className="px-4 py-4 bg-[#FAF9F6]">
+                  <div className="px-4 py-4 bg-surface">
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-xs font-semibold">
                         Edit attendance · {fmtDate(record.date)}

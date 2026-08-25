@@ -5,7 +5,7 @@ export function StatBlock({ label, value, accent }) {
         {label}
       </div>
       <div
-        className={`font-mono text-2xl font-semibold ${accent || "text-[#1A2332]"}`}
+        className={`font-mono text-2xl font-semibold ${accent || "text-dark"}`}
       >
         {value}
       </div>

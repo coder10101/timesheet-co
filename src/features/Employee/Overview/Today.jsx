@@ -154,7 +154,7 @@ export function Today({
             </div>
             <div
               className={`font-mono text-[10px] ${
-                differenceMinutes >= 0 ? "text-[#A9C5AC]" : "text-[#F2A89A]"
+                differenceMinutes >= 0 ? "text-[#A9C5AC]" : "text-undertime"
               }`}
             >
               {differenceMinutes >= 0 ? "OT " : "Under "}

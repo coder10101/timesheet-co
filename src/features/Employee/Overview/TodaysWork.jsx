@@ -81,7 +81,7 @@ export function TodaysWork({
     >
       {/* Compose bar */}
       <div className="flex items-center gap-2 mb-5">
-        <div className="flex-1 flex items-center gap-2 bg-[#F7F5F0] rounded-full pl-1.5 pr-1 py-1 border border-transparent focus-within:border-primary focus-within:bg-white transition-colors">
+        <div className="flex-1 flex items-center gap-2 bg-surface-muted rounded-full pl-1.5 pr-1 py-1 border border-transparent focus-within:border-primary focus-within:bg-white transition-colors">
           <select
             value={workProjectId}
             onChange={(e) => setWorkProjectId(e.target.value)}
@@ -112,7 +112,7 @@ export function TodaysWork({
           <button
             onClick={cancelWork}
             title="Cancel edit"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-text-muted hover:bg-[#F7F5F0] transition-colors shrink-0"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-text-muted hover:bg-surface-muted transition-colors shrink-0"
           >
             <X size={15} />
           </button>
@@ -131,7 +131,7 @@ export function TodaysWork({
       {/* Entries — timeline feed */}
       {todayWorkLogs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-4 text-center">
-          <div className="w-8 h-8 rounded-full bg-[#F7F5F0] flex items-center justify-center mb-1.5">
+          <div className="w-8 h-8 rounded-full bg-surface-muted flex items-center justify-center mb-1.5">
             <ClipboardList size={14} className="text-text-faint" />
           </div>
           <p className="text-xs text-text-subtle">Nothing logged yet</p>
@@ -149,7 +149,7 @@ export function TodaysWork({
                 className="group relative pl-5 pb-2 last:pb-0"
               >
                 {!isLast && (
-                  <span className="absolute left-[6.5px] top-3.5 bottom-0 w-px bg-[#EDE9DF]" />
+                  <span className="absolute left-[6.5px] top-3.5 bottom-0 w-px bg-border-light" />
                 )}
                 <span
                   className="absolute left-0 top-1 w-3.5 h-3.5 rounded-full bg-white border-2"
@@ -172,14 +172,14 @@ export function TodaysWork({
                   <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                       onClick={() => startEditWork(entry)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#F7F5F0]"
+                      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-muted"
                       title="Edit"
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => removeWork(entry.id)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#F7F5F0] text-alert"
+                      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-muted text-alert"
                       title="Delete"
                     >
                       <Trash2 size={14} />

@@ -29,17 +29,7 @@ export const COLORS = {
   surfaceMuted: "#F7F5F0",
   white: "#FFFFFF",
 
-  // Dark attendance card
-  dark: "#1A2332",
-  darkMid: "#1E2838",
-  darkLight: "#26344A",
-
-  // Leave
-  annual: "#3D6B7D",
-  sick: "#B5563A",
-
   // Other
   overtime: "#F2B463",
   undertime: "#F2A89A",
-  leave: "#3D6B7D",
 };

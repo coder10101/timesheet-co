@@ -88,7 +88,7 @@ export function AdminWorklogs() {
                 return (
                   <div
                     key={date}
-                    className="border border-[#EEEAE0] rounded-xl overflow-hidden"
+                    className="border border-border rounded-xl overflow-hidden"
                   >
                     {/* DATE HEADER */}
 

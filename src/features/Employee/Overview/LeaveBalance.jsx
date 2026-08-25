@@ -42,7 +42,7 @@ export function LeaveBalance({ myLeave, me }) {
             return (
               <div
                 key={type}
-                className="flex rounded-lg overflow-hidden border border-[#EDE9DF] bg-white"
+                className="flex rounded-lg overflow-hidden border border-border-light bg-white"
               >
                 {/* stub */}
                 <div
@@ -68,8 +68,8 @@ export function LeaveBalance({ myLeave, me }) {
                       opacity: 0.35,
                     }}
                   />
-                  <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full bg-[#F7F5F0]" />
-                  <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-[#F7F5F0]" />
+                  <div className="absolute -top-1 -left-1 w-2 h-2 rounded-full bg-surface-muted" />
+                  <div className="absolute -bottom-1 -left-1 w-2 h-2 rounded-full bg-surface-muted" />
                 </div>
 
                 {/* details */}

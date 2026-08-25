@@ -172,7 +172,7 @@ export function AdminAttendance() {
                     <span>Difference</span>
                   </div>
 
-                  <div className="divide-y divide-[#EEEAE0]">
+                  <div className="divide-y divide-border">
                     {records.map((r) => {
                       const worked = r.clock_out
                         ? getWorkedMinutes(r.clock_in, r.clock_out)

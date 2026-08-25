@@ -55,7 +55,7 @@ export function AdminTeam({ me }) {
       {err && <p className="text-[12px] text-alert">{err}</p>}
 
       <Card title="Members" subtitle={`${employees.length} total`}>
-        <div className="divide-y divide-[#EEEAE0]">
+        <div className="divide-y divide-border">
           {employees.map((e) => (
             <div
               key={e.id}

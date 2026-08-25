@@ -72,7 +72,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
                   ${
                     isToday
                       ? "border-primary bg-primary-light"
-                      : "border-[#EEEAE0] bg-[#FAF9F6]"
+                      : "border-border bg-surface"
                   }
                 `}
             >
@@ -144,7 +144,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-[#EEEAE0]">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-border">
         <div className="flex items-center gap-1.5 text-[9px] text-text-muted">
           <span className="w-2 h-2 rounded-full bg-success" />
           Logged

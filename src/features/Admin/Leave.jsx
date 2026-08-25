@@ -47,7 +47,7 @@ export function AdminLeave({ me }) {
 
       {/* BALANCES */}
       <Card title="Leave balances" subtitle="Leave remaining per employee">
-        <div className="divide-y divide-[#EEEAE0]">
+        <div className="divide-y divide-border">
           {employees
             .filter((e) => e.role !== "admin" || true) // keep everyone visible; drop the `|| true` if admins should be excluded
             .map((e) => (
@@ -148,7 +148,7 @@ export function AdminLeave({ me }) {
                   )}
 
                   {/* DETAILS */}
-                  <div className="grid sm:grid-cols-3 gap-3 mt-4 pt-3 border-t border-[#EEEAE0]">
+                  <div className="grid sm:grid-cols-3 gap-3 mt-4 pt-3 border-t border-border">
                     <div>
                       <div className="text-[10px] uppercase text-[#8C8576]">
                         Dates
@@ -189,7 +189,7 @@ export function AdminLeave({ me }) {
         {decided.length === 0 ? (
           <EmptyState text="No decisions yet." />
         ) : (
-          <div className="divide-y divide-[#EEEAE0]">
+          <div className="divide-y divide-border">
             {decided.map((r) => (
               <div
                 key={r.id}

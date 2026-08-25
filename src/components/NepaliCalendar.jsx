@@ -171,7 +171,7 @@ export function NepaliCalendar() {
                   isToday
                     ? "bg-primary text-white font-semibold"
                     : isSelected
-                      ? "bg-[#EEEAE0] text-text font-semibold"
+                      ? "bg-border text-text font-semibold"
                       : isHoliday
                         ? "bg-[#FBEEEA] text-alert font-semibold"
                         : hasEvents
@@ -268,7 +268,7 @@ export function NepaliCalendar() {
 
       {/* UPCOMING */}
       {upcoming.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-[#EEEAE0] space-y-2">
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
           {upcoming.map((ev) => (
             <button
               key={ev.id}

@@ -306,7 +306,7 @@ export function EmployeeLeave({ me }) {
             {requests.map((r) => (
               <div
                 key={r.id}
-                className="flex flex-wrap items-center justify-between gap-3 border border-[#EEEAE0] rounded-xl px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 border border-border rounded-xl px-4 py-3"
               >
                 <div className="min-w-0">
                   <div className="text-sm font-medium">
