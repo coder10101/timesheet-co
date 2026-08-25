@@ -33,7 +33,7 @@ function weekdayOf(bsYear, bsMonth, bsDay) {
   return d.getDay();
 }
 
-function bsDateToISO(bsYear, bsMonth, bsDay) {
+export function bsDateToISO(bsYear, bsMonth, bsDay) {
   const greg = bs.toGreg(bsYear, bsMonth, bsDay);
   return `${greg.year}-${pad(greg.month)}-${pad(greg.day)}`;
 }
@@ -109,4 +109,8 @@ export function isoToBS(iso) {
 export function isoToBSLabel(iso) {
   const d = bs.toBik(iso);
   return `${d.day} ${NEPALI_MONTHS[d.month - 1]}, ${d.year}`;
+}
+
+export function getDaysInBSMonth(year, month) {
+  return bs.daysInMonth(year, month);
 }

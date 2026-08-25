@@ -31,7 +31,7 @@ export const COLORS = {
   white: "#FFFFFF",
 
   // Other
-  overtime: "#F2B463",
+  overtime: "#224433ff",
   undertime: "#F2A89A",
   dot: "#DDD8CB",
 };
