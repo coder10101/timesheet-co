@@ -15,7 +15,7 @@ const LEAVE_VISUAL = {
   },
 };
 
-export function LeaveBalance({ myLeave , me}) {
+export function LeaveBalance({ myLeave, me }) {
   const pendingLeave = myLeave.filter(
     (leave) => leave.status === "Pending",
   ).length;
@@ -95,7 +95,7 @@ export function LeaveBalance({ myLeave , me}) {
       </div>
 
       {pendingLeave > 0 && (
-        <div className="mt-3 px-2.5 py-2 rounded-lg bg-[#F8F2E3] text-[#7A5A17] text-[11px] flex gap-2">
+        <div className="mt-3 px-2.5 py-2 rounded-lg bg-warning-light text-warning text-[11px] flex gap-2">
           <Umbrella size={12} className="shrink-0 mt-0.5" />
           <span>
             {pendingLeave} leave request{pendingLeave > 1 ? "s" : ""} waiting

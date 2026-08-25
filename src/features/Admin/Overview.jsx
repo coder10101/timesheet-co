@@ -42,7 +42,7 @@ export function AdminOverview() {
         <StatBlock
           label="Pending leave"
           value={pendingLeave.length}
-          accent={pendingLeave.length ? "text-[#7A5A17]" : undefined}
+          accent={pendingLeave.length ? "text-warning" : undefined}
         />
 
         <StatBlock
@@ -162,7 +162,7 @@ export function AdminOverview() {
           <div>
             <div className="text-[11px] uppercase text-[#7A7362]">Pending</div>
 
-            <div className="text-xl font-semibold mt-1 text-[#7A5A17]">
+            <div className="text-xl font-semibold mt-1 text-warning">
               {pendingLeave.length}
             </div>
           </div>

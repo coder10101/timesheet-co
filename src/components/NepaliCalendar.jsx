@@ -224,14 +224,14 @@ export function NepaliCalendar() {
             {selectedCell.events.map((ev, idx) => (
               <div
                 key={idx}
-                className="px-3 py-2.5 rounded-lg bg-[#F8F2E3] border border-[#EEDFC0]"
+                className="px-3 py-2.5 rounded-lg bg-warning-light border border-[#EEDFC0]"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-[10px] uppercase tracking-wide text-[#9A9383] flex items-center gap-1">
                     <CalendarClock size={10} /> {ev.event_type}
                   </div>
                   {ev.time && (
-                    <span className="flex items-center gap-1 text-[10px] font-mono font-medium text-[#7A5A17] bg-[#F0DFA8] px-1.5 py-0.5 rounded-full">
+                    <span className="flex items-center gap-1 text-[10px] font-mono font-medium text-warning bg-[#F0DFA8] px-1.5 py-0.5 rounded-full">
                       <Clock size={9} />
                       {fmtTimeAmPm(ev.time)}
                     </span>
@@ -286,7 +286,7 @@ export function NepaliCalendar() {
                 </div>
                 {ev.time && (
                   <div className="flex items-center gap-1 mt-1 ml-3">
-                    <span className="flex items-center gap-1 text-[9px] font-mono font-medium text-[#7A5A17] bg-[#F0DFA8] px-1.5 py-0.5 rounded-full">
+                    <span className="flex items-center gap-1 text-[9px] font-mono font-medium text-warning bg-[#F0DFA8] px-1.5 py-0.5 rounded-full">
                       <Clock size={8} />
                       {fmtTimeAmPm(ev.time)}
                     </span>

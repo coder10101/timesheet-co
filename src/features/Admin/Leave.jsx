@@ -33,7 +33,7 @@ export function AdminLeave({ me }) {
         <StatBlock
           label="Pending"
           value={pending.length}
-          accent={pending.length ? "text-[#7A5A17]" : undefined}
+          accent={pending.length ? "text-warning" : undefined}
         />
         <StatBlock
           label="Approved"

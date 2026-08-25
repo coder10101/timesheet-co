@@ -1,7 +1,7 @@
 import { CheckCircle2, Clock3, XCircle } from "lucide-react";
 
 const STATUS_STYLES = {
-  Pending: "bg-[#F4E3C1] text-[#7A5A17] border-[#E0A458]",
+  Pending: "bg-[#F4E3C1] text-warning border-[#E0A458]",
   Approved: "bg-[#DCE9DE] text-[#2F5233] border-success",
   Rejected: "bg-[#F1DAD2] text-[#8C3A20] border-alert",
 };
