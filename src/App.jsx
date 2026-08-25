@@ -13,6 +13,7 @@ import { AdminProjects } from "./features/Admin/Project";
 import { AdminTeam } from "./features/Admin/Team";
 import { AdminCalendar } from "./features/Admin/Calendar";
 import { EmployeeOverview } from "./features/Employee/Overview";
+import { EmployeeCalendar } from "./features/Employee/Calendar";
 
 export default function App() {
   return (
@@ -81,6 +82,10 @@ function Root() {
             />
             <Route path="worklog" element={<EmployeeWorklog me={profile} />} />
             <Route path="leave" element={<EmployeeLeave me={profile} />} />
+            <Route
+              path="calendar"
+              element={<EmployeeCalendar me={profile} />}
+            />
           </>
         )}
         {isAdmin && (
