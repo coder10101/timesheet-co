@@ -111,3 +111,18 @@ export function isLateClockIn(dateTime) {
     (date.getHours() === OFFICE_START_HOUR && date.getMinutes() > 0)
   );
 }
+
+export function isEarlyClockIn(dateTime) {
+  if (!dateTime) return false;
+
+  const date = new Date(dateTime);
+
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+
+  return (
+    date.getHours() < OFFICE_START_HOUR ||
+    (date.getHours() === OFFICE_START_HOUR && date.getMinutes() > 0)
+  );
+}

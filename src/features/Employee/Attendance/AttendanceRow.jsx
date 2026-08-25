@@ -1,9 +1,11 @@
 import {
   CheckCircle2,
-  Clock3,
+  Clock9,
+  Clock12,
   Pencil,
   TrendingDown,
   TrendingUp,
+  Clock10,
 } from "lucide-react";
 
 import { NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
@@ -19,6 +21,7 @@ import {
   getWorkStatus,
   isLateClockIn,
   getWeekday,
+  isEarlyClockIn,
 } from "../../../utils/attendance";
 
 import AttendanceEditForm from "./EditAttendance";
@@ -40,7 +43,7 @@ export default function AttendanceRow({
   if (!record) {
     return (
       <div className="border-b border-border-light last:border-0">
-        <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1fr_80px] gap-2 sm:gap-4 items-center">
+        <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1fr_80px] gap-2 sm:gap-4 items-center border-b">
           <DateCell date={date} />
 
           <MobileCell label="Clock in">—</MobileCell>
@@ -100,12 +103,13 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
       };
 
   const isLate = isLateClockIn(record.clock_in);
+  const isEarly = isEarlyClockIn(record.clock_in);
 
   const workedOnHoliday = result.isSaturday || !!result.holiday;
 
   return (
     <div className="border-b border-border-light last:border-0 hover:bg-surface-muted/40 transition-colors">
-      <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1fr_80px] gap-2 sm:gap-4 items-center">
+      <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1fr_80px] gap-2 sm:gap-4 items-center border-b">
         {/* DATE */}
         <DateCell date={date} workedOnHoliday={workedOnHoliday} />
 
@@ -113,6 +117,26 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
         <MobileCell label="Clock in">
           <span className="font-mono text-sm text-text-sub">
             {fmtTime(record.clock_in)}
+            <div
+              className={`font-mono text-sm ${
+                isLate ? "text-warning" : "text-success"
+              }`}
+            >
+              {isLate ? (
+                <div className="flex items-center align-center text-xs gap-1">
+                  <Clock12 size={13} /> Late
+                </div>
+              ) : isEarly ? (
+                <div className="flex items-center align-center text-xs gap-1">
+                  <Clock9 size={13} /> Early
+                </div>
+              ) : (
+                <div className="flex items-center align-center text-xs gap-1">
+                  <Clock10 size={13} />
+                  On time
+                </div>
+              )}
+            </div>
           </span>
         </MobileCell>
 
@@ -186,29 +210,7 @@ function HoursCell({ record, worked, workStatus, isLate }) {
   return (
     <div>
       <div className="font-mono text-sm font-medium text-text">
-        {record.clock_out ? (
-          <div className="flex items-center gap-2">
-            {formatDuration(worked)}
-            <div
-              className={`font-mono text-sm ${
-                isLate ? "text-warning" : "text-success"
-              }`}
-            >
-              {isLate ? (
-                <div className="flex items-center align-center text-xs gap-1">
-                  <Clock3 size={13} /> Late
-                </div>
-              ) : (
-                <div className="flex items-center align-center text-xs gap-1">
-                  <CheckCircle2 size={13} />
-                  On time
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          "In progress"
-        )}
+        {record.clock_out ? <div>{formatDuration(worked)}</div> : "In progress"}
       </div>
     </div>
   );
@@ -223,7 +225,7 @@ function TimeStatus({ record, workStatus }) {
 
           {/* OVERTIME */}
           {workStatus.type === "overtime" && (
-            <div className="flex gap-1 items-center font-mono text-[10px] text-overtime font-medium mt-0.5">
+            <div className="flex gap-1 items-center font-mono text-xs text-overtime font-medium mt-0.5">
               <TrendingUp size={13} />
               {formatDifference(workStatus.minutes)} overtime
             </div>
@@ -231,7 +233,7 @@ function TimeStatus({ record, workStatus }) {
 
           {/* UNDERTIME */}
           {workStatus.type === "undertime" && (
-            <div className="flex gap-1 items-center font-mono text-[10px] text-undertime font-medium mt-0.5">
+            <div className="flex gap-1 items-center font-mono text-xs text-undertime font-medium mt-0.5">
               <TrendingDown size={13} />
               {formatDifference(workStatus.minutes)} undertime
             </div>
@@ -239,7 +241,7 @@ function TimeStatus({ record, workStatus }) {
 
           {/* NORMAL */}
           {workStatus.type === "normal" && (
-            <div className="font-mono text-[10px] text-text-faint mt-0.5">
+            <div className="font-mono text-xs text-text-faint mt-0.5">
               8h completed
             </div>
           )}

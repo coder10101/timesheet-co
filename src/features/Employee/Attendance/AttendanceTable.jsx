@@ -30,7 +30,7 @@ const columns = [
   {
     key: "action",
     label: "Action",
-    width: "50px",
+    width: "80px",
   },
 ];
 
