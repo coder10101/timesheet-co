@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/AuthProvider";
 import Login from "./components/Login";
 import { Dashboard } from "./features/Dashboard";
-import { EmployeeOverview } from "./features/Employee/Overview";
 import { EmployeeLeave } from "./features/Employee/Leave";
 import { EmployeeWorklog } from "./features/Employee/WorkLog";
 import { EmployeeAttendance } from "./features/Employee/Attendance";
@@ -13,6 +12,7 @@ import { AdminOverview } from "./features/Admin/Overview";
 import { AdminProjects } from "./features/Admin/Project";
 import { AdminTeam } from "./features/Admin/Team";
 import { AdminCalendar } from "./features/Admin/Calendar";
+import { EmployeeOverview } from "./features/Employee/Overview";
 
 export default function App() {
   return (

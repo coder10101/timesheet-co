@@ -1,7 +1,8 @@
-export function Card({ title, subtitle, children, right, cardClass }) {
+export function Card({ title, subtitle, children, right, cardStyle }) {
   return (
     <div
-      className={`bg-white border border-[#E4DFD3] rounded-xl p-5 mb-5 ${cardClass || ""}`}
+      className={`bg-white border border-[#E4DFD3] rounded-xl p-5 mb-5`}
+      style={cardStyle}
     >
       {(title || right) && (
         <div className="flex items-start justify-between mb-4">
