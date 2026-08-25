@@ -122,7 +122,7 @@ export function TodaysWork({
           onClick={saveWork}
           disabled={!workText.trim() || savingWork}
           title={editingWorkId ? "Update" : "Add"}
-          className="w-9 h-9 rounded-full bg-primary hover:bg-[#345B69] active:scale-95 text-white flex items-center justify-center disabled:opacity-40 disabled:active:scale-100 transition-all shrink-0"
+          className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark active:scale-95 text-white flex items-center justify-center disabled:opacity-40 disabled:active:scale-100 transition-all shrink-0"
         >
           {editingWorkId ? <Check size={15} /> : <Plus size={15} />}
         </button>

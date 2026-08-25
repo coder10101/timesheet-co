@@ -71,7 +71,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
                   min-w-0 rounded-xl p-2 text-center border
                   ${
                     isToday
-                      ? "border-primary bg-[#F0F5F6]"
+                      ? "border-primary bg-primary-light"
                       : "border-[#EEEAE0] bg-[#FAF9F6]"
                   }
                 `}
