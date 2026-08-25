@@ -66,7 +66,7 @@ export function EmployeeOverview({ me }) {
         <WeekAtGlance records={records} leaveRequests={myLeave} today={today} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mt-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 mt-4 items-start">
         <TodaysWork
           entries={entries}
           addEntry={addEntry}
