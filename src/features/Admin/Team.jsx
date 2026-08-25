@@ -89,7 +89,7 @@ export function AdminTeam({ me }) {
                   className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1 shrink-0 ${
                     e.is_active
                       ? "bg-[#B5563A] text-white"
-                      : "bg-[#6B8F71] text-white"
+                      : "bg-success text-white"
                   }`}
                 >
                   {e.is_active ? <UserX size={12} /> : <UserCheck size={12} />}

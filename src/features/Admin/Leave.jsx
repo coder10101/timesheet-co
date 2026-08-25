@@ -125,7 +125,7 @@ export function AdminLeave({ me }) {
                     <div className="flex gap-2">
                       <button
                         onClick={() => act(r, "Approved")}
-                        className="px-3 py-1.5 rounded-lg bg-[#6B8F71] text-white text-xs font-medium hover:opacity-90"
+                        className="px-3 py-1.5 rounded-lg bg-success text-white text-xs font-medium hover:opacity-90"
                       >
                         Approve
                       </button>

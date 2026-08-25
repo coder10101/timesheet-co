@@ -100,7 +100,7 @@ export function AdminAttendance() {
                       Clock in
                     </div>
 
-                    <div className="text-xl font-mono font-semibold text-[#6B8F71]">
+                    <div className="text-xl font-mono font-semibold text-success">
                       {fmtTime(todayRecord.clock_in)}
                     </div>
                   </div>
@@ -189,7 +189,7 @@ export function AdminAttendance() {
                             {fmtDate(r.date)}
                           </span>
 
-                          <span className="font-mono text-[#6B8F71]">
+                          <span className="font-mono text-success">
                             {fmtTime(r.clock_in)}
                           </span>
 
@@ -206,7 +206,7 @@ export function AdminAttendance() {
                               diff === null
                                 ? "text-[#7A7362]"
                                 : diff >= 0
-                                  ? "text-[#6B8F71]"
+                                  ? "text-success"
                                   : "text-[#B5563A]"
                             }
                           >

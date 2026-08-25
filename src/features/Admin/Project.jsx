@@ -174,7 +174,7 @@ export function AdminProjects({ me }) {
                           <button
                             onClick={() => saveEdit(p.id)}
                             disabled={saving}
-                            className="p-1.5 rounded-lg bg-[#6B8F71] text-white disabled:opacity-50"
+                            className="p-1.5 rounded-lg bg-success text-white disabled:opacity-50"
                             title="Save"
                           >
                             <Check size={14} />

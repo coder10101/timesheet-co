@@ -168,7 +168,7 @@ export function EmployeeAttendance({ me }) {
                       <div
                         className={`font-mono text-[10px] ${
                           difference > 0
-                            ? "text-[#6B8F71]"
+                            ? "text-success"
                             : difference < 0
                               ? "text-[#B5563A]"
                               : "text-[#9A9383]"

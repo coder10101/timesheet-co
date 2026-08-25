@@ -176,7 +176,7 @@ export function EmployeeWorklog({ me }) {
                       {formatDuration(worked)}
                     </div>
                     <div
-                      className={`font-mono text-[10px] ${difference > 0 ? "text-[#6B8F71]" : difference < 0 ? "text-[#B5563A]" : "text-[#9A9383]"}`}
+                      className={`font-mono text-[10px] ${difference > 0 ? "text-success" : difference < 0 ? "text-[#B5563A]" : "text-[#9A9383]"}`}
                     >
                       {difference > 0
                         ? `+${formatDuration(difference)} OT`

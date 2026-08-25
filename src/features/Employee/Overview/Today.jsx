@@ -98,7 +98,7 @@ export function Today({
           >
             <div
               className={`relative w-9 h-9 rounded-full flex items-center justify-center ${
-                todayRecord?.clock_in ? "bg-[#6B8F71]" : "bg-white/10"
+                todayRecord?.clock_in ? "bg-success" : "bg-white/10"
               }`}
             >
               {todayRecord?.clock_in ? (
@@ -114,7 +114,7 @@ export function Today({
                     style={{ animation: "ripple-pop 0.6s ease-out" }}
                   />
                   <span
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#6B8F71] flex items-center justify-center"
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-success flex items-center justify-center"
                     style={{ animation: "check-pop 0.5s ease-out" }}
                   >
                     <Check size={10} strokeWidth={3} />
@@ -169,7 +169,7 @@ export function Today({
           <button
             onClick={doClockIn}
             disabled={!!todayRecord || clockInPending}
-            className="w-full py-2.5 rounded-xl bg-[#6B8F71] hover:bg-[#5E8064] active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:active:scale-100"
+            className="w-full py-2.5 rounded-xl bg-success hover:bg-success-dark active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:active:scale-100"
           >
             <LogIn size={15} />
             Clock in

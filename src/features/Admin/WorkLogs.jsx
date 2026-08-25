@@ -129,7 +129,7 @@ export function AdminWorklogs() {
                               difference === null
                                 ? "text-[#7A7362]"
                                 : difference >= 0
-                                  ? "text-[#6B8F71]"
+                                  ? "text-success"
                                   : "text-[#B5563A]"
                             }`}
                           >

@@ -98,7 +98,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
               <div className="mt-1.5">
                 {status === "logged" && (
                   <div
-                    className="mx-auto w-5 h-5 rounded-full bg-[#E3EFE5] text-[#5D8065]
+                    className="mx-auto w-5 h-5 rounded-full bg-success-light text-[#5D8065]
                       flex items-center justify-center"
                   >
                     <Check size={11} strokeWidth={2.5} />
@@ -146,7 +146,7 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-[#EEEAE0]">
         <div className="flex items-center gap-1.5 text-[9px] text-[#7A7362]">
-          <span className="w-2 h-2 rounded-full bg-[#6B8F71]" />
+          <span className="w-2 h-2 rounded-full bg-success" />
           Logged
         </div>
 
