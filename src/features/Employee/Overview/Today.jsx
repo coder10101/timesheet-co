@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Clock, LogIn, LogOut, Check } from "lucide-react";
 
 import {
@@ -18,11 +18,25 @@ export function Today({
   today,
 }) {
   const [justClocked, setJustClocked] = useState(null); // 'in' | 'out' | null
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const todayRecord = records.find((record) => record.date === today);
 
+  useEffect(() => {
+    if (!todayRecord?.clock_in || todayRecord?.clock_out) return;
+
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [todayRecord?.clock_in, todayRecord?.clock_out]);
+
   const workedMinutes = todayRecord?.clock_in
-    ? getWorkedMinutes(todayRecord.clock_in, todayRecord.clock_out)
+    ? getWorkedMinutes(
+        todayRecord.clock_in,
+        todayRecord.clock_out || currentTime.toISOString(),
+      )
     : 0;
 
   const differenceMinutes = workedMinutes - WORK_DAY_MINUTES;
@@ -85,7 +99,7 @@ export function Today({
           <ClockRing
             pct={
               todayRecord?.clock_in
-                ? (workedMinutes / WORK_DAY_MINUTES) * 100
+                ? Math.min((workedMinutes / WORK_DAY_MINUTES) * 100, 100)
                 : 0
             }
             color={

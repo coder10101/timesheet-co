@@ -9,6 +9,7 @@ import {
   fmtDate,
   fmtTime,
   formatDuration,
+  getWorkedMinutes,
   todayISO,
 } from "../../utils/workTime";
 
@@ -189,7 +190,14 @@ export function EmployeeWorklog({ me }) {
     const counts = new Map();
     let total = 0;
 
-    const COLORS_PALETTE = ["#63537E", "#497833", "#7A5A17", "#913030", "#3E8F18", "#514366"];
+    const COLORS_PALETTE = [
+      "#63537E",
+      "#497833",
+      "#7A5A17",
+      "#913030",
+      "#3E8F18",
+      "#514366",
+    ];
 
     entries.forEach((e) => {
       const pId = e.project_id || "general";
@@ -197,13 +205,16 @@ export function EmployeeWorklog({ me }) {
       total += 1;
     });
 
-    const segments = Array.from(counts.entries()).map(([pId, count], idx) => {
-      const proj = projectMap.get(pId);
-      const name = pId === "general" ? "General / Misc" : proj?.name || "Project";
-      const pct = Math.round((count / total) * 100);
-      const color = COLORS_PALETTE[idx % COLORS_PALETTE.length];
-      return { pId, name, count, pct, color };
-    }).sort((a, b) => b.count - a.count);
+    const segments = Array.from(counts.entries())
+      .map(([pId, count], idx) => {
+        const proj = projectMap.get(pId);
+        const name =
+          pId === "general" ? "General / Misc" : proj?.name || "Project";
+        const pct = Math.round((count / total) * 100);
+        const color = COLORS_PALETTE[idx % COLORS_PALETTE.length];
+        return { pId, name, count, pct, color };
+      })
+      .sort((a, b) => b.count - a.count);
 
     return { segments, totalLogs: total };
   }, [entries, projectMap]);
@@ -231,9 +242,13 @@ export function EmployeeWorklog({ me }) {
       {projectStats.totalLogs > 0 && (
         <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-text">Project Contribution Breakdown</span>
+            <span className="font-bold text-text">
+              Project Contribution Breakdown
+            </span>
             <span className="font-mono text-text-muted text-[11px]">
-              {projectStats.totalLogs} total entries across {projectStats.segments.length} initiative{projectStats.segments.length !== 1 ? "s" : ""}
+              {projectStats.totalLogs} total entries across{" "}
+              {projectStats.segments.length} initiative
+              {projectStats.segments.length !== 1 ? "s" : ""}
             </span>
           </div>
 
