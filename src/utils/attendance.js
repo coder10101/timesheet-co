@@ -127,11 +127,11 @@ export function isEarlyClockIn(dateTime) {
 export function isLateClockIn(dateTime) {
   const mins = getClockInMinutes(dateTime);
   if (mins === null) return false;
-  return mins > 10 * 60 + 30; // After 10:30 AM
+  return mins > 10 * 60; // After 10:00 AM
 }
 
 export function isOnTimeClockIn(dateTime) {
   const mins = getClockInMinutes(dateTime);
   if (mins === null) return false;
-  return mins >= 10 * 60 && mins <= 10 * 60 + 30; // 10:00 AM to 10:30 AM
+  return mins <= 10 * 60; // On or before 10:00 AM
 }

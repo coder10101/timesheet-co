@@ -183,6 +183,31 @@ export function EmployeeWorklog({ me }) {
     }
   };
 
+  // Compute project distribution
+  const projectStats = useMemo(() => {
+    if (!entries || entries.length === 0) return { segments: [], totalLogs: 0 };
+    const counts = new Map();
+    let total = 0;
+
+    const COLORS_PALETTE = ["#63537E", "#497833", "#7A5A17", "#913030", "#3E8F18", "#514366"];
+
+    entries.forEach((e) => {
+      const pId = e.project_id || "general";
+      counts.set(pId, (counts.get(pId) || 0) + 1);
+      total += 1;
+    });
+
+    const segments = Array.from(counts.entries()).map(([pId, count], idx) => {
+      const proj = projectMap.get(pId);
+      const name = pId === "general" ? "General / Misc" : proj?.name || "Project";
+      const pct = Math.round((count / total) * 100);
+      const color = COLORS_PALETTE[idx % COLORS_PALETTE.length];
+      return { pId, name, count, pct, color };
+    }).sort((a, b) => b.count - a.count);
+
+    return { segments, totalLogs: total };
+  }, [entries, projectMap]);
+
   return (
     <div className="max-w-5xl mx-auto space-y-4 fade-in">
       {/* HEADER */}
@@ -190,7 +215,7 @@ export function EmployeeWorklog({ me }) {
         <div>
           <h1 className="text-xl font-bold text-text">Work Log</h1>
           <p className="text-xs text-text-muted">
-            Record and review your daily accomplishments.
+            Record and review your daily accomplishments and project hours.
           </p>
         </div>
       </div>
@@ -199,6 +224,49 @@ export function EmployeeWorklog({ me }) {
         <div className="px-3.5 py-2 rounded-xl bg-alert-light text-alert text-xs flex items-center gap-2 shadow-2xs">
           <AlertCircle size={14} className="shrink-0" />
           <span>{err}</span>
+        </div>
+      )}
+
+      {/* VISUAL PROJECT EFFORT DISTRIBUTION BAR */}
+      {projectStats.totalLogs > 0 && (
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-text">Project Contribution Breakdown</span>
+            <span className="font-mono text-text-muted text-[11px]">
+              {projectStats.totalLogs} total entries across {projectStats.segments.length} initiative{projectStats.segments.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {/* MULTI-COLOR SEGMENTED BAR */}
+          <div className="w-full h-2.5 rounded-full bg-surface-muted overflow-hidden flex shadow-inner">
+            {projectStats.segments.map((seg) => (
+              <div
+                key={seg.pId}
+                style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
+                className="h-full transition-all duration-500"
+                title={`${seg.name}: ${seg.count} logs (${seg.pct}%)`}
+              />
+            ))}
+          </div>
+
+          {/* PROJECT PILLS LEGEND */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            {projectStats.segments.map((seg) => (
+              <div
+                key={seg.pId}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-muted/60 border border-border-light text-[11px]"
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: seg.color }}
+                />
+                <span className="font-medium text-text">{seg.name}</span>
+                <span className="font-mono font-bold text-text-muted text-[10px]">
+                  ({seg.count} · {seg.pct}%)
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -222,8 +290,8 @@ export function EmployeeWorklog({ me }) {
             rows={2}
             placeholder={
               editingId
-                ? "Update your task description..."
-                : "What did you work on? e.g. Finished sprint planning, built API endpoints..."
+                ? "Update your work description..."
+                : "What did you work on? e.g. Finished sprint deliverables, built API endpoints..."
             }
             className="w-full bg-surface-muted/40 focus:bg-white border border-border-light focus:border-primary rounded-xl p-3 text-xs sm:text-sm text-text outline-none resize-none transition-all shadow-2xs leading-relaxed"
           />
@@ -299,7 +367,7 @@ export function EmployeeWorklog({ me }) {
             >
               {editingId ? <Check size={13} /> : <Plus size={13} />}
               <span>
-                {saving ? "Saving..." : editingId ? "Update Task" : "Add Task"}
+                {saving ? "Saving..." : editingId ? "Update Log" : "Add Log"}
               </span>
             </button>
           </div>
@@ -310,7 +378,7 @@ export function EmployeeWorklog({ me }) {
       <div className="space-y-2 pt-1">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
-            Task History
+            Work History
           </h3>
 
           {/* EXPAND / COLLAPSE */}
@@ -339,7 +407,7 @@ export function EmployeeWorklog({ me }) {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search tasks..."
+              placeholder="Search work logs..."
               className="w-full bg-transparent outline-none text-text text-xs min-w-0"
             />
             {searchQuery && (
@@ -352,14 +420,14 @@ export function EmployeeWorklog({ me }) {
             )}
           </div>
 
-          {/* FILTER BY PROJECT */}
+          {/* PROJECT FILTER */}
           <select
             value={filterProjectId}
             onChange={(e) => setFilterProjectId(e.target.value)}
-            className="h-9 bg-white border border-border rounded-xl px-2.5 text-xs text-text outline-none focus:border-primary shadow-2xs cursor-pointer max-w-[130px] sm:max-w-[160px] truncate shrink-0"
+            className="h-9 w-32 sm:w-44 bg-white border border-border rounded-xl px-2.5 text-xs font-semibold text-text outline-none focus:border-primary shadow-2xs cursor-pointer truncate shrink-0"
           >
             <option value="all">All Projects</option>
-            <option value="none">Untagged</option>
+            <option value="none">No Project</option>
             {activeProjects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -369,29 +437,26 @@ export function EmployeeWorklog({ me }) {
         </div>
       </div>
 
-      {/* DAILY TIMELINE */}
-      <div className="space-y-2.5">
+      {/* DATES LIST */}
+      <div className="space-y-3">
         {dates.length === 0 ? (
           <EmptyState
-            title="No work logged"
-            description="Use the box above to log your accomplishments."
+            title="No work logs found"
+            description={
+              searchQuery || filterProjectId !== "all"
+                ? "Try clearing your search or filter."
+                : "Select a date above to log your daily work."
+            }
           />
         ) : (
           dates.map((date) => {
-            const attendance = records.find((r) => r.date === date);
             const dayEntries = filteredEntries.filter((e) => e.date === date);
             const isOpen = openDates.has(date);
-
-            const worked = attendance?.clock_out
-              ? Math.max(
-                  0,
-                  Math.round(
-                    (new Date(`${date}T${attendance.clock_out}`) -
-                      new Date(`${date}T${attendance.clock_in}`)) /
-                      60000,
-                  ),
-                )
-              : 0;
+            const attendance = records?.find((r) => r.date === date);
+            const worked =
+              attendance?.clock_in && attendance?.clock_out
+                ? getWorkedMinutes(attendance.clock_in, attendance.clock_out)
+                : 0;
 
             const bs = isoToBS(date);
             const weekday = new Date(`${date}T00:00:00`).getDay();
@@ -399,16 +464,13 @@ export function EmployeeWorklog({ me }) {
             return (
               <div
                 key={date}
-                className="bg-white border border-border rounded-2xl overflow-hidden shadow-2xs"
+                className="bg-white rounded-2xl border border-border overflow-hidden shadow-2xs transition-all"
               >
-                {/* DAY HEADER */}
+                {/* ACCORDION HEADER */}
                 <button
+                  type="button"
                   onClick={() => toggleDate(date)}
-                  className={`w-full px-3.5 sm:px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-4 text-left transition-colors cursor-pointer ${
-                    isOpen
-                      ? "bg-surface-muted/40 border-b border-border-light"
-                      : "bg-white hover:bg-surface-muted/20"
-                  }`}
+                  className="w-full px-3.5 sm:px-4 py-3 bg-surface-muted/40 hover:bg-surface-muted border-b border-border-light flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-left transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <div
@@ -428,7 +490,7 @@ export function EmployeeWorklog({ me }) {
                       </span>
                       <span className="text-[10px] text-text-muted font-mono px-1.5 py-0.2 rounded-md bg-surface-muted border border-border-light">
                         {dayEntries.length}{" "}
-                        {dayEntries.length === 1 ? "task" : "tasks"}
+                        {dayEntries.length === 1 ? "entry" : "entries"}
                       </span>
                     </div>
                   </div>
@@ -456,7 +518,7 @@ export function EmployeeWorklog({ me }) {
                   <div className="p-2 sm:p-3">
                     {dayEntries.length === 0 ? (
                       <div className="py-2 px-3 text-xs text-text-muted flex items-center justify-between">
-                        <span>No tasks logged for this day.</span>
+                        <span>No work logged for this day.</span>
                         <button
                           onClick={() => {
                             setSelectedDate(date);

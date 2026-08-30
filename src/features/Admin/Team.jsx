@@ -5,14 +5,11 @@ import {
   Search,
   LayoutGrid,
   List,
-  Clock,
   AlertCircle,
+  Users,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
-import { useOrgAttendance, useLeaveRequests } from "../../hooks/useOrgData";
-import { todayISO, fmtTime } from "../../utils/workTime";
-import { isLateClockIn, isDateWithinLeave, getWeekday } from "../../utils/attendance";
 import { getEmployeeColor } from "../../constants/colors";
 
 export function AdminTeam({ me }) {
@@ -20,10 +17,6 @@ export function AdminTeam({ me }) {
   const [search, setSearch] = useState("");
   const [err, setErr] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
-
-  const today = todayISO();
-  const { records: todayAttendance } = useOrgAttendance(today);
-  const { requests: allLeave } = useLeaveRequests(null, "org");
 
   const query = useQuery({
     queryKey: ["roster"],
@@ -49,44 +42,6 @@ export function AdminTeam({ me }) {
   });
 
   const employees = query.data || [];
-
-  // Map today's attendance & status per employee
-  const employeeStatusMap = useMemo(() => {
-    const map = new Map();
-    const attMap = new Map();
-    (todayAttendance || []).forEach((att) => {
-      attMap.set(att.employee_id, att);
-    });
-
-    const approvedLeaves = (allLeave || []).filter((l) => l.status === "Approved");
-    const isSat = getWeekday(today) === 6;
-
-    employees.forEach((emp) => {
-      const att = attMap.get(emp.id);
-      const onLeave = approvedLeaves.find(
-        (l) => l.employee_id === emp.id && isDateWithinLeave(today, l),
-      );
-
-      let status = "Absent";
-      let time = "—";
-
-      if (att?.clock_in) {
-        const isLate = isLateClockIn(att.clock_in);
-        status = isLate ? "Late" : "Present";
-        time = fmtTime(att.clock_in);
-      } else if (onLeave) {
-        status = "On Leave";
-        time = "—";
-      } else if (isSat) {
-        status = "Holiday";
-        time = "Weekend";
-      }
-
-      map.set(emp.id, { status, time });
-    });
-
-    return map;
-  }, [employees, todayAttendance, allLeave, today]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((e) => {
@@ -119,13 +74,13 @@ export function AdminTeam({ me }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 fade-in">
+    <div className="max-w-6xl mx-auto space-y-4 fade-in pb-8">
       {/* HEADER WITH VIEW TOGGLE */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-text">Team</h1>
+          <h1 className="text-xl font-bold text-text">Team Members</h1>
           <p className="text-xs text-text-muted">
-            Manage organization members, review live check-ins, and manage workspace access.
+            Manage organization members, roles, departments, and workspace access.
           </p>
         </div>
 
@@ -186,22 +141,18 @@ export function AdminTeam({ me }) {
           {filteredEmployees.map((emp) => {
             const isMe = emp.id === me?.id;
             const isActive = emp.is_active !== false;
-            const statusInfo = employeeStatusMap.get(emp.id) || {
-              status: "Absent",
-              time: "—",
-            };
 
             return (
               <div
                 key={emp.id}
-                className={`group bg-white border rounded-2xl p-4 shadow-2xs space-y-3 transition-all flex flex-col justify-between ${
+                className={`group bg-white border rounded-2xl p-4 shadow-2xs space-y-3.5 transition-all flex flex-col justify-between ${
                   isActive
-                    ? "border-border hover:border-border-light"
+                    ? "border-border hover:border-border-light hover:shadow-xs"
                     : "border-border-light bg-surface-muted/30 opacity-70"
                 }`}
               >
                 <div>
-                  {/* CARD TOP ROW: AVATAR & LIVE STATUS */}
+                  {/* CARD TOP ROW: AVATAR & REVOKED TAG IF ANY */}
                   <div className="flex items-start justify-between gap-2">
                     <div
                       className="w-11 h-11 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-xs"
@@ -210,63 +161,34 @@ export function AdminTeam({ me }) {
                       {emp.name?.slice(0, 2).toUpperCase()}
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      {statusInfo.status === "Present" && (
-                        <span className="px-2 py-0.5 rounded-md bg-success-light text-success border border-success/30 text-[10px] font-semibold">
-                          Present
-                        </span>
-                      )}
-                      {statusInfo.status === "Late" && (
-                        <span className="px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">
-                          Late
-                        </span>
-                      )}
-                      {statusInfo.status === "On Leave" && (
-                        <span className="px-2 py-0.5 rounded-md bg-primary-light text-primary border border-primary/30 text-[10px] font-semibold">
-                          On Leave
-                        </span>
-                      )}
-                      {statusInfo.status === "Absent" && (
-                        <span className="px-2 py-0.5 rounded-md bg-alert-light text-alert border border-alert/30 text-[10px] font-semibold">
-                          Absent
-                        </span>
-                      )}
-                      {statusInfo.status === "Holiday" && (
-                        <span className="px-2 py-0.5 rounded-md bg-surface-muted text-text-muted border border-border text-[10px] font-semibold">
-                          Weekend
-                        </span>
-                      )}
-                    </div>
+                    {!isActive && (
+                      <span className="px-2 py-0.5 rounded-md bg-alert-light text-alert border border-alert/30 text-[10px] font-bold">
+                        Access Revoked
+                      </span>
+                    )}
                   </div>
 
                   {/* NAME & TITLE */}
                   <div className="mt-3">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="text-sm font-bold text-text truncate">
-                        {emp.name}
-                      </h3>
-                      {!isActive && (
-                        <span className="px-1.5 py-0.2 rounded bg-alert-light text-alert text-[9px] font-bold">
-                          Revoked
-                        </span>
-                      )}
-                    </div>
+                    <h3 className="text-sm font-bold text-text truncate">
+                      {emp.name}
+                    </h3>
                     <p className="text-[11px] text-text-muted truncate mt-0.5">
                       {emp.title || emp.role || "Team Member"}
                     </p>
                   </div>
                 </div>
 
-                {/* BOTTOM ROW: DEPARTMENT PILL & REVOKE ACCESS */}
+                {/* BOTTOM ROW: DEPARTMENT PILL & ACCESS ACTION */}
                 <div className="pt-2.5 border-t border-border-light flex items-center justify-between text-xs gap-2">
                   <span className="px-2 py-0.5 rounded-md bg-surface-muted text-text-muted border border-border text-[10px] font-semibold capitalize truncate max-w-[120px]">
-                    {emp.department || "Engineering"}
+                    {emp.department || "General"}
                   </span>
 
                   {!isMe ? (
                     <button
                       onClick={() => act(emp.id, !isActive, emp.name)}
-                      className={`text-[11px] px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer shrink-0 ${
+                      className={`text-[11px] px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
                         isActive
                           ? "text-alert hover:bg-alert-light border border-transparent hover:border-alert/20"
                           : "text-success hover:bg-success-light border border-transparent hover:border-success/20"
@@ -290,10 +212,6 @@ export function AdminTeam({ me }) {
           {filteredEmployees.map((emp) => {
             const isMe = emp.id === me?.id;
             const isActive = emp.is_active !== false;
-            const statusInfo = employeeStatusMap.get(emp.id) || {
-              status: "Absent",
-              time: "—",
-            };
 
             return (
               <div
@@ -322,37 +240,12 @@ export function AdminTeam({ me }) {
                       )}
                     </div>
                     <p className="text-[11px] text-text-muted truncate">
-                      {emp.title || emp.role} · {emp.department || "Engineering"}
+                      {emp.title || emp.role} · {emp.department || "General"}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                  <span className="text-xs font-mono text-text-muted hidden sm:block">
-                    {statusInfo.time}
-                  </span>
-
-                  {statusInfo.status === "Present" && (
-                    <span className="px-2 py-0.5 rounded-md bg-success-light text-success border border-success/30 text-[10px] font-semibold">
-                      Present
-                    </span>
-                  )}
-                  {statusInfo.status === "Late" && (
-                    <span className="px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">
-                      Late
-                    </span>
-                  )}
-                  {statusInfo.status === "On Leave" && (
-                    <span className="px-2 py-0.5 rounded-md bg-primary-light text-primary border border-primary/30 text-[10px] font-semibold">
-                      On Leave
-                    </span>
-                  )}
-                  {statusInfo.status === "Absent" && (
-                    <span className="px-2 py-0.5 rounded-md bg-alert-light text-alert border border-alert/30 text-[10px] font-semibold">
-                      Absent
-                    </span>
-                  )}
-
                   {!isMe ? (
                     <button
                       onClick={() => act(emp.id, !isActive, emp.name)}

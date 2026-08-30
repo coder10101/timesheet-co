@@ -31,6 +31,7 @@ import {
   getDaysInBSMonth,
 } from "../../../utils/nepaliCalendar";
 import AttendanceOverview from "./MonthlyOverview";
+import { WorkHoursChart } from "../../../components/charts/WorkHoursChart";
 
 export function EmployeeAttendance({ me }) {
   const { records, updateAttendance } = useAttendance(me.id);
@@ -104,137 +105,117 @@ export function EmployeeAttendance({ me }) {
     return map;
   }, [holidays]);
 
-  const approvedLeaves = useMemo(
-    () => (leaveRequests || []).filter((leave) => leave.status === "Approved"),
-    [leaveRequests],
-  );
+  // LEAVE REQUESTS
 
-  const getLeaveForDate = (isoDate) => {
-    return approvedLeaves.find((leave) => isDateWithinLeave(isoDate, leave));
-  };
+  const approvedLeaves = useMemo(() => {
+    return (leaveRequests || []).filter((l) => l.status === "Approved");
+  }, [leaveRequests]);
 
+  // LEAVE DAYS COUNT
   const leaveDaysInMonth = useMemo(() => {
-    if (!monthStartISO || !monthEndISO) {
-      return 0;
-    }
+    let count = 0;
 
-    let total = 0;
+    monthDates.forEach((date) => {
+      const isLeave = approvedLeaves.some((leave) =>
+        isDateWithinLeave(date.isoDate, leave),
+      );
 
-    approvedLeaves.forEach((leave) => {
-      if (!leave.start_date || !leave.end_date) {
-        return;
+      if (isLeave) {
+        count++;
       }
-
-      const overlaps =
-        leave.start_date <= monthEndISO && leave.end_date >= monthStartISO;
-
-      if (!overlaps) {
-        return;
-      }
-
-      if (leave.start_date >= monthStartISO && leave.end_date <= monthEndISO) {
-        total += Number(leave.days) || 0;
-        return;
-      }
-
-      const start =
-        leave.start_date > monthStartISO ? leave.start_date : monthStartISO;
-
-      const end = leave.end_date < monthEndISO ? leave.end_date : monthEndISO;
-
-      const startDate = new Date(`${start}T00:00:00`);
-
-      const endDate = new Date(`${end}T00:00:00`);
-
-      const diff =
-        Math.floor(
-          (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-        ) + 1;
-
-      total += Math.max(diff, 0);
     });
 
-    return total;
-  }, [approvedLeaves, monthStartISO, monthEndISO]);
+    return count;
+  }, [monthDates, approvedLeaves]);
+
+  // GET DATE STATUS
 
   const getDateStatus = (date) => {
-    const record = recordsByDate.get(date.isoDate);
-
-    const holiday = holidaysByDate.get(date.isoDate);
-
-    const leave = getLeaveForDate(date.isoDate);
-
     const isFuture = date.isoDate > today;
 
     const weekday = getWeekday(date.isoDate);
 
     const isSaturday = weekday === 6;
 
-    /*
-     * Attendance always wins.
-     */
+    const holiday = holidaysByDate.get(date.isoDate);
 
-    if (record?.clock_in) {
-      const late = isLateClockIn(record.clock_in);
+    const isHoliday = !!holiday || isSaturday;
 
-      return {
-        status: late ? "late" : "present",
-        record,
-        holiday,
-        leave,
-        isFuture: false,
-        isSaturday,
-      };
-    }
+    const leave = approvedLeaves.find((l) =>
+      isDateWithinLeave(date.isoDate, l),
+    );
+
+    const isLeave = !!leave;
+
+    const record = recordsByDate.get(date.isoDate);
 
     if (isFuture) {
       return {
         status: "future",
-        record: null,
-        holiday,
-        leave,
-        isFuture: true,
+        isHoliday,
         isSaturday,
+        holiday,
+        isLeave,
+        leave,
+        record: null,
       };
     }
 
-    if (leave) {
+    if (isLeave) {
       return {
         status: "leave",
-        record: null,
-        holiday,
-        leave,
-        isFuture: false,
+        isHoliday,
         isSaturday,
+        holiday,
+        isLeave,
+        leave,
+        record,
       };
     }
 
-    if (holiday || isSaturday) {
+    if (isHoliday) {
       return {
         status: "holiday",
-        record: null,
-        holiday,
-        leave: null,
-        isFuture: false,
+        isHoliday,
         isSaturday,
+        holiday,
+        isLeave: false,
+        leave: null,
+        record,
       };
     }
 
+    if (!record || !record.clock_in) {
+      return {
+        status: "absent",
+        isHoliday: false,
+        isSaturday: false,
+        holiday: null,
+        isLeave: false,
+        leave: null,
+        record: null,
+      };
+    }
+
+    const isLate = isLateClockIn(record.clock_in);
+
     return {
-      status: "absent",
-      record: null,
-      holiday: null,
-      leave: null,
-      isFuture: false,
+      status: isLate ? "late" : "present",
+      isHoliday: false,
       isSaturday: false,
+      holiday: null,
+      isLeave: false,
+      leave: null,
+      record,
     };
   };
+
+  // STATS
 
   const stats = useMemo(() => {
     let present = 0;
     let late = 0;
     let absent = 0;
-
     let totalWorked = 0;
     let overtimeMinutes = 0;
     let undertimeMinutes = 0;
@@ -242,10 +223,12 @@ export function EmployeeAttendance({ me }) {
     monthDates.forEach((date) => {
       const result = getDateStatus(date);
 
-      if (result.record?.clock_in) {
-        present++;
+      if (result.status === "present" || result.status === "late") {
+        if (result.status === "present") {
+          present++;
+        }
 
-        if (result.record.clock_out) {
+        if (result.record?.clock_in && result.record?.clock_out) {
           const worked = getWorkedMinutes(
             result.record.clock_in,
             result.record.clock_out,
@@ -324,58 +307,66 @@ export function EmployeeAttendance({ me }) {
     setError("");
   };
 
-  /* =====================================================
-     EDIT
-  ===================================================== */
+  // EDIT LOGIC
 
-  const startEdit = (record) => {
+  const startEdit = (date, record) => {
     setError("");
 
-    const bsDate = isoToBS(record.date);
+    if (record) {
+      const clockIn = record.clock_in
+        ? new Date(record.clock_in).toLocaleTimeString("en-US", {
+            hour12: false,
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "09:30";
+
+      const clockOut = record.clock_out
+        ? new Date(record.clock_out).toLocaleTimeString("en-US", {
+            hour12: false,
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "18:00";
+
+      setEditing({
+        date: date.isoDate,
+        clockIn,
+        clockOut,
+        isNew: false,
+      });
+
+      return;
+    }
 
     setEditing({
-      id: record.id,
-
-      bsYear: bsDate.year,
-      bsMonth: bsDate.month,
-      bsDay: bsDate.day,
-
-      clockIn: getDefaultTime(record.clock_in),
-
-      clockOut: getDefaultTime(record.clock_out),
-
-      originalClockIn: record.clock_in,
-
-      originalClockOut: record.clock_out,
+      date: date.isoDate,
+      clockIn: "09:30",
+      clockOut: "18:00",
+      isNew: true,
     });
   };
 
   const saveEdit = async () => {
-    if (!editing) {
+    if (!editing) return;
+
+    setError("");
+
+    if (editing.clockIn >= editing.clockOut) {
+      setError("Clock-out must be after clock-in.");
       return;
     }
 
     setSaving(true);
-    setError("");
 
     try {
-      const selectedISO = bsDateToISO(
-        editing.bsYear,
-        editing.bsMonth,
-        editing.bsDay,
-      );
+      const clockInISO = `${editing.date}T${editing.clockIn}:00.000Z`;
+      const clockOutISO = `${editing.date}T${editing.clockOut}:00.000Z`;
 
-      const clockInISO = editing.clockIn
-        ? `${selectedISO}T${editing.clockIn}:00`
-        : null;
-
-      const clockOutISO = editing.clockOut
-        ? `${selectedISO}T${editing.clockOut}:00`
-        : null;
-
-      await updateAttendance(editing.id, {
-        clockIn: clockInISO,
-        clockOut: clockOutISO,
+      await updateAttendance({
+        date: editing.date,
+        clock_in: clockInISO,
+        clock_out: clockOutISO,
       });
 
       setEditing(null);
@@ -395,10 +386,9 @@ export function EmployeeAttendance({ me }) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto fade-in">
+    <div className="max-w-6xl mx-auto fade-in space-y-4 pb-8">
       {/* HEADER */}
-
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-text">
             Attendance History
@@ -419,19 +409,23 @@ export function EmployeeAttendance({ me }) {
       </div>
 
       {/* ERROR */}
-
       {error && (
-        <div className="mb-4 px-3 py-2 rounded-lg bg-alert-light text-alert text-xs">
+        <div className="px-3 py-2 rounded-lg bg-alert-light text-alert text-xs">
           {error}
         </div>
       )}
 
       {/* SUMMARY */}
-
       <AttendanceSummary stats={stats} formatDifference={formatDifference} />
 
-      {/* MONTHLY OVERVIEW */}
+      {/* DAILY WORK HOURS & VARIANCE CHART */}
+      <WorkHoursChart
+        monthDates={monthDates}
+        records={monthRecords}
+        employeeName={me.name}
+      />
 
+      {/* MONTHLY OVERVIEW */}
       <AttendanceOverview
         monthDates={monthDates}
         getDateStatus={getDateStatus}

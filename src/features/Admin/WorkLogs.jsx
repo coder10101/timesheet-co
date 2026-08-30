@@ -125,7 +125,7 @@ export function AdminWorklogs() {
         <div>
           <h1 className="text-xl font-bold text-text">Team Work Logs</h1>
           <p className="text-xs text-text-muted">
-            Review detailed daily task completions, project allocations, and worked hours.
+            Review daily work accomplishments, project allocations, and logged hours.
           </p>
         </div>
       </div>
@@ -235,14 +235,75 @@ export function AdminWorklogs() {
             </div>
           )}
 
-          {/* WORK LOGS DAY BLOCKS */}
+          {/* VISUAL PROJECT EFFORT DISTRIBUTION BAR */}
+          {filteredEntries.length > 0 && (() => {
+            const counts = new Map();
+            let total = 0;
+            const COLORS_PALETTE = ["#63537E", "#497833", "#7A5A17", "#913030", "#3E8F18", "#514366"];
+
+            filteredEntries.forEach((e) => {
+              const pId = e.project_id || "general";
+              counts.set(pId, (counts.get(pId) || 0) + 1);
+              total += 1;
+            });
+
+            const segments = Array.from(counts.entries()).map(([pId, count], idx) => {
+              const proj = projectMap[pId];
+              const name = pId === "general" ? "General / Misc" : proj?.name || "Project";
+              const pct = Math.round((count / total) * 100);
+              const color = COLORS_PALETTE[idx % COLORS_PALETTE.length];
+              return { pId, name, count, pct, color };
+            }).sort((a, b) => b.count - a.count);
+
+            return (
+              <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-text">Project Allocation Breakdown</span>
+                  <span className="font-mono text-text-muted text-[11px]">
+                    {total} logged entries ({segments.length} projects)
+                  </span>
+                </div>
+
+                <div className="w-full h-2 rounded-full bg-surface-muted overflow-hidden flex shadow-inner">
+                  {segments.map((seg) => (
+                    <div
+                      key={seg.pId}
+                      style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
+                      className="h-full transition-all duration-500"
+                      title={`${seg.name}: ${seg.count} logs (${seg.pct}%)`}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {segments.map((seg) => (
+                    <div
+                      key={seg.pId}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-surface-muted/60 border border-border-light text-[10px]"
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: seg.color }}
+                      />
+                      <span className="font-medium text-text">{seg.name}</span>
+                      <span className="font-mono font-bold text-text-muted">
+                        ({seg.pct}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* WORK ENTRIES DAY BLOCKS */}
           {Object.keys(grouped).length === 0 ? (
             <div className="bg-white border border-border rounded-2xl p-12 text-center text-xs text-text-muted shadow-2xs">
               <Briefcase size={28} className="mx-auto mb-2 text-text-faint" />
               <p className="font-semibold text-text">No work logs recorded</p>
               <p className="text-[11px] text-text-muted mt-0.5">
                 {search
-                  ? "No tasks match your search."
+                  ? "No work logs match your search."
                   : `No work entries found for this month.`}
               </p>
             </div>
@@ -281,7 +342,7 @@ export function AdminWorklogs() {
                         )}
                       </div>
 
-                      {/* TASKS WITH COLORED ACCENT LEFT BORDERS */}
+                      {/* WORK ENTRIES WITH COLORED ACCENT LEFT BORDERS */}
                       <div className="divide-y divide-border-light p-3 sm:p-4 space-y-2.5">
                         {items.map((it, idx) => {
                           const project = projectMap[it.project_id];
@@ -297,17 +358,8 @@ export function AdminWorklogs() {
                             >
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-bold text-text">
-                                  {project ? project.name : "General Task"}
+                                  {project ? project.name : "General Work"}
                                 </span>
-
-                                {project && (
-                                  <span
-                                    className="px-2 py-0.5 rounded-md text-[10px] font-bold text-white shadow-2xs"
-                                    style={{ backgroundColor: borderColor }}
-                                  >
-                                    {project.tag || "task"}
-                                  </span>
-                                )}
                               </div>
 
                               <p className="text-xs text-text-muted leading-relaxed">

@@ -5,8 +5,6 @@ import {
   Trash2,
   FolderKanban,
   Users,
-  Calendar,
-  User,
   Check,
   X,
   AlertCircle,
@@ -16,20 +14,16 @@ import {
 import {
   useProjects,
   useOrgWorkLogs,
-  useRoster,
 } from "../../hooks/useOrgData";
-import { fmtDate, todayISO } from "../../utils/workTime";
-import { NepaliDatePicker } from "../../components/NepaliDatePicker";
-import { isoToBS, NEPALI_MONTHS } from "../../utils/nepaliCalendar";
 
 const PRESET_COLORS = [
+  "#63537E", // Plum (Primary)
+  "#497833", // Green (Success)
+  "#7A5A17", // Amber (Warning)
+  "#913030", // Coral (Alert)
   "#2563EB", // Blue
   "#0D9488", // Teal
-  "#D97706", // Amber
   "#7C3AED", // Purple
-  "#E11D48", // Rose
-  "#059669", // Emerald
-  "#4F46E5", // Indigo
   "#EA580C", // Orange
 ];
 
@@ -37,20 +31,16 @@ export function AdminProjects({ me }) {
   const { projects, createProject, archiveProject, updateProject } =
     useProjects();
   const { entries } = useOrgWorkLogs();
-  const { employees } = useRoster();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [formName, setFormName] = useState("");
   const [formColor, setFormColor] = useState(PRESET_COLORS[0]);
   const [formStatus, setFormStatus] = useState("Active");
-  const [formLead, setFormLead] = useState("");
-  const [formDeadline, setFormDeadline] = useState("");
-  const [formProgress, setFormProgress] = useState(50);
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Compute stats and contributor counts (Called unconditionally before any early return)
+  // Compute contributor counts per project
   const projectStats = useMemo(() => {
     const map = new Map();
     const projList = projects || [];
@@ -63,21 +53,15 @@ export function AdminProjects({ me }) {
       );
 
       const status = p.status || (p.archived ? "Completed" : "Active");
-      const progress = p.progress ?? (status === "Completed" ? 100 : 65);
-      const lead = p.lead || employees?.[0]?.name || "Unassigned";
-      const deadline = p.deadline || "";
-
       map.set(p.id, {
         memberCount: Math.max(uniqueEmployees.size, 1),
+        entryCount: pEntries.length,
         status,
-        progress,
-        lead,
-        deadline,
       });
     });
 
     return map;
-  }, [projects, entries, employees]);
+  }, [projects, entries]);
 
   if (projects === null || entries === null) return null;
 
@@ -96,9 +80,6 @@ export function AdminProjects({ me }) {
     setFormName("");
     setFormColor(PRESET_COLORS[0]);
     setFormStatus("Active");
-    setFormLead(employees?.[0]?.name || "");
-    setFormDeadline("");
-    setFormProgress(40);
     setErr("");
     setIsModalOpen(true);
   };
@@ -109,9 +90,6 @@ export function AdminProjects({ me }) {
     setFormName(p.name);
     setFormColor(p.color || PRESET_COLORS[0]);
     setFormStatus(stats?.status || "Active");
-    setFormLead(p.lead || stats?.lead || "");
-    setFormDeadline(p.deadline || "");
-    setFormProgress(stats?.progress ?? 50);
     setErr("");
     setIsModalOpen(true);
   };
@@ -129,9 +107,6 @@ export function AdminProjects({ me }) {
           name: formName.trim(),
           color: formColor,
           status: formStatus,
-          lead: formLead,
-          deadline: formDeadline,
-          progress: Number(formProgress),
           archived: formStatus === "Completed",
         });
       } else {
@@ -139,9 +114,6 @@ export function AdminProjects({ me }) {
           name: formName.trim(),
           color: formColor,
           status: formStatus,
-          lead: formLead,
-          deadline: formDeadline,
-          progress: Number(formProgress),
           orgId: me.org_id,
         });
       }
@@ -154,13 +126,13 @@ export function AdminProjects({ me }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 fade-in">
-      {/* HEADER (REFERENCE IMAGE 2) */}
+    <div className="max-w-6xl mx-auto space-y-4 fade-in pb-8">
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-text">Projects</h1>
           <p className="text-xs text-text-muted">
-            Track active projects and team assignments.
+            Manage organization initiatives and team project categories.
           </p>
         </div>
 
@@ -180,22 +152,22 @@ export function AdminProjects({ me }) {
         </div>
       )}
 
-      {/* TOP METRIC CARDS (REFERENCE IMAGE 2) */}
+      {/* TOP 3 METRIC CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         {/* ACTIVE */}
         <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-success-light text-success border border-success/30 flex items-center justify-center text-xl font-bold font-mono">
+          <div className="w-11 h-11 rounded-2xl bg-success-light text-success border border-success/30 flex items-center justify-center text-xl font-bold font-mono">
             {activeProjects.length}
           </div>
           <div>
             <h3 className="text-sm font-bold text-text">Active</h3>
-            <p className="text-xs text-text-muted">projects in progress</p>
+            <p className="text-xs text-text-muted">initiatives underway</p>
           </div>
         </div>
 
         {/* ON HOLD */}
         <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-warning-light text-warning border border-warning/30 flex items-center justify-center text-xl font-bold font-mono">
+          <div className="w-11 h-11 rounded-2xl bg-warning-light text-warning border border-warning/30 flex items-center justify-center text-xl font-bold font-mono">
             {onHoldProjects.length}
           </div>
           <div>
@@ -206,17 +178,17 @@ export function AdminProjects({ me }) {
 
         {/* COMPLETED */}
         <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary-light text-primary border border-primary/30 flex items-center justify-center text-xl font-bold font-mono">
+          <div className="w-11 h-11 rounded-2xl bg-primary-light text-primary border border-primary/30 flex items-center justify-center text-xl font-bold font-mono">
             {completedProjects.length}
           </div>
           <div>
             <h3 className="text-sm font-bold text-text">Completed</h3>
-            <p className="text-xs text-text-muted">delivered successfully</p>
+            <p className="text-xs text-text-muted">delivered / archived</p>
           </div>
         </div>
       </div>
 
-      {/* 3-COLUMN PROJECTS GRID (REFERENCE IMAGE 2) */}
+      {/* PROJECTS GRID */}
       {projects.length === 0 ? (
         <div className="bg-white border border-border rounded-2xl p-12 text-center text-xs text-text-muted shadow-2xs">
           <FolderKanban size={32} className="mx-auto mb-2 text-text-faint" />
@@ -226,29 +198,25 @@ export function AdminProjects({ me }) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {projects.map((p) => {
             const stats = projectStats.get(p.id) || {
               memberCount: 1,
+              entryCount: 0,
               status: "Active",
-              progress: 50,
-              lead: "Unassigned",
-              deadline: "",
             };
-
-            const deadlineBS = stats.deadline ? isoToBS(stats.deadline) : null;
 
             return (
               <div
                 key={p.id}
-                className="group bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs hover:border-border-light hover:shadow-xs transition-all flex flex-col justify-between space-y-4"
+                className="group bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs hover:border-border-light hover:shadow-xs transition-all flex flex-col justify-between space-y-3.5"
               >
                 <div>
                   {/* CARD HEADER */}
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <span
-                        className="w-3 h-3 rounded-full shrink-0 shadow-2xs"
+                        className="w-3.5 h-3.5 rounded-full shrink-0 shadow-2xs"
                         style={{ backgroundColor: p.color || "#63537E" }}
                       />
                       <h3 className="text-sm font-bold text-text truncate">
@@ -274,61 +242,20 @@ export function AdminProjects({ me }) {
                         className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
                         title="Edit Project"
                       >
-                        <Pencil size={12} />
+                        <Pencil size={13} />
                       </button>
                     </div>
                   </div>
 
-                  {/* METADATA ROWS */}
-                  <div className="mt-3.5 space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between text-text-muted">
-                      <span>Lead</span>
-                      <span className="font-semibold text-text truncate max-w-[150px]">
-                        {stats.lead}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-text-muted">
-                      <span>Team</span>
-                      <span className="font-semibold text-text">
-                        {stats.memberCount}{" "}
-                        {stats.memberCount === 1 ? "member" : "members"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-text-muted">
-                      <span>Deadline</span>
-                      <span className="font-semibold text-text">
-                        {stats.deadline
-                          ? deadlineBS
-                            ? `${deadlineBS.day} ${NEPALI_MONTHS[deadlineBS.month - 1]} ${deadlineBS.year}`
-                            : fmtDate(stats.deadline)
-                          : "TBD"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* PROGRESS BAR (REFERENCE IMAGE 2) */}
-                <div className="space-y-1.5 pt-2 border-t border-border-light">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-[11px] text-text-muted">Progress</span>
-                    <span className="font-mono text-xs font-bold text-primary">
-                      {stats.progress}%
+                  {/* METADATA ROW */}
+                  <div className="mt-3 flex items-center justify-between text-xs text-text-muted pt-2.5 border-t border-border-light">
+                    <span className="flex items-center gap-1">
+                      <Users size={13} />
+                      <span>{stats.memberCount} contributor{stats.memberCount !== 1 ? "s" : ""}</span>
                     </span>
-                  </div>
-
-                  <div className="w-full h-2 rounded-full bg-surface-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{
-                        width: `${stats.progress}%`,
-                        backgroundColor:
-                          stats.status === "Completed"
-                            ? "#10B981"
-                            : p.color || "#2563EB",
-                      }}
-                    />
+                    <span className="font-mono text-[11px]">
+                      {stats.entryCount} log{stats.entryCount !== 1 ? "s" : ""} recorded
+                    </span>
                   </div>
                 </div>
               </div>
@@ -353,93 +280,37 @@ export function AdminProjects({ me }) {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-text block mb-1">
+            <form onSubmit={handleSave} className="space-y-4">
+              {/* NAME */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text block">
                   Project Title
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Branch Expansion, Annual Audit, Marketing Campaign..."
+                  placeholder="e.g. Website Redesign, Mobile App..."
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full bg-surface-muted border border-border-light rounded-xl p-2.5 text-xs text-text outline-none focus:border-primary"
+                  className="w-full h-10 bg-surface-muted border border-border rounded-xl px-3 text-xs text-text placeholder:text-text-faint focus:border-primary outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="font-bold text-text block mb-1">Status</label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value)}
-                    className="w-full bg-surface-muted border border-border-light rounded-xl p-2.5 text-xs text-text outline-none focus:border-primary cursor-pointer"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="On Hold">On Hold</option>
-                    <option value="Completed">Completed</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-text block mb-1">
-                    Project Lead
-                  </label>
-                  <select
-                    value={formLead}
-                    onChange={(e) => setFormLead(e.target.value)}
-                    className="w-full bg-surface-muted border border-border-light rounded-xl p-2.5 text-xs text-text outline-none focus:border-primary cursor-pointer"
-                  >
-                    <option value="">Unassigned</option>
-                    {(employees || []).map((e) => (
-                      <option key={e.id} value={e.name}>
-                        {e.name} ({e.department || e.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-text block mb-1">
-                  Target Deadline
-                </label>
-                <NepaliDatePicker
-                  value={formDeadline}
-                  onChange={setFormDeadline}
-                  placeholder="Select target deadline"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold text-text">
-                    Progress: {formProgress}%
-                  </label>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={formProgress}
-                  onChange={(e) => setFormProgress(e.target.value)}
-                  className="w-full accent-primary cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-text block mb-1.5">
+              {/* COLOR PRESETS */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text block">
                   Color Tag
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {PRESET_COLORS.map((c) => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => setFormColor(c)}
-                      className={`w-7 h-7 rounded-full transition-transform cursor-pointer flex items-center justify-center ${
-                        formColor === c ? "ring-2 ring-primary ring-offset-2 scale-110" : ""
+                      className={`w-7 h-7 rounded-xl transition-all flex items-center justify-center cursor-pointer ${
+                        formColor === c
+                          ? "ring-2 ring-primary ring-offset-2 scale-110"
+                          : "hover:scale-105"
                       }`}
                       style={{ backgroundColor: c }}
                     >
@@ -449,20 +320,37 @@ export function AdminProjects({ me }) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-light">
+              {/* STATUS */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-text block">
+                  Status
+                </label>
+                <select
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value)}
+                  className="w-full h-10 bg-surface-muted border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="Active">Active</option>
+                  <option value="On Hold">On Hold</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+
+              {/* ACTION BUTTONS */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-light">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-3 py-2 rounded-xl text-text-muted hover:text-text hover:bg-surface-muted cursor-pointer font-semibold"
+                  className="px-4 py-2 text-xs font-semibold text-text-muted hover:text-text rounded-xl hover:bg-surface-muted transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={saving || !formName.trim()}
-                  className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
+                  disabled={saving}
+                  className="px-5 py-2 text-xs font-bold bg-primary hover:bg-primary-dark active:scale-95 text-white rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                 >
-                  {saving ? "Saving..." : editingProject ? "Update Project" : "Create Project"}
+                  {saving ? "Saving..." : editingProject ? "Save Changes" : "Create Project"}
                 </button>
               </div>
             </form>
