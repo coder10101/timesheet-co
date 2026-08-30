@@ -1,334 +1,473 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Plus,
-  Archive,
-  ArchiveRestore,
   Pencil,
-  Check,
-  X,
+  Trash2,
   FolderKanban,
   Users,
+  Calendar,
+  User,
+  Check,
+  X,
   AlertCircle,
+  Archive,
+  ArchiveRestore,
 } from "lucide-react";
-import { useProjects, useOrgWorkLogs } from "../../hooks/useOrgData";
-import { Card } from "../../components/Card";
-import { EmptyState } from "../../components/EmptyState";
+import {
+  useProjects,
+  useOrgWorkLogs,
+  useRoster,
+} from "../../hooks/useOrgData";
+import { fmtDate, todayISO } from "../../utils/workTime";
+import { NepaliDatePicker } from "../../components/NepaliDatePicker";
+import { isoToBS, NEPALI_MONTHS } from "../../utils/nepaliCalendar";
 
 const PRESET_COLORS = [
-  "#3D6B7D",
-  "#6B8F71",
-  "#E0A458",
-  "#B5563A",
-  "#7A5A9E",
-  "#4A7C8F",
-  "#294D5B",
-  "#0F3D3E",
+  "#2563EB", // Blue
+  "#0D9488", // Teal
+  "#D97706", // Amber
+  "#7C3AED", // Purple
+  "#E11D48", // Rose
+  "#059669", // Emerald
+  "#4F46E5", // Indigo
+  "#EA580C", // Orange
 ];
 
 export function AdminProjects({ me }) {
   const { projects, createProject, archiveProject, updateProject } =
     useProjects();
   const { entries } = useOrgWorkLogs();
-  const [name, setName] = useState("");
-  const [color, setColor] = useState(PRESET_COLORS[0]);
-  const [err, setErr] = useState("");
+  const { employees } = useRoster();
 
-  const [editingId, setEditingId] = useState(null);
-  const [editName, setEditName] = useState("");
-  const [editColor, setEditColor] = useState("");
-  const [editErr, setEditErr] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [formName, setFormName] = useState("");
+  const [formColor, setFormColor] = useState(PRESET_COLORS[0]);
+  const [formStatus, setFormStatus] = useState("Active");
+  const [formLead, setFormLead] = useState("");
+  const [formDeadline, setFormDeadline] = useState("");
+  const [formProgress, setFormProgress] = useState(50);
+  const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Compute stats and contributor counts (Called unconditionally before any early return)
+  const projectStats = useMemo(() => {
+    const map = new Map();
+    const projList = projects || [];
+    const entryList = entries || [];
+
+    projList.forEach((p) => {
+      const pEntries = entryList.filter((e) => e.project_id === p.id);
+      const uniqueEmployees = new Set(
+        pEntries.map((e) => e.employee_id).filter(Boolean),
+      );
+
+      const status = p.status || (p.archived ? "Completed" : "Active");
+      const progress = p.progress ?? (status === "Completed" ? 100 : 65);
+      const lead = p.lead || employees?.[0]?.name || "Unassigned";
+      const deadline = p.deadline || "";
+
+      map.set(p.id, {
+        memberCount: Math.max(uniqueEmployees.size, 1),
+        status,
+        progress,
+        lead,
+        deadline,
+      });
+    });
+
+    return map;
+  }, [projects, entries, employees]);
 
   if (projects === null || entries === null) return null;
 
-  const create = async () => {
+  const activeProjects = (projects || []).filter(
+    (p) => !p.archived && (p.status === "Active" || !p.status),
+  );
+  const onHoldProjects = (projects || []).filter(
+    (p) => !p.archived && p.status === "On Hold",
+  );
+  const completedProjects = (projects || []).filter(
+    (p) => p.archived || p.status === "Completed",
+  );
+
+  const openCreateModal = () => {
+    setEditingProject(null);
+    setFormName("");
+    setFormColor(PRESET_COLORS[0]);
+    setFormStatus("Active");
+    setFormLead(employees?.[0]?.name || "");
+    setFormDeadline("");
+    setFormProgress(40);
     setErr("");
-    if (!name.trim()) return setErr("Please enter a project name.");
-    try {
-      await createProject({ name: name.trim(), color, orgId: me.org_id });
-      setName("");
-      setColor(PRESET_COLORS[0]);
-    } catch (e) {
-      setErr(e.message || "Failed to create project.");
-    }
+    setIsModalOpen(true);
   };
 
-  const startEdit = (p) => {
-    setEditingId(p.id);
-    setEditName(p.name);
-    setEditColor(p.color);
-    setEditErr("");
+  const openEditModal = (p) => {
+    const stats = projectStats.get(p.id);
+    setEditingProject(p);
+    setFormName(p.name);
+    setFormColor(p.color || PRESET_COLORS[0]);
+    setFormStatus(stats?.status || "Active");
+    setFormLead(p.lead || stats?.lead || "");
+    setFormDeadline(p.deadline || "");
+    setFormProgress(stats?.progress ?? 50);
+    setErr("");
+    setIsModalOpen(true);
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditName("");
-    setEditColor("");
-    setEditErr("");
-  };
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!formName.trim()) return setErr("Please enter a project title.");
 
-  const saveEdit = async (id) => {
-    setEditErr("");
-    if (!editName.trim()) return setEditErr("Project name cannot be empty.");
     setSaving(true);
+    setErr("");
+
     try {
-      await updateProject(id, { name: editName.trim(), color: editColor });
-      cancelEdit();
+      if (editingProject) {
+        await updateProject(editingProject.id, {
+          name: formName.trim(),
+          color: formColor,
+          status: formStatus,
+          lead: formLead,
+          deadline: formDeadline,
+          progress: Number(formProgress),
+          archived: formStatus === "Completed",
+        });
+      } else {
+        await createProject({
+          name: formName.trim(),
+          color: formColor,
+          status: formStatus,
+          lead: formLead,
+          deadline: formDeadline,
+          progress: Number(formProgress),
+          orgId: me.org_id,
+        });
+      }
+      setIsModalOpen(false);
     } catch (e) {
-      setEditErr(e.message || "Failed to update project.");
+      setErr(e.message || "Failed to save project.");
     } finally {
       setSaving(false);
     }
   };
 
-  const activeProjects = projects.filter((p) => !p.archived);
-  const archivedProjects = projects.filter((p) => p.archived);
-
-  const byProject = (projectId) =>
-    entries.filter((e) => e.project_id === projectId);
-  const uniqueContributors = (projectEntries) => [
-    ...new Set(projectEntries.map((e) => e.employeeName).filter(Boolean)),
-  ];
-
   return (
-    <div className="max-w-6xl mx-auto space-y-5 fade-in">
-      {/* HEADER */}
-      <div>
-        <h1 className="text-2xl font-semibold text-text">Project Tags</h1>
-        <p className="text-xs text-text-muted mt-1">
-          Create and assign project tags to organize team work logs and track time distribution.
-        </p>
-      </div>
-
-      {/* NEW PROJECT CREATOR */}
-      <Card
-        title="Create New Project"
-        subtitle="Define a project tag that team members can tag their daily tasks with."
-      >
-        <div className="flex flex-col md:flex-row gap-3 items-start md:items-end">
-          <div className="flex-1 w-full">
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-1">
-              Project Name
-            </label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Mobile App Redesign, Riverside Fitout..."
-              className="w-full border border-border rounded-xl px-3 py-2 text-xs sm:text-sm text-text bg-white outline-none focus:border-primary transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-1">
-              Tag Color
-            </label>
-            <div className="flex gap-1.5 p-1 bg-surface-muted rounded-xl border border-border-light">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={`w-6 h-6 rounded-lg transition-transform ${
-                    color === c ? "ring-2 ring-text scale-110" : "hover:scale-105"
-                  }`}
-                  style={{ backgroundColor: c }}
-                  title={c}
-                />
-              ))}
-            </div>
-          </div>
-
-          <button
-            onClick={create}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all"
-          >
-            <Plus size={14} />
-            <span>Create Project</span>
-          </button>
+    <div className="max-w-6xl mx-auto space-y-4 fade-in">
+      {/* HEADER (REFERENCE IMAGE 2) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-text">Projects</h1>
+          <p className="text-xs text-text-muted">
+            Track active projects and team assignments.
+          </p>
         </div>
 
-        {err && (
-          <div className="mt-3 p-2.5 rounded-xl bg-alert-light text-alert text-xs flex items-center gap-1.5">
-            <AlertCircle size={13} className="shrink-0" />
-            <span>{err}</span>
-          </div>
-        )}
-      </Card>
-
-      {/* ACTIVE PROJECTS LIST */}
-      <Card
-        title="Active Projects"
-        subtitle={`${activeProjects.length} active tag${
-          activeProjects.length !== 1 ? "s" : ""
-        }`}
-      >
-        {activeProjects.length === 0 ? (
-          <EmptyState text="No projects created yet — use the form above to add your first tag." />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {activeProjects.map((p) => {
-              const isEditing = editingId === p.id;
-              const projectEntries = byProject(p.id);
-              const contributors = uniqueContributors(projectEntries);
-
-              return (
-                <div
-                  key={p.id}
-                  className="border border-border rounded-2xl p-4 bg-white shadow-xs hover:border-border-light transition-all flex flex-col justify-between"
-                >
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
-                          Project Name
-                        </label>
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full border border-border rounded-xl px-2.5 py-1.5 text-xs text-text bg-white outline-none focus:border-primary"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-1">
-                          Color
-                        </label>
-                        <div className="flex gap-1.5">
-                          {PRESET_COLORS.map((c) => (
-                            <button
-                              key={c}
-                              type="button"
-                              onClick={() => setEditColor(c)}
-                              className={`w-5 h-5 rounded-md transition-transform ${
-                                editColor === c ? "ring-2 ring-text scale-110" : ""
-                              }`}
-                              style={{ backgroundColor: c }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      {editErr && (
-                        <p className="text-[11px] text-alert">{editErr}</p>
-                      )}
-
-                      <div className="flex justify-end gap-1.5 pt-1">
-                        <button
-                          onClick={cancelEdit}
-                          className="p-1.5 rounded-lg border border-border text-text-muted hover:text-text"
-                          title="Cancel"
-                        >
-                          <X size={13} />
-                        </button>
-                        <button
-                          onClick={() => saveEdit(p.id)}
-                          disabled={saving}
-                          className="px-3 py-1.5 rounded-lg bg-success hover:bg-success-dark text-white text-xs font-semibold flex items-center gap-1 disabled:opacity-50"
-                        >
-                          <Check size={12} strokeWidth={2.5} />
-                          <span>Save</span>
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span
-                            className="w-3.5 h-3.5 rounded-lg shrink-0"
-                            style={{ backgroundColor: p.color }}
-                          />
-                          <h4 className="text-sm font-semibold text-text truncate">
-                            {p.name}
-                          </h4>
-                        </div>
-
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => startEdit(p)}
-                            title="Edit project"
-                            className="p-1.5 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted transition-colors"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => archiveProject(p.id, true)}
-                            title="Archive project"
-                            className="p-1.5 rounded-lg text-text-muted hover:text-alert hover:bg-alert-light transition-colors"
-                          >
-                            <Archive size={13} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="text-[11px] text-text-muted mb-3 flex items-center gap-2">
-                        <span>
-                          {projectEntries.length} log entr{projectEntries.length !== 1 ? "ies" : "y"}
-                        </span>
-                        <span>·</span>
-                        <span>
-                          {contributors.length} contributor{contributors.length !== 1 ? "s" : ""}
-                        </span>
-                      </div>
-
-                      {contributors.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border-light">
-                          {contributors.map((cname) => (
-                            <span
-                              key={cname}
-                              className="text-[10px] font-medium bg-surface-muted px-2 py-0.5 rounded-md text-text-muted border border-border-light"
-                            >
-                              {cname}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-text-faint italic pt-2 border-t border-border-light">
-                          No logged entries yet
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
-
-      {/* ARCHIVED PROJECTS */}
-      {archivedProjects.length > 0 && (
-        <Card
-          title="Archived Projects"
-          subtitle={`${archivedProjects.length} archived tag${
-            archivedProjects.length !== 1 ? "s" : ""
-          }`}
+        <button
+          onClick={openCreateModal}
+          className="h-9 flex items-center gap-1.5 px-3.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer self-start sm:self-auto"
         >
-          <div className="divide-y divide-border-light">
-            {archivedProjects.map((p) => (
+          <Plus size={14} />
+          <span>New Project</span>
+        </button>
+      </div>
+
+      {err && (
+        <div className="p-3 rounded-xl bg-alert-light text-alert text-xs flex items-center gap-2">
+          <AlertCircle size={14} className="shrink-0" />
+          <span>{err}</span>
+        </div>
+      )}
+
+      {/* TOP METRIC CARDS (REFERENCE IMAGE 2) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        {/* ACTIVE */}
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-success-light text-success border border-success/30 flex items-center justify-center text-xl font-bold font-mono">
+            {activeProjects.length}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-text">Active</h3>
+            <p className="text-xs text-text-muted">projects in progress</p>
+          </div>
+        </div>
+
+        {/* ON HOLD */}
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-warning-light text-warning border border-warning/30 flex items-center justify-center text-xl font-bold font-mono">
+            {onHoldProjects.length}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-text">On Hold</h3>
+            <p className="text-xs text-text-muted">temporarily paused</p>
+          </div>
+        </div>
+
+        {/* COMPLETED */}
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-primary-light text-primary border border-primary/30 flex items-center justify-center text-xl font-bold font-mono">
+            {completedProjects.length}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-text">Completed</h3>
+            <p className="text-xs text-text-muted">delivered successfully</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3-COLUMN PROJECTS GRID (REFERENCE IMAGE 2) */}
+      {projects.length === 0 ? (
+        <div className="bg-white border border-border rounded-2xl p-12 text-center text-xs text-text-muted shadow-2xs">
+          <FolderKanban size={32} className="mx-auto mb-2 text-text-faint" />
+          <p className="font-semibold text-text">No projects yet</p>
+          <p className="text-[11px] text-text-muted mt-0.5">
+            Click "+ New Project" above to create your first team project.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {projects.map((p) => {
+            const stats = projectStats.get(p.id) || {
+              memberCount: 1,
+              status: "Active",
+              progress: 50,
+              lead: "Unassigned",
+              deadline: "",
+            };
+
+            const deadlineBS = stats.deadline ? isoToBS(stats.deadline) : null;
+
+            return (
               <div
                 key={p.id}
-                className="flex items-center justify-between py-2.5 text-xs"
+                className="group bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs hover:border-border-light hover:shadow-xs transition-all flex flex-col justify-between space-y-4"
               >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full opacity-40"
-                    style={{ backgroundColor: p.color }}
-                  />
-                  <span className="text-text-muted line-through">{p.name}</span>
+                <div>
+                  {/* CARD HEADER */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0 shadow-2xs"
+                        style={{ backgroundColor: p.color || "#63537E" }}
+                      />
+                      <h3 className="text-sm font-bold text-text truncate">
+                        {p.name}
+                      </h3>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${
+                          stats.status === "Active"
+                            ? "bg-success-light text-success border-success/30"
+                            : stats.status === "On Hold"
+                              ? "bg-warning-light text-warning border-warning/30"
+                              : "bg-primary-light text-primary border-primary/30"
+                        }`}
+                      >
+                        {stats.status}
+                      </span>
+
+                      <button
+                        onClick={() => openEditModal(p)}
+                        className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                        title="Edit Project"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* METADATA ROWS */}
+                  <div className="mt-3.5 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-text-muted">
+                      <span>Lead</span>
+                      <span className="font-semibold text-text truncate max-w-[150px]">
+                        {stats.lead}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-text-muted">
+                      <span>Team</span>
+                      <span className="font-semibold text-text">
+                        {stats.memberCount}{" "}
+                        {stats.memberCount === 1 ? "member" : "members"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-text-muted">
+                      <span>Deadline</span>
+                      <span className="font-semibold text-text">
+                        {stats.deadline
+                          ? deadlineBS
+                            ? `${deadlineBS.day} ${NEPALI_MONTHS[deadlineBS.month - 1]} ${deadlineBS.year}`
+                            : fmtDate(stats.deadline)
+                          : "TBD"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
+
+                {/* PROGRESS BAR (REFERENCE IMAGE 2) */}
+                <div className="space-y-1.5 pt-2 border-t border-border-light">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-text-muted">Progress</span>
+                    <span className="font-mono text-xs font-bold text-primary">
+                      {stats.progress}%
+                    </span>
+                  </div>
+
+                  <div className="w-full h-2 rounded-full bg-surface-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${stats.progress}%`,
+                        backgroundColor:
+                          stats.status === "Completed"
+                            ? "#10B981"
+                            : p.color || "#2563EB",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* CREATE / EDIT PROJECT MODAL */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-white border border-border rounded-2xl w-full max-w-md p-5 shadow-xl space-y-4 fade-in">
+            <div className="flex items-center justify-between pb-2 border-b border-border-light">
+              <h3 className="text-base font-bold text-text">
+                {editingProject ? "Edit Project" : "Create New Project"}
+              </h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-text block mb-1">
+                  Project Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Branch Expansion, Annual Audit, Marketing Campaign..."
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full bg-surface-muted border border-border-light rounded-xl p-2.5 text-xs text-text outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="font-bold text-text block mb-1">Status</label>
+                  <select
+                    value={formStatus}
+                    onChange={(e) => setFormStatus(e.target.value)}
+                    className="w-full bg-surface-muted border border-border-light rounded-xl p-2.5 text-xs text-text outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-text block mb-1">
+                    Project Lead
+                  </label>
+                  <select
+                    value={formLead}
+                    onChange={(e) => setFormLead(e.target.value)}
+                    className="w-full bg-surface-muted border border-border-light rounded-xl p-2.5 text-xs text-text outline-none focus:border-primary cursor-pointer"
+                  >
+                    <option value="">Unassigned</option>
+                    {(employees || []).map((e) => (
+                      <option key={e.id} value={e.name}>
+                        {e.name} ({e.department || e.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-text block mb-1">
+                  Target Deadline
+                </label>
+                <NepaliDatePicker
+                  value={formDeadline}
+                  onChange={setFormDeadline}
+                  placeholder="Select target deadline"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-text">
+                    Progress: {formProgress}%
+                  </label>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={formProgress}
+                  onChange={(e) => setFormProgress(e.target.value)}
+                  className="w-full accent-primary cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-text block mb-1.5">
+                  Color Tag
+                </label>
+                <div className="flex items-center gap-2">
+                  {PRESET_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setFormColor(c)}
+                      className={`w-7 h-7 rounded-full transition-transform cursor-pointer flex items-center justify-center ${
+                        formColor === c ? "ring-2 ring-primary ring-offset-2 scale-110" : ""
+                      }`}
+                      style={{ backgroundColor: c }}
+                    >
+                      {formColor === c && <Check size={12} className="text-white" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border-light">
                 <button
-                  onClick={() => archiveProject(p.id, false)}
-                  title="Restore project"
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border text-[11px] font-medium text-text hover:bg-surface-muted transition-colors"
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-3 py-2 rounded-xl text-text-muted hover:text-text hover:bg-surface-muted cursor-pointer font-semibold"
                 >
-                  <ArchiveRestore size={12} />
-                  <span>Restore</span>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !formName.trim()}
+                  className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-dark text-white font-semibold shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {saving ? "Saving..." : editingProject ? "Update Project" : "Create Project"}
                 </button>
               </div>
-            ))}
+            </form>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

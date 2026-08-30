@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { NavLink, Outlet } from "react-router-dom";
+import { getEmployeeColor } from "../constants/colors";
 
 export function Dashboard({ me, onLogout }) {
   const isAdmin = me.role === "admin";
@@ -107,15 +108,15 @@ export function Dashboard({ me, onLogout }) {
           </div>
 
           {/* NAVIGATION */}
-          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
             {tabs.map((tab) => (
               <NavLink
                 key={tab.to}
                 to={tab.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                  `flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                     isActive
-                      ? "bg-white/10 text-white font-semibold shadow-2xs"
+                      ? "bg-white/10 text-white font-semibold shadow-xs"
                       : "text-white/50 hover:text-white hover:bg-white/5"
                   }`
                 }
@@ -135,7 +136,10 @@ export function Dashboard({ me, onLogout }) {
           {/* USER */}
           <div className="px-4 py-4 border-t border-white/5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/30 border border-primary/40 text-primary-light flex items-center justify-center text-[10px] font-bold shrink-0">
+              <div
+                className="w-8 h-8 rounded-full border border-white/20 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-xs"
+                style={{ backgroundColor: getEmployeeColor(me) }}
+              >
                 {me.name.slice(0, 2).toUpperCase()}
               </div>
 
@@ -168,7 +172,10 @@ export function Dashboard({ me, onLogout }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-primary/30 border border-primary/40 text-primary-light flex items-center justify-center text-[9px] font-bold">
+            <div
+              className="w-7 h-7 rounded-full border border-white/20 text-white flex items-center justify-center text-[9px] font-bold shadow-xs"
+              style={{ backgroundColor: getEmployeeColor(me) }}
+            >
               {me.name.slice(0, 2).toUpperCase()}
             </div>
             <button

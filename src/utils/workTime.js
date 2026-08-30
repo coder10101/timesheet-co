@@ -1,3 +1,5 @@
+import { isoToBSLabel } from "./nepaliCalendar";
+
 export const WORK_DAY_MINUTES = 8 * 60;
 export const LUNCH_MINUTES = 60;
 
@@ -102,12 +104,7 @@ export const fmtTime = (value) => {
 
 export const fmtDate = (iso) => {
   if (!iso) return "—";
-  const [year, month, day] = iso.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return isoToBSLabel(iso);
 };
 
 export const daysBetween = (a, b) => {

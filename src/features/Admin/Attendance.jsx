@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react";
-import { useRoster, useAttendance } from "../../hooks/useOrgData";
+import { useEffect, useState, useMemo } from "react";
+import {
+  useRoster,
+  useAttendance,
+  useOrgAttendance,
+  useLeaveRequests,
+} from "../../hooks/useOrgData";
 import {
   fmtDate,
   fmtTime,
@@ -7,238 +12,387 @@ import {
   getWorkedMinutes,
   todayISO,
 } from "../../utils/workTime";
-import { isoToBSLabel } from "../../utils/nepaliCalendar";
-import { EmptyState } from "../../components/EmptyState";
-import { Card } from "../../components/Card";
-import { MiniStat } from "../../components/MiniStat";
 import {
-  User,
-  Clock,
-  Calendar,
-  TrendingUp,
-  TrendingDown,
-  ArrowRight,
-} from "lucide-react";
+  getTodayBS,
+  NEPALI_MONTHS,
+  isoToBS,
+  isoToBSLabel,
+} from "../../utils/nepaliCalendar";
+import { isLateClockIn, isDateWithinLeave, getWeekday, isEarlyClockIn } from "../../utils/attendance";
+import { getEmployeeColor } from "../../constants/colors";
+import { Search } from "lucide-react";
 
 export function AdminAttendance() {
   const { employees } = useRoster();
-  const [sel, setSel] = useState(null);
-  const { records } = useAttendance(sel);
+  const [selectedId, setSelectedId] = useState(null);
+  const [search, setSearch] = useState("");
+  const today = todayISO();
+  const todayBS = getTodayBS();
+
+  const [selectedBSMonth, setSelectedBSMonth] = useState(todayBS.month);
+  const [selectedBSYear, setSelectedBSYear] = useState(todayBS.year);
+
+  const { records: allTodayAttendance } = useOrgAttendance(today);
+  const { requests: allLeave } = useLeaveRequests(null, "org");
 
   useEffect(() => {
-    if (!sel && employees?.length) {
-      setSel(employees[0].id);
+    if (!selectedId && employees?.length) {
+      setSelectedId(employees[0].id);
     }
-  }, [employees, sel]);
+  }, [employees, selectedId]);
+
+  const selected = selectedId || employees?.[0]?.id || null;
+  const { records, updateAttendance } = useAttendance(selected);
+
+  const selectedEmployee = useMemo(() => {
+    return (employees || []).find((e) => e.id === selected) || employees?.[0];
+  }, [employees, selected]);
+
+  // Today status per employee
+  const employeeTodayStatus = useMemo(() => {
+    if (!employees) return new Map();
+    const map = new Map();
+
+    const attMap = new Map();
+    (allTodayAttendance || []).forEach((att) => {
+      attMap.set(att.employee_id, att);
+    });
+
+    const approvedLeaves = (allLeave || []).filter((l) => l.status === "Approved");
+    const isSat = getWeekday(today) === 6;
+
+    employees.forEach((emp) => {
+      const att = attMap.get(emp.id);
+      const onLeave = approvedLeaves.find(
+        (l) => l.employee_id === emp.id && isDateWithinLeave(today, l),
+      );
+
+      let status = "Absent";
+      let time = null;
+
+      if (att?.clock_in) {
+        const isLate = isLateClockIn(att.clock_in);
+        status = isLate ? "Late" : "Present";
+        time = fmtTime(att.clock_in);
+      } else if (onLeave) {
+        status = "On Leave";
+        time = onLeave.type;
+      } else if (isSat) {
+        status = "Holiday";
+        time = "Saturday";
+      }
+
+      map.set(emp.id, { status, time, record: att });
+    });
+
+    return map;
+  }, [employees, allTodayAttendance, allLeave, today]);
+
+  // Monthly stats for selected employee
+  const monthRecords = useMemo(() => {
+    if (!records) return [];
+    return records.filter((r) => {
+      const bs = isoToBS(r.date);
+      if (!bs) return true;
+      return bs.month === selectedBSMonth && bs.year === selectedBSYear;
+    });
+  }, [records, selectedBSMonth, selectedBSYear]);
+
+  const monthPresentCount = monthRecords.filter(
+    (r) => r.clock_in && !isLateClockIn(r.clock_in),
+  ).length;
+  const monthLateCount = monthRecords.filter(
+    (r) => r.clock_in && isLateClockIn(r.clock_in),
+  ).length;
+  const monthAbsentCount = monthRecords.filter(
+    (r) => !r.clock_in && getWeekday(r.date) !== 6,
+  ).length;
+
+  const filteredEmployees = useMemo(() => {
+    return (employees || []).filter((e) => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
+        e.name?.toLowerCase().includes(q) ||
+        e.role?.toLowerCase().includes(q) ||
+        e.title?.toLowerCase().includes(q) ||
+        e.department?.toLowerCase().includes(q)
+      );
+    });
+  }, [employees, search]);
 
   if (employees === null) return null;
 
-  const selectedEmployee = employees.find((e) => e.id === sel) || employees[0];
-  const selected = sel || employees[0]?.id || null;
-  const today = todayISO();
-
-  const todayRecord = (records || []).find((r) => r.date === today) || null;
-
-  const workedMinutes = todayRecord?.clock_in
-    ? getWorkedMinutes(todayRecord.clock_in, todayRecord.clock_out)
-    : 0;
-
-  const difference = todayRecord?.clock_out ? workedMinutes - 8 * 60 : 0;
-
   return (
-    <div className="max-w-6xl mx-auto space-y-5 fade-in">
+    <div className="max-w-6xl mx-auto space-y-4 fade-in">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-text">Attendance Monitor</h1>
-          <p className="text-xs text-text-muted mt-1">
-            Track daily check-ins, departures, and overall time logs per employee.
+          <h1 className="text-xl font-bold text-text">Attendance Monitor</h1>
+          <p className="text-xs text-text-muted">
+            Track and review daily employee check-ins, departures, and time logs.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-white border border-border px-3 py-1.5 rounded-xl shadow-xs">
-            <User size={13} className="text-primary" />
-            <select
-              value={selected || ""}
-              onChange={(e) => setSel(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-text outline-none cursor-pointer"
-            >
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name} ({e.role})
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
       </div>
 
-      {!selected ? (
-        <EmptyState text="No employees found in roster." />
-      ) : records === null ? null : (
-        <>
-          {/* TODAY SUMMARY CARD */}
-          <Card
-            title={
-              selectedEmployee
-                ? `${selectedEmployee.name}'s Attendance Today`
-                : "Today's Attendance"
-            }
-            subtitle={`${isoToBSLabel(today)} · ${fmtDate(today)}`}
-          >
-            {!todayRecord?.clock_in ? (
-              <div className="py-6 text-center text-xs text-text-muted bg-surface-muted/40 rounded-xl border border-dashed border-border-light">
-                <Clock size={20} className="mx-auto mb-1.5 text-text-faint" />
-                <p className="font-semibold text-text">No attendance logged today</p>
-                <p className="text-[11px] text-text-muted mt-0.5">
-                  This employee hasn't clocked in yet for today.
-                </p>
+      {/* 2-COLUMN MASTER-DETAIL VIEW (MATCHING REFERENCE IMAGE 2) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* LEFT COLUMN: EMPLOYEE DIRECTORY & SEARCH */}
+        <div className="lg:col-span-4 bg-white border border-border rounded-2xl p-3 sm:p-4 shadow-2xs space-y-3">
+          {/* SEARCH INPUT */}
+          <div className="h-9 flex items-center gap-1.5 bg-surface-muted border border-border-light rounded-xl px-2.5 text-xs focus-within:border-primary">
+            <Search size={13} className="text-text-muted shrink-0" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search employees..."
+              className="w-full bg-transparent outline-none text-text text-xs"
+            />
+          </div>
+
+          {/* EMPLOYEE LIST */}
+          <div className="space-y-1 max-h-[600px] overflow-y-auto pr-0.5">
+            {filteredEmployees.length === 0 ? (
+              <div className="py-8 text-center text-xs text-text-muted">
+                No employees matching "{search}"
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* CLOCK TIMES BANNER */}
-                <div className="flex flex-wrap items-center gap-6 p-4 rounded-xl bg-surface-muted/50 border border-border-light">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-0.5">
-                      Clock In
-                    </div>
-                    <div className="text-lg font-mono font-bold text-success">
-                      {fmtTime(todayRecord.clock_in)}
-                    </div>
-                  </div>
+              filteredEmployees.map((emp) => {
+                const isSelected = emp.id === selected;
+                const statusInfo = employeeTodayStatus.get(emp.id) || {
+                  status: "Absent",
+                };
 
-                  <span className="text-border text-lg font-light">→</span>
+                return (
+                  <button
+                    key={emp.id}
+                    onClick={() => setSelectedId(emp.id)}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-primary/10 border-2 border-primary shadow-xs"
+                        : "hover:bg-surface-muted/60 border border-transparent"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[11px] font-bold shrink-0 shadow-xs"
+                        style={{ backgroundColor: getEmployeeColor(emp) }}
+                      >
+                        {emp.name?.slice(0, 2).toUpperCase()}
+                      </div>
 
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-0.5">
-                      Clock Out
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-text truncate">
+                          {emp.name}
+                        </h4>
+                        <p className="text-[10px] text-text-muted truncate capitalize">
+                          {emp.department || emp.title || emp.role || "Team member"}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-lg font-mono font-bold text-text">
-                      {todayRecord.clock_out ? (
-                        fmtTime(todayRecord.clock_out)
-                      ) : (
-                        <span className="text-primary text-sm font-sans font-medium">
-                          Currently working
+
+                    <div className="shrink-0">
+                      {statusInfo.status === "Present" && (
+                        <span className="px-2 py-0.5 rounded-md bg-success-light text-success border border-success/30 text-[10px] font-semibold">
+                          Present
+                        </span>
+                      )}
+                      {statusInfo.status === "Late" && (
+                        <span className="px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">
+                          Late
+                        </span>
+                      )}
+                      {statusInfo.status === "On Leave" && (
+                        <span className="px-2 py-0.5 rounded-md bg-primary-light text-primary border border-primary/30 text-[10px] font-semibold">
+                          On Leave
+                        </span>
+                      )}
+                      {statusInfo.status === "Absent" && (
+                        <span className="px-2 py-0.5 rounded-md bg-alert-light text-alert border border-alert/30 text-[10px] font-semibold">
+                          Absent
+                        </span>
+                      )}
+                      {statusInfo.status === "Holiday" && (
+                        <span className="px-2 py-0.5 rounded-md bg-surface-muted text-text-muted border border-border text-[10px] font-semibold">
+                          Weekend
                         </span>
                       )}
                     </div>
-                  </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: ATTENDANCE LOG & DETAIL */}
+        <div className="lg:col-span-8 space-y-3.5">
+          {/* PROFILE HEADER & STATS CARD */}
+          {selectedEmployee && (
+            <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-base font-bold shrink-0 shadow-xs"
+                  style={{ backgroundColor: getEmployeeColor(selectedEmployee) }}
+                >
+                  {selectedEmployee.name?.slice(0, 2).toUpperCase()}
                 </div>
 
-                {/* STATS GRID */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <MiniStat
-                    label="Worked Duration"
-                    value={
-                      todayRecord.clock_out
-                        ? formatDuration(workedMinutes)
-                        : formatDuration(workedMinutes)
-                    }
-                  />
-
-                  <MiniStat label="Expected Hours" value="8h 00m" />
-
-                  <MiniStat
-                    label={difference >= 0 ? "Overtime" : "Undertime"}
-                    value={
-                      todayRecord.clock_out
-                        ? difference >= 0
-                          ? `+${formatDuration(difference)}`
-                          : `-${formatDuration(Math.abs(difference))}`
-                        : "In progress"
-                    }
-                  />
-
-                  <MiniStat label="Target" value="8h / day" />
+                <div className="min-w-0">
+                  <h2 className="text-base font-bold text-text truncate">
+                    {selectedEmployee.name}
+                  </h2>
+                  <p className="text-xs text-text-muted truncate">
+                    {selectedEmployee.title || selectedEmployee.role}
+                    {selectedEmployee.department && ` · ${selectedEmployee.department}`}
+                  </p>
                 </div>
               </div>
-            )}
-          </Card>
 
-          {/* HISTORY TABLE */}
-          <Card
-            title="Attendance History"
-            subtitle={`${records.length} total logged record${
-              records.length !== 1 ? "s" : ""
-            }`}
-          >
-            {records.length === 0 ? (
-              <EmptyState text="No attendance records found for this team member." />
+              {/* MONTHLY SUMMARY METRICS */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="bg-success-light border border-success/30 rounded-xl px-3 py-1.5 text-center min-w-[65px]">
+                  <span className="text-success text-base font-mono font-bold block leading-none">
+                    {monthPresentCount}
+                  </span>
+                  <span className="text-[10px] text-success font-semibold uppercase tracking-wider">
+                    Present
+                  </span>
+                </div>
+
+                <div className="bg-warning-light border border-warning/30 rounded-xl px-3 py-1.5 text-center min-w-[65px]">
+                  <span className="text-warning text-base font-mono font-bold block leading-none">
+                    {monthLateCount}
+                  </span>
+                  <span className="text-[10px] text-warning font-semibold uppercase tracking-wider">
+                    Late
+                  </span>
+                </div>
+
+                <div className="bg-alert-light border border-alert/30 rounded-xl px-3 py-1.5 text-center min-w-[65px]">
+                  <span className="text-alert text-base font-mono font-bold block leading-none">
+                    {monthAbsentCount}
+                  </span>
+                  <span className="text-[10px] text-alert font-semibold uppercase tracking-wider">
+                    Absent
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ATTENDANCE LOG TABLE CARD */}
+          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-2xs">
+            {/* LOG HEADER & MONTH SELECTOR */}
+            <div className="px-4 py-3.5 border-b border-border-light flex items-center justify-between gap-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                Attendance Log
+              </h3>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedBSMonth}
+                  onChange={(e) => setSelectedBSMonth(Number(e.target.value))}
+                  className="h-8 bg-surface-muted border border-border-light rounded-xl px-2.5 text-xs font-semibold text-text outline-none focus:border-primary cursor-pointer shadow-2xs"
+                >
+                  {NEPALI_MONTHS.map((name, idx) => (
+                    <option key={idx + 1} value={idx + 1}>
+                      {name} {selectedBSYear}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* TABLE */}
+            {records === null ? (
+              <div className="py-8 text-center text-xs text-text-muted">Loading logs...</div>
+            ) : monthRecords.length === 0 ? (
+              <div className="py-12 text-center text-xs text-text-muted">
+                No attendance records for this month.
+              </div>
             ) : (
               <div className="overflow-x-auto">
-                <div className="min-w-[620px]">
-                  {/* TABLE HEADER */}
-                  <div className="grid grid-cols-[1.3fr_1fr_1fr_1fr_1.1fr] gap-3 px-3.5 py-2 bg-surface-muted rounded-lg text-[10px] font-semibold uppercase tracking-wider text-text-muted border border-border-light mb-1">
-                    <span>Date</span>
-                    <span>Clock in</span>
-                    <span>Clock out</span>
-                    <span>Worked</span>
-                    <span>Time status</span>
-                  </div>
-
-                  {/* TABLE ROWS */}
-                  <div className="divide-y divide-border-light">
-                    {records.map((r) => {
-                      const worked = r.clock_out
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-muted/60 text-[10px] font-bold uppercase tracking-wider text-text-muted border-b border-border-light">
+                    <tr>
+                      <th className="px-4 py-2.5">Date</th>
+                      <th className="px-3 py-2.5">Clock In</th>
+                      <th className="px-3 py-2.5">Clock Out</th>
+                      <th className="px-3 py-2.5">Hours</th>
+                      <th className="px-4 py-2.5 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-light">
+                    {monthRecords.map((r) => {
+                      const workedMinutes = r.clock_in && r.clock_out
                         ? getWorkedMinutes(r.clock_in, r.clock_out)
                         : null;
-
-                      const diff = worked !== null ? worked - 8 * 60 : null;
+                      const isLate = isLateClockIn(r.clock_in);
+                      const isEarly = isEarlyClockIn(r.clock_in);
+                      const bs = isoToBS(r.date);
 
                       return (
-                        <div
+                        <tr
                           key={r.id}
-                          className="grid grid-cols-[1.3fr_1fr_1fr_1fr_1.1fr] gap-3 items-center px-3.5 py-2.5 text-xs hover:bg-surface-muted/30 transition-colors"
+                          className="hover:bg-surface-muted/30 transition-colors"
                         >
-                          <div>
-                            <div className="font-medium text-text">
-                              {fmtDate(r.date)}
+                          <td className="px-4 py-3">
+                            <div className="font-bold text-text">
+                              {bs ? `${bs.day} ${NEPALI_MONTHS[bs.month - 1]}` : r.date}
                             </div>
                             <div className="text-[10px] font-mono text-text-muted">
-                              {r.date}
+                              {fmtDate(r.date)}
                             </div>
-                          </div>
+                          </td>
 
-                          <span className="font-mono text-xs text-text font-medium">
-                            {fmtTime(r.clock_in)}
-                          </span>
+                          <td className="px-3 py-3 font-mono text-xs text-text font-medium">
+                            {r.clock_in ? fmtTime(r.clock_in) : "—"}
+                          </td>
 
-                          <span className="font-mono text-xs text-text font-medium">
-                            {r.clock_out ? fmtTime(r.clock_out) : <span className="text-text-muted italic font-sans text-[11px]">Working</span>}
-                          </span>
-
-                          <span className="font-mono text-xs font-semibold text-text">
-                            {worked !== null ? formatDuration(worked) : "—"}
-                          </span>
-
-                          <div>
-                            {diff === null ? (
-                              <span className="text-[11px] text-text-faint font-mono">—</span>
-                            ) : diff > 0 ? (
-                              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-overtime bg-[#E8F5E2] px-1.5 py-0.5 rounded">
-                                <TrendingUp size={10} /> +{formatDuration(diff)} OT
-                              </span>
-                            ) : diff < 0 ? (
-                              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-alert bg-alert-light px-1.5 py-0.5 rounded">
-                                <TrendingDown size={10} /> -{formatDuration(Math.abs(diff))} under
+                          <td className="px-3 py-3 font-mono text-xs text-text font-medium">
+                            {r.clock_out ? (
+                              fmtTime(r.clock_out)
+                            ) : r.clock_in ? (
+                              <span className="text-primary italic font-sans text-[11px]">
+                                Working
                               </span>
                             ) : (
-                              <span className="font-mono text-[10px] text-text-muted">
-                                8h completed
+                              "—"
+                            )}
+                          </td>
+
+                          <td className="px-3 py-3 font-mono text-xs font-semibold text-text">
+                            {workedMinutes !== null
+                              ? formatDuration(workedMinutes)
+                              : "—"}
+                          </td>
+
+                          <td className="px-4 py-3 text-right">
+                            {isLate ? (
+                              <span className="px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">
+                                Late
+                              </span>
+                            ) : r.clock_in ? (
+                              <span className="px-2 py-0.5 rounded-md bg-success-light text-success border border-success/30 text-[10px] font-semibold">
+                                Present
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md bg-alert-light text-alert border border-alert/30 text-[10px] font-semibold">
+                                Absent
                               </span>
                             )}
-                          </div>
-                        </div>
+                          </td>
+                        </tr>
                       );
                     })}
-                  </div>
-                </div>
+                  </tbody>
+                </table>
               </div>
             )}
-          </Card>
-        </>
-      )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

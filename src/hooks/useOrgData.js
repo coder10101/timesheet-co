@@ -80,6 +80,33 @@ export function useAttendance(employeeId) {
   };
 }
 
+export function useOrgAttendance(date) {
+  const key = ["org-attendance", date || "all"];
+
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      let q = supabase
+        .from("attendance")
+        .select("*")
+        .order("clock_in", { ascending: true });
+
+      if (date) {
+        q = q.eq("date", date);
+      }
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  return {
+    records: query.data ?? null,
+    isLoading: query.isLoading,
+  };
+}
+
 /* ---------------- Work logs ---------------- */
 export function useWorkLogs(employeeId) {
   const qc = useQueryClient();
@@ -489,6 +516,17 @@ export function useHolidays() {
     onSuccess: invalidate,
   });
 
+  const updateHoliday = useMutation({
+    mutationFn: async ({ id, date, name, category }) => {
+      const { error } = await supabase
+        .from("holidays")
+        .update({ date, name, category })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+
   const deleteHoliday = useMutation({
     mutationFn: async (id) => {
       const { error } = await supabase.from("holidays").delete().eq("id", id);
@@ -500,6 +538,7 @@ export function useHolidays() {
   return {
     holidays: query.data ?? null,
     addHoliday: (payload) => addHoliday.mutateAsync(payload),
+    updateHoliday: (payload) => updateHoliday.mutateAsync(payload),
     deleteHoliday: (id) => deleteHoliday.mutateAsync(id),
   };
 }
@@ -564,6 +603,45 @@ export function useEvents() {
     onSuccess: invalidate,
   });
 
+  const updateEvent = useMutation({
+    mutationFn: async ({
+      id,
+      title,
+      description,
+      eventType,
+      date,
+      time,
+      allOrg,
+      assigneeIds,
+    }) => {
+      const { error } = await supabase
+        .from("events")
+        .update({
+          title,
+          description,
+          event_type: eventType,
+          date,
+          time: time || null,
+          all_org: allOrg,
+        })
+        .eq("id", id);
+      if (error) throw error;
+
+      await supabase.from("event_assignees").delete().eq("event_id", id);
+      if (!allOrg && assigneeIds?.length) {
+        const rows = assigneeIds.map((employee_id) => ({
+          event_id: id,
+          employee_id,
+        }));
+        const { error: assignError } = await supabase
+          .from("event_assignees")
+          .insert(rows);
+        if (assignError) throw assignError;
+      }
+    },
+    onSuccess: invalidate,
+  });
+
   const deleteEvent = useMutation({
     mutationFn: async (id) => {
       const { error } = await supabase.from("events").delete().eq("id", id);
@@ -575,6 +653,7 @@ export function useEvents() {
   return {
     events: query.data ?? null,
     createEvent: (payload) => createEvent.mutateAsync(payload),
+    updateEvent: (payload) => updateEvent.mutateAsync(payload),
     deleteEvent: (id) => deleteEvent.mutateAsync(id),
   };
 }

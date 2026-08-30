@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { isoToBSLabel } from "../utils/nepaliCalendar";
+import { todayISO } from "../utils/timezone";
 
 export default function Header({ title, subtitle, action, titleStyle }) {
   const [now, setNow] = useState(new Date());
@@ -16,11 +18,10 @@ export default function Header({ title, subtitle, action, titleStyle }) {
     minute: "2-digit",
   });
 
-  const dateStr = now.toLocaleDateString("en-US", {
+  const weekdayStr = now.toLocaleDateString("en-US", {
     weekday: "long",
-    month: "long",
-    day: "numeric",
   });
+  const nepaliDateStr = isoToBSLabel(todayISO());
 
   return (
     <div className="flex items-start justify-between gap-4 mb-6">
@@ -41,8 +42,8 @@ export default function Header({ title, subtitle, action, titleStyle }) {
         {action}
 
         <div className="hidden sm:block text-right">
-          <p className="font-mono text-sm font-semibold text-dark">{timeStr}</p>
-          <p className="text-[11px] text-text-subtle">{dateStr}</p>
+          <p className="font-mono text-sm font-semibold text-text">{timeStr}</p>
+          <p className="text-[11px] text-text-muted">{weekdayStr} · {nepaliDateStr}</p>
         </div>
       </div>
     </div>

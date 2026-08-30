@@ -525,9 +525,6 @@ export function EmployeeCalendar({ me }) {
                 "Date Details"
               )
             }
-            subtitle={
-              selectedDate ? `${fmtDate(selectedDate)} (Gregorian)` : ""
-            }
           >
             <div className="space-y-3">
               {/* HOLIDAY BANNER */}

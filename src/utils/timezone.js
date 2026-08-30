@@ -1,6 +1,21 @@
 const NEPAL_TIMEZONE = "Asia/Kathmandu";
 
 /**
+ * Returns today's date in YYYY-MM-DD in the Nepal timezone (Asia/Kathmandu).
+ */
+export const todayISO = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: NEPAL_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+};
+
+/**
  * Convert a Supabase UTC timestamp
  * into a value suitable for:
  * <input type="datetime-local" />

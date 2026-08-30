@@ -1,5 +1,5 @@
 import bs from "bikram-sambat";
-import { todayISO } from "./workTime";
+import { todayISO } from "./timezone";
 
 export const NEPALI_MONTHS = [
   "Baisakh",
@@ -104,12 +104,25 @@ export function getCurrentBSMonthInfo() {
 }
 
 export function isoToBS(iso) {
-  return bs.toBik(iso);
+  if (!iso) return null;
+  try {
+    const cleanIso = String(iso).slice(0, 10);
+    return bs.toBik(cleanIso);
+  } catch {
+    return null;
+  }
 }
 
 export function isoToBSLabel(iso) {
-  const d = bs.toBik(iso);
-  return `${d.day} ${NEPALI_MONTHS[d.month - 1]}, ${d.year}`;
+  if (!iso) return "—";
+  try {
+    const cleanIso = String(iso).slice(0, 10);
+    const d = bs.toBik(cleanIso);
+    if (!d || !d.year) return iso;
+    return `${d.day} ${NEPALI_MONTHS[d.month - 1]}, ${d.year}`;
+  } catch {
+    return iso;
+  }
 }
 
 export function getDaysInBSMonth(year, month) {

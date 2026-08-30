@@ -424,7 +424,7 @@ export function EmployeeWorklog({ me }) {
                         {bs.day} {NEPALI_MONTHS[bs.month - 1]}, {bs.year}
                       </span>
                       <span className="text-[11px] text-text-muted">
-                        · {WEEKDAY_LABELS[weekday]} ({fmtDate(date)})
+                        · {WEEKDAY_LABELS[weekday]}
                       </span>
                       <span className="text-[10px] text-text-muted font-mono px-1.5 py-0.2 rounded-md bg-surface-muted border border-border-light">
                         {dayEntries.length}{" "}

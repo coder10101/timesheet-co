@@ -77,20 +77,15 @@ export function NepaliDatePicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`w-full h-10 flex items-center justify-between gap-2 border border-border rounded-xl px-3 text-xs text-text bg-white hover:border-primary/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all text-left shadow-2xs ${
-          open ? "border-primary ring-1 ring-primary/20" : ""
+        className={`w-full h-10 flex items-center justify-between gap-2 border rounded-xl px-3.5 text-xs text-text transition-all text-left outline-none cursor-pointer ${
+          open
+            ? "bg-white border-primary ring-4 ring-primary/10 shadow-xs"
+            : "bg-surface-muted border-border hover:bg-white hover:border-border-light shadow-2xs"
         }`}
       >
-        <div className="flex items-center gap-1.5 min-w-0 truncate">
-          <span className={value ? "text-text font-semibold truncate" : "text-text-subtle"}>
-            {value ? isoToBSLabel(value) : placeholder}
-          </span>
-          {value && (
-            <span className="text-[10px] text-text-muted font-mono shrink-0">
-              · {fmtDate(value)}
-            </span>
-          )}
-        </div>
+        <span className={value ? "text-text font-semibold truncate" : "text-text-muted"}>
+          {value ? isoToBSLabel(value) : placeholder}
+        </span>
         <Calendar size={14} className="text-text-muted shrink-0" />
       </button>
 
