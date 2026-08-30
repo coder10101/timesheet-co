@@ -223,15 +223,16 @@ export function EmployeeWorklog({ me }) {
             placeholder={
               editingId
                 ? "Update your task description..."
-                : "What did you work on?"
+                : "What did you work on? e.g. Finished sprint planning, built API endpoints..."
             }
             className="w-full bg-surface-muted/40 focus:bg-white border border-border-light focus:border-primary rounded-xl p-3 text-xs sm:text-sm text-text outline-none resize-none transition-all shadow-2xs leading-relaxed"
           />
         </div>
 
         {/* CONTROLS ROW UNDER THE TEXT FIELD */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          {/* DATE PICKER & PROJECT */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
             <div className="w-full sm:w-72 md:w-80 shrink-0">
               <NepaliDatePicker
                 value={selectedDate}
@@ -241,21 +242,46 @@ export function EmployeeWorklog({ me }) {
               />
             </div>
 
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="h-10 bg-white border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary shadow-2xs cursor-pointer min-w-[140px]"
-            >
-              <option value="">No Project</option>
-              {activeProjects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <select
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
+                className="h-10 flex-1 sm:flex-initial sm:w-44 bg-white border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary shadow-2xs cursor-pointer truncate"
+              >
+                <option value="">No Project</option>
+                {activeProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Mobile Action Buttons */}
+              <div className="flex sm:hidden items-center gap-1.5 shrink-0">
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="h-10 px-2.5 text-xs text-text-muted hover:text-text rounded-xl hover:bg-surface-muted transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
+
+                <button
+                  onClick={saveEntry}
+                  disabled={!text.trim() || saving}
+                  className="h-10 flex items-center gap-1 px-3 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 shrink-0 cursor-pointer"
+                >
+                  {editingId ? <Check size={13} /> : <Plus size={13} />}
+                  <span>{saving ? "..." : editingId ? "Update" : "Add"}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 shrink-0">
+          {/* Desktop Action Buttons */}
+          <div className="hidden sm:flex items-center justify-end gap-2 shrink-0">
             {editingId && (
               <button
                 type="button"
@@ -281,48 +307,14 @@ export function EmployeeWorklog({ me }) {
       </div>
 
       {/* FILTER & ACCORDION CONTROLS (ABOVE HISTORY) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-1">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
-          Task History
-        </h3>
-
-        <div className="flex items-center gap-2">
-          {/* SEARCH */}
-          <div className="h-9 flex items-center gap-1.5 bg-white border border-border rounded-xl px-2.5 text-xs focus-within:border-primary shadow-2xs">
-            <Search size={13} className="text-text-muted" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search tasks..."
-              className="w-28 sm:w-36 bg-transparent outline-none text-text text-xs"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="text-text-muted hover:text-text cursor-pointer"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </div>
-
-          {/* FILTER BY PROJECT */}
-          <select
-            value={filterProjectId}
-            onChange={(e) => setFilterProjectId(e.target.value)}
-            className="h-9 bg-white border border-border rounded-xl px-2.5 text-xs text-text outline-none focus:border-primary shadow-2xs cursor-pointer"
-          >
-            <option value="all">All Projects</option>
-            <option value="none">Untagged</option>
-            {activeProjects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+      <div className="space-y-2 pt-1">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+            Task History
+          </h3>
 
           {/* EXPAND / COLLAPSE */}
-          <div className="h-9 flex items-center gap-0.5 bg-surface-muted p-0.5 rounded-xl border border-border-light text-[11px] shadow-2xs">
+          <div className="h-8 flex items-center gap-0.5 bg-surface-muted p-0.5 rounded-xl border border-border-light text-[11px] shadow-2xs shrink-0">
             <button
               onClick={expandAll}
               className="h-full px-2.5 rounded-lg text-text-muted hover:text-text hover:bg-white font-medium transition-colors cursor-pointer"
@@ -339,6 +331,42 @@ export function EmployeeWorklog({ me }) {
             </button>
           </div>
         </div>
+
+        <div className="flex items-center gap-2">
+          {/* SEARCH */}
+          <div className="flex-1 h-9 flex items-center gap-1.5 bg-white border border-border rounded-xl px-2.5 text-xs focus-within:border-primary shadow-2xs min-w-0">
+            <Search size={13} className="text-text-muted shrink-0" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="w-full bg-transparent outline-none text-text text-xs min-w-0"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-text-muted hover:text-text cursor-pointer shrink-0"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* FILTER BY PROJECT */}
+          <select
+            value={filterProjectId}
+            onChange={(e) => setFilterProjectId(e.target.value)}
+            className="h-9 bg-white border border-border rounded-xl px-2.5 text-xs text-text outline-none focus:border-primary shadow-2xs cursor-pointer max-w-[130px] sm:max-w-[160px] truncate shrink-0"
+          >
+            <option value="all">All Projects</option>
+            <option value="none">Untagged</option>
+            {activeProjects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* DAILY TIMELINE */}
@@ -346,7 +374,7 @@ export function EmployeeWorklog({ me }) {
         {dates.length === 0 ? (
           <EmptyState
             title="No work logged"
-            description="Use the bar above to log your accomplishments."
+            description="Use the box above to log your accomplishments."
           />
         ) : (
           dates.map((date) => {
@@ -376,36 +404,37 @@ export function EmployeeWorklog({ me }) {
                 {/* DAY HEADER */}
                 <button
                   onClick={() => toggleDate(date)}
-                  className={`w-full px-4 py-2.5 flex items-center justify-between text-left transition-colors cursor-pointer ${
+                  className={`w-full px-3.5 sm:px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-4 text-left transition-colors cursor-pointer ${
                     isOpen
                       ? "bg-surface-muted/40 border-b border-border-light"
                       : "bg-white hover:bg-surface-muted/20"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     <div
-                      className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-transform duration-150 ${
+                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-transform duration-150 ${
                         isOpen ? "text-primary rotate-180" : "text-text-muted"
                       }`}
                     >
                       <ChevronDown size={14} />
                     </div>
 
-                    <span className="text-xs font-bold text-text">
-                      {bs.day} {NEPALI_MONTHS[bs.month - 1]}, {bs.year}
-                    </span>
-                    <span className="text-[11px] text-text-muted">
-                      ({WEEKDAY_LABELS[weekday]} · {fmtDate(date)})
-                    </span>
-
-                    <span className="text-[11px] text-text-subtle ml-1">
-                      · {dayEntries.length}{" "}
-                      {dayEntries.length === 1 ? "task" : "tasks"}
-                    </span>
+                    <div className="flex flex-wrap items-baseline gap-1.5 min-w-0">
+                      <span className="text-xs font-bold text-text">
+                        {bs.day} {NEPALI_MONTHS[bs.month - 1]}, {bs.year}
+                      </span>
+                      <span className="text-[11px] text-text-muted">
+                        · {WEEKDAY_LABELS[weekday]} ({fmtDate(date)})
+                      </span>
+                      <span className="text-[10px] text-text-muted font-mono px-1.5 py-0.2 rounded-md bg-surface-muted border border-border-light">
+                        {dayEntries.length}{" "}
+                        {dayEntries.length === 1 ? "task" : "tasks"}
+                      </span>
+                    </div>
                   </div>
 
                   {attendance?.clock_in && (
-                    <div className="flex items-center gap-1.5 text-[11px] text-text-muted font-mono shrink-0">
+                    <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-text-muted font-mono shrink-0 pl-6 sm:pl-0">
                       <Clock size={11} className="text-primary" />
                       <span>
                         {fmtTime(attendance.clock_in)} →{" "}
@@ -414,7 +443,7 @@ export function EmployeeWorklog({ me }) {
                           : "Working"}
                       </span>
                       {worked > 0 && (
-                        <span className="font-semibold text-text ml-1">
+                        <span className="font-semibold text-text ml-0.5">
                           ({formatDuration(worked)})
                         </span>
                       )}
@@ -448,23 +477,23 @@ export function EmployeeWorklog({ me }) {
                           return (
                             <div
                               key={entry.id}
-                              className="group flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl hover:bg-surface-muted/60 transition-colors"
+                              className="group flex items-start sm:items-center justify-between gap-2 px-2.5 sm:px-3 py-2 rounded-xl hover:bg-surface-muted/60 transition-colors"
                             >
-                              <div className="flex items-center gap-2 min-w-0">
+                              <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1">
                                 {proj && (
                                   <span
-                                    className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shrink-0"
+                                    className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shrink-0 mt-0.5 sm:mt-0"
                                     style={{ backgroundColor: dotColor }}
                                   >
                                     {proj.name}
                                   </span>
                                 )}
-                                <span className="text-xs text-text truncate">
+                                <span className="text-xs text-text leading-relaxed break-words min-w-0">
                                   {entry.entry_text}
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              <div className="flex items-center gap-0.5 shrink-0 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <button
                                   onClick={() => startEdit(entry)}
                                   className="p-1 rounded-lg hover:bg-white text-text-muted hover:text-text transition-colors cursor-pointer"

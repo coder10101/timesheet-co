@@ -96,7 +96,7 @@ export function NepaliDatePicker({
 
       {open && (
         <div
-          className={`absolute z-30 mt-1.5 bg-white border border-border rounded-2xl shadow-lg p-3.5 w-72 fade-in ${
+          className={`absolute z-30 mt-1.5 bg-white border border-border rounded-2xl shadow-lg p-3.5 w-[calc(100vw-2.5rem)] sm:w-72 max-w-xs fade-in ${
             align === "right" ? "right-0" : "left-0"
           }`}
         >
