@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { useMemo, useState, useRef, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Calendar, Sparkles } from "lucide-react";
 import {
   NEPALI_MONTHS,
   WEEKDAY_LABELS,
@@ -9,93 +9,202 @@ import {
   isoToBS,
   isoToBSLabel,
 } from "../utils/nepaliCalendar";
+import { fmtDate, todayISO as getTodayISO } from "../utils/workTime";
 
 export function NepaliDatePicker({
   value,
   onChange,
   placeholder = "Select date",
+  min,
+  max,
+  className = "",
+  align = "left",
 }) {
   const todayBS = useMemo(() => getTodayBS(), []);
+  const todayISO = getTodayISO();
   const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
   const [view, setView] = useState(() =>
     value ? isoToBS(value) : { year: todayBS.year, month: todayBS.month },
   );
 
+  // Sync view when value changes externally
+  useEffect(() => {
+    if (value) {
+      const bs = isoToBS(value);
+      if (bs) {
+        setView({ year: bs.year, month: bs.month });
+      }
+    }
+  }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
+
   const weeks = useMemo(() => buildMonthGrid(view.year, view.month), [view]);
-  const todayISO = new Date().toISOString().slice(0, 10);
 
   const selectDay = (isoDate) => {
+    if (min && isoDate < min) return;
+    if (max && isoDate > max) return;
     onChange(isoDate);
     setOpen(false);
   };
 
+  const jumpToToday = () => {
+    setView({ year: todayBS.year, month: todayBS.month });
+    onChange(todayISO);
+    setOpen(false);
+  };
+
   return (
-    <div className="relative">
+    <div className={`relative ${className}`} ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-2 border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm bg-white text-left"
+        className={`w-full h-10 flex items-center justify-between gap-2 border border-border rounded-xl px-3 text-xs text-text bg-white hover:border-primary/50 focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all text-left shadow-2xs ${
+          open ? "border-primary ring-1 ring-primary/20" : ""
+        }`}
       >
-        <span className={value ? "text-text" : "text-text-subtle"}>
-          {value ? isoToBSLabel(value) : placeholder}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0 truncate">
+          <span className={value ? "text-text font-semibold truncate" : "text-text-subtle"}>
+            {value ? isoToBSLabel(value) : placeholder}
+          </span>
+          {value && (
+            <span className="text-[10px] text-text-muted font-mono shrink-0">
+              · {fmtDate(value)}
+            </span>
+          )}
+        </div>
         <Calendar size={14} className="text-text-muted shrink-0" />
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-1 bg-white border border-[#E4DFD3] rounded-xl shadow-lg p-3 w-64">
-          <div className="flex items-center justify-between mb-2">
+        <div
+          className={`absolute z-30 mt-1.5 bg-white border border-border rounded-2xl shadow-lg p-3.5 w-72 fade-in ${
+            align === "right" ? "right-0" : "left-0"
+          }`}
+        >
+          {/* HEADER: MONTH & YEAR NAV */}
+          <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-border-light">
             <button
               type="button"
               onClick={() => setView(addMonths(view.year, view.month, -1))}
-              className="p-1 rounded hover:bg-[#F5F3EE]"
+              className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted transition-colors"
+              title="Previous month"
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={15} />
             </button>
-            <span className="text-xs font-semibold">
-              {NEPALI_MONTHS[view.month - 1]} {view.year}
-            </span>
+
+            <div className="text-center">
+              <span className="text-xs font-bold text-text">
+                {NEPALI_MONTHS[view.month - 1]} {view.year}
+              </span>
+              <span className="block text-[9px] text-text-muted">Bikram Sambat</span>
+            </div>
+
             <button
               type="button"
               onClick={() => setView(addMonths(view.year, view.month, 1))}
-              className="p-1 rounded hover:bg-[#F5F3EE]"
+              className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted transition-colors"
+              title="Next month"
             >
-              <ChevronRight size={14} />
+              <ChevronRight size={15} />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 text-center mb-1">
-            {WEEKDAY_LABELS.map((d) => (
+          {/* WEEKDAYS */}
+          <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+            {WEEKDAY_LABELS.map((d, idx) => (
               <div
                 key={d}
-                className="text-[9px] uppercase text-text-subtle font-medium"
+                className={`text-[9px] uppercase font-bold tracking-wider ${
+                  idx === 6 ? "text-alert" : idx === 0 ? "text-primary" : "text-text-muted"
+                }`}
               >
                 {d}
               </div>
             ))}
           </div>
 
+          {/* DAYS GRID */}
           <div className="grid grid-cols-7 gap-1">
             {weeks.flat().map((cell, i) => {
-              if (!cell) return <div key={i} />;
+              if (!cell) {
+                return <div key={`empty-${i}`} className="aspect-square" />;
+              }
+
               const isToday = cell.isoDate === todayISO;
               const isSelected = cell.isoDate === value;
+              const isDisabled =
+                (min && cell.isoDate < min) || (max && cell.isoDate > max);
+              const isSaturday = cell.isWeekend;
+
               return (
                 <button
                   type="button"
-                  key={i}
+                  key={cell.isoDate}
+                  disabled={isDisabled}
                   onClick={() => selectDay(cell.isoDate)}
-                  className={`aspect-square rounded-lg flex items-center justify-center text-[11px] font-mono transition
-                    ${isSelected ? "bg-primary text-white font-semibold" : isToday ? "bg-border font-semibold" : "text-text hover:bg-[#F5F3EE]"}
+                  className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs font-mono font-semibold transition-all relative
+                    ${
+                      isSelected
+                        ? "bg-primary text-white font-bold shadow-xs scale-105 z-10"
+                        : isToday
+                          ? "border border-primary text-primary bg-primary-light/30 font-bold"
+                          : isSaturday
+                            ? "text-alert hover:bg-alert-light/40"
+                            : "text-text hover:bg-surface-muted"
+                    }
+                    ${isDisabled ? "opacity-25 cursor-not-allowed hover:bg-transparent" : "cursor-pointer"}
                   `}
                 >
-                  {cell.bsDay}
+                  <span>{cell.bsDay}</span>
+                  {isToday && !isSelected && (
+                    <span className="w-1 h-1 rounded-full bg-primary absolute bottom-0.5" />
+                  )}
                 </button>
               );
             })}
+          </div>
+
+          {/* FOOTER ACTIONS */}
+          <div className="mt-2.5 pt-2 border-t border-border-light flex items-center justify-between text-[11px]">
+            <button
+              type="button"
+              onClick={jumpToToday}
+              className="text-primary hover:text-primary-dark font-semibold transition-colors flex items-center gap-1"
+            >
+              <Sparkles size={11} />
+              <span>Today ({isoToBSLabel(todayISO)})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-text-muted hover:text-text font-medium"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
     </div>
   );
 }
+

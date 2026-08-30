@@ -7,15 +7,22 @@ import {
   getWorkedMinutes,
   todayISO,
 } from "../../utils/workTime";
+import { isoToBSLabel } from "../../utils/nepaliCalendar";
 import { EmptyState } from "../../components/EmptyState";
 import { Card } from "../../components/Card";
 import { MiniStat } from "../../components/MiniStat";
+import {
+  User,
+  Clock,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  ArrowRight,
+} from "lucide-react";
 
 export function AdminAttendance() {
   const { employees } = useRoster();
-
   const [sel, setSel] = useState(null);
-
   const { records } = useAttendance(sel);
 
   useEffect(() => {
@@ -27,112 +34,110 @@ export function AdminAttendance() {
   if (employees === null) return null;
 
   const selectedEmployee = employees.find((e) => e.id === sel) || employees[0];
-
   const selected = sel || employees[0]?.id || null;
-
   const today = todayISO();
 
   const todayRecord = (records || []).find((r) => r.date === today) || null;
 
-  const workedMinutes = todayRecord
+  const workedMinutes = todayRecord?.clock_in
     ? getWorkedMinutes(todayRecord.clock_in, todayRecord.clock_out)
     : 0;
 
   const difference = todayRecord?.clock_out ? workedMinutes - 8 * 60 : 0;
 
   return (
-    <div className="space-y-5">
+    <div className="max-w-6xl mx-auto space-y-5 fade-in">
       {/* HEADER */}
-
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Attendance</h1>
-
-          <p className="text-sm text-text-muted mt-1">
-            Monitor attendance and working hours.
+          <h1 className="text-2xl font-semibold text-text">Attendance Monitor</h1>
+          <p className="text-xs text-text-muted mt-1">
+            Track daily check-ins, departures, and overall time logs per employee.
           </p>
         </div>
 
-        <select
-          value={selected || ""}
-          onChange={(e) => setSel(e.target.value)}
-          className="border border-[#E4DFD3] rounded-lg px-3 py-2 text-sm bg-white min-w-[180px]"
-        >
-          {employees.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-white border border-border px-3 py-1.5 rounded-xl shadow-xs">
+            <User size={13} className="text-primary" />
+            <select
+              value={selected || ""}
+              onChange={(e) => setSel(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-text outline-none cursor-pointer"
+            >
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name} ({e.role})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {!selected ? (
-        <EmptyState text="No employees yet." />
+        <EmptyState text="No employees found in roster." />
       ) : records === null ? null : (
         <>
-          {/* TODAY */}
-
+          {/* TODAY SUMMARY CARD */}
           <Card
             title={
               selectedEmployee
-                ? `${selectedEmployee.name}'s day`
-                : "Today's attendance"
+                ? `${selectedEmployee.name}'s Attendance Today`
+                : "Today's Attendance"
             }
-            subtitle={fmtDate(today)}
+            subtitle={`${isoToBSLabel(today)} · ${fmtDate(today)}`}
           >
-            {!todayRecord ? (
-              <div className="py-8 text-center">
-                <div className="text-sm font-medium">
-                  No attendance recorded today
-                </div>
-
-                <div className="text-xs text-text-muted mt-1">
-                  This employee has not clocked in.
-                </div>
+            {!todayRecord?.clock_in ? (
+              <div className="py-6 text-center text-xs text-text-muted bg-surface-muted/40 rounded-xl border border-dashed border-border-light">
+                <Clock size={20} className="mx-auto mb-1.5 text-text-faint" />
+                <p className="font-semibold text-text">No attendance logged today</p>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  This employee hasn't clocked in yet for today.
+                </p>
               </div>
             ) : (
-              <div className="space-y-5">
-                {/* TIMES */}
-
-                <div className="flex flex-wrap items-center gap-6">
+              <div className="space-y-4">
+                {/* CLOCK TIMES BANNER */}
+                <div className="flex flex-wrap items-center gap-6 p-4 rounded-xl bg-surface-muted/50 border border-border-light">
                   <div>
-                    <div className="text-[10px] uppercase text-text-muted mb-1">
-                      Clock in
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-0.5">
+                      Clock In
                     </div>
-
-                    <div className="text-xl font-mono font-semibold text-success">
+                    <div className="text-lg font-mono font-bold text-success">
                       {fmtTime(todayRecord.clock_in)}
                     </div>
                   </div>
 
-                  <div className="text-[#BDB7AA]">→</div>
+                  <span className="text-border text-lg font-light">→</span>
 
                   <div>
-                    <div className="text-[10px] uppercase text-text-muted mb-1">
-                      Clock out
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted mb-0.5">
+                      Clock Out
                     </div>
-
-                    <div className="text-xl font-mono font-semibold text-alert">
-                      {todayRecord.clock_out
-                        ? fmtTime(todayRecord.clock_out)
-                        : "Still working"}
+                    <div className="text-lg font-mono font-bold text-text">
+                      {todayRecord.clock_out ? (
+                        fmtTime(todayRecord.clock_out)
+                      ) : (
+                        <span className="text-primary text-sm font-sans font-medium">
+                          Currently working
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* STATS */}
-
+                {/* STATS GRID */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <MiniStat
-                    label="Worked"
+                    label="Worked Duration"
                     value={
                       todayRecord.clock_out
                         ? formatDuration(workedMinutes)
-                        : "—"
+                        : formatDuration(workedMinutes)
                     }
                   />
 
-                  <MiniStat label="Expected" value="8h 00m" />
+                  <MiniStat label="Expected Hours" value="8h 00m" />
 
                   <MiniStat
                     label={difference >= 0 ? "Overtime" : "Undertime"}
@@ -140,39 +145,40 @@ export function AdminAttendance() {
                       todayRecord.clock_out
                         ? difference >= 0
                           ? `+${formatDuration(difference)}`
-                          : `-${formatDuration(difference)}`
-                        : "—"
+                          : `-${formatDuration(Math.abs(difference))}`
+                        : "In progress"
                     }
                   />
 
-                  <MiniStat label="Lunch" value="1h" />
+                  <MiniStat label="Target" value="8h / day" />
                 </div>
               </div>
             )}
           </Card>
 
-          {/* HISTORY */}
-
+          {/* HISTORY TABLE */}
           <Card
-            title="Attendance history"
-            subtitle={`${records.length} record${
+            title="Attendance History"
+            subtitle={`${records.length} total logged record${
               records.length !== 1 ? "s" : ""
             }`}
           >
             {records.length === 0 ? (
-              <EmptyState text="No attendance recorded for this employee." />
+              <EmptyState text="No attendance records found for this team member." />
             ) : (
               <div className="overflow-x-auto">
-                <div className="min-w-[650px]">
-                  <div className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-3 px-3 pb-2 text-[10px] uppercase tracking-wide text-[#8C8576]">
+                <div className="min-w-[620px]">
+                  {/* TABLE HEADER */}
+                  <div className="grid grid-cols-[1.3fr_1fr_1fr_1fr_1.1fr] gap-3 px-3.5 py-2 bg-surface-muted rounded-lg text-[10px] font-semibold uppercase tracking-wider text-text-muted border border-border-light mb-1">
                     <span>Date</span>
                     <span>Clock in</span>
                     <span>Clock out</span>
                     <span>Worked</span>
-                    <span>Difference</span>
+                    <span>Time status</span>
                   </div>
 
-                  <div className="divide-y divide-border">
+                  {/* TABLE ROWS */}
+                  <div className="divide-y divide-border-light">
                     {records.map((r) => {
                       const worked = r.clock_out
                         ? getWorkedMinutes(r.clock_in, r.clock_out)
@@ -183,39 +189,46 @@ export function AdminAttendance() {
                       return (
                         <div
                           key={r.id}
-                          className="grid grid-cols-[1.2fr_1fr_1fr_1fr_1fr] gap-3 items-center px-3 py-3 text-sm"
+                          className="grid grid-cols-[1.3fr_1fr_1fr_1fr_1.1fr] gap-3 items-center px-3.5 py-2.5 text-xs hover:bg-surface-muted/30 transition-colors"
                         >
-                          <span className="font-mono text-text-muted">
-                            {fmtDate(r.date)}
-                          </span>
+                          <div>
+                            <div className="font-medium text-text">
+                              {fmtDate(r.date)}
+                            </div>
+                            <div className="text-[10px] font-mono text-text-muted">
+                              {r.date}
+                            </div>
+                          </div>
 
-                          <span className="font-mono text-success">
+                          <span className="font-mono text-xs text-text font-medium">
                             {fmtTime(r.clock_in)}
                           </span>
 
-                          <span className="font-mono text-alert">
-                            {fmtTime(r.clock_out)}
+                          <span className="font-mono text-xs text-text font-medium">
+                            {r.clock_out ? fmtTime(r.clock_out) : <span className="text-text-muted italic font-sans text-[11px]">Working</span>}
                           </span>
 
-                          <span>
+                          <span className="font-mono text-xs font-semibold text-text">
                             {worked !== null ? formatDuration(worked) : "—"}
                           </span>
 
-                          <span
-                            className={
-                              diff === null
-                                ? "text-text-muted"
-                                : diff >= 0
-                                  ? "text-success"
-                                  : "text-alert"
-                            }
-                          >
-                            {diff === null
-                              ? "—"
-                              : diff >= 0
-                                ? `+${formatDuration(diff)}`
-                                : `-${formatDuration(diff)}`}
-                          </span>
+                          <div>
+                            {diff === null ? (
+                              <span className="text-[11px] text-text-faint font-mono">—</span>
+                            ) : diff > 0 ? (
+                              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-overtime bg-[#E8F5E2] px-1.5 py-0.5 rounded">
+                                <TrendingUp size={10} /> +{formatDuration(diff)} OT
+                              </span>
+                            ) : diff < 0 ? (
+                              <span className="inline-flex items-center gap-1 font-mono text-[10px] font-semibold text-alert bg-alert-light px-1.5 py-0.5 rounded">
+                                <TrendingDown size={10} /> -{formatDuration(Math.abs(diff))} under
+                              </span>
+                            ) : (
+                              <span className="font-mono text-[10px] text-text-muted">
+                                8h completed
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}

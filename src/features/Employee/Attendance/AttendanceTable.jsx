@@ -19,18 +19,18 @@ const columns = [
   },
   {
     key: "timeStatus",
-    label: "Time",
-    width: "1fr",
+    label: "Time status",
+    width: "1.1fr",
   },
   {
     key: "hours",
-    label: "Hours",
-    width: "1fr",
+    label: "Worked",
+    width: "0.9fr",
   },
   {
     key: "action",
-    label: "Action",
-    width: "80px",
+    label: "",
+    width: "50px",
   },
 ];
 
@@ -51,15 +51,15 @@ export default function AttendanceTable({
     .reverse();
 
   return (
-    <div>
+    <div className="mt-4">
       {/* TABLE TITLE */}
-      <div className="bg-white border border-border border-b-0 rounded-t-xl px-4 py-3 flex items-center justify-between">
+      <div className="bg-white border border-border border-b-0 rounded-t-xl px-4 py-2.5 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-base text-text">Daily log</h3>
+          <h3 className="font-semibold text-sm text-text">Daily log</h3>
         </div>
 
-        <span className="text-[10px] text-text-muted">
-          {visibleDates.length} days
+        <span className="text-[11px] font-mono text-text-muted bg-surface-muted px-2 py-0.5 rounded-md border border-border-light">
+          {visibleDates.length} {visibleDates.length === 1 ? "day" : "days"}
         </span>
       </div>
 

@@ -66,14 +66,14 @@ export default function AttendanceEditForm({
         <button
           onClick={onSave}
           disabled={saving}
-          className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-40"
+          className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold transition-all disabled:opacity-40 disabled:active:scale-100"
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? "Saving..." : "Save changes"}
         </button>
 
         <button
           onClick={onCancel}
-          className="px-3 py-1.5 rounded-lg border border-border text-sm text-text hover:bg-white"
+          className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-text hover:bg-white transition-colors"
         >
           Cancel
         </button>

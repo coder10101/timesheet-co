@@ -97,32 +97,41 @@ export function formatDifference(minutes) {
   return `${mins}m`;
 }
 
-export function isLateClockIn(dateTime) {
-  if (!dateTime) return false;
-
+export function getClockInMinutes(dateTime) {
+  if (!dateTime) return null;
   const date = new Date(dateTime);
+  if (Number.isNaN(date.getTime())) return null;
 
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kathmandu",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  }).formatToParts(date);
 
-  return (
-    date.getHours() > OFFICE_START_HOUR ||
-    (date.getHours() === OFFICE_START_HOUR && date.getMinutes() > 0)
+  const hour = Number(
+    parts.find((p) => p.type === "hour")?.value ?? date.getHours(),
   );
+  const minute = Number(
+    parts.find((p) => p.type === "minute")?.value ?? date.getMinutes(),
+  );
+  return hour * 60 + minute;
 }
 
 export function isEarlyClockIn(dateTime) {
-  if (!dateTime) return false;
+  const mins = getClockInMinutes(dateTime);
+  if (mins === null) return false;
+  return mins < 10 * 60; // Before 10:00 AM
+}
 
-  const date = new Date(dateTime);
+export function isLateClockIn(dateTime) {
+  const mins = getClockInMinutes(dateTime);
+  if (mins === null) return false;
+  return mins > 10 * 60 + 30; // After 10:30 AM
+}
 
-  if (Number.isNaN(date.getTime())) {
-    return false;
-  }
-
-  return (
-    date.getHours() < OFFICE_START_HOUR ||
-    (date.getHours() === OFFICE_START_HOUR && date.getMinutes() > 0)
-  );
+export function isOnTimeClockIn(dateTime) {
+  const mins = getClockInMinutes(dateTime);
+  if (mins === null) return false;
+  return mins >= 10 * 60 && mins <= 10 * 60 + 30; // 10:00 AM to 10:30 AM
 }

@@ -1,28 +1,32 @@
 const WEEKDAY_MESSAGES = {
   0: {
     emoji: "🌅",
-    text: "Fresh week, fresh start. Let's go, ",
+    text: "Happy Sunday! Fresh week, fresh start. Let's go,",
     color: "#1e4453ff",
   },
   1: {
     emoji: "💪",
-    text: "Monday momentum! Let's get after it, ",
+    text: "Monday momentum! Let's get after it,",
     color: "#374f3bff",
   },
-  2: { emoji: "⚡", text: "Keep the pace going, ", color: "#3e395cff" },
+  2: {
+    emoji: "⚡",
+    text: "Keep the pace going,",
+    color: "#3e395cff",
+  },
   3: {
     emoji: "🐫",
-    text: "Halfway through the week. You've got this, ",
+    text: "Halfway through the week. You've got this,",
     color: "#7A5A9E",
   },
   4: {
     emoji: "🔥",
-    text: "Almost there!! Finish strong, ",
+    text: "Almost there! Finish strong,",
     color: "#73552dff",
   },
   5: {
     emoji: "🎉",
-    text: "FRIYAYYYY! You made it to the end of the week, ",
+    text: "Happy Friday! You made it to the weekend,",
     color: "#5d421fff",
   },
   6: {
@@ -36,10 +40,12 @@ export function getDailyMessage(isoDate, holidayName) {
   if (holidayName) {
     return {
       emoji: "🎊",
-      text: `Holiday today — ${holidayName}`,
+      text: `Holiday today — ${holidayName},`,
       color: "#B5563A",
     };
   }
-  const day = new Date(isoDate + "T00:00:00").getDay();
-  return WEEKDAY_MESSAGES[day];
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const dayOfWeek = new Date(year, month - 1, day).getDay();
+  return WEEKDAY_MESSAGES[dayOfWeek] || WEEKDAY_MESSAGES[0];
 }
+

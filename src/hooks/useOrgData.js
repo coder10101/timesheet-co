@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
 import { nepalDateTimeToISO } from "../utils/timezone";
+import { todayISO } from "../utils/workTime";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 
 /* ---------------- Attendance ---------------- */

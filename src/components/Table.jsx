@@ -43,7 +43,7 @@ export default function Table({
 
 function TableHeader({ children }) {
   return (
-    <div className="text-xs font-semibold uppercase tracking-wide text-text-faint">
+    <div className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">
       {children}
     </div>
   );

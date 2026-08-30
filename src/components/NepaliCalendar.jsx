@@ -5,6 +5,9 @@ import {
   CalendarClock,
   ArrowRight,
   Clock,
+  Users,
+  Flag,
+  PartyPopper,
 } from "lucide-react";
 import {
   NEPALI_MONTHS,
@@ -16,10 +19,11 @@ import {
 } from "../utils/nepaliCalendar";
 import { useHolidays, useEvents } from "../hooks/useOrgData";
 import { Card } from "./Card";
-import { fmtTimeAmPm } from "../utils/workTime";
+import { fmtTimeAmPm, todayISO } from "../utils/workTime";
 
 export function NepaliCalendar() {
   const todayBS = useMemo(() => getTodayBS(), []);
+  const today = todayISO();
 
   const [view, setView] = useState({
     year: todayBS.year,
@@ -57,22 +61,20 @@ export function NepaliCalendar() {
     [view, holidaysByIso, eventsByIso],
   );
 
-  const todayISO = new Date().toISOString().slice(0, 10);
-
   const selectedCell = selectedDate
     ? weeks.flat().find((cell) => cell?.isoDate === selectedDate)
     : null;
 
   const upcoming = useMemo(() => {
     return (events || [])
-      .filter((e) => e.date >= todayISO)
+      .filter((e) => e.date >= today)
       .sort(
         (a, b) =>
           a.date.localeCompare(b.date) ||
           (a.time || "").localeCompare(b.time || ""),
       )
       .slice(0, 2);
-  }, [events, todayISO]);
+  }, [events, today]);
 
   const jumpToEvent = (isoDate) => {
     const bsDate = isoToBS(isoDate);
@@ -81,14 +83,17 @@ export function NepaliCalendar() {
   };
 
   const relativeDayLabel = (isoDate) => {
+    const [ey, em, ed] = isoDate.split("-").map(Number);
+    const [ty, tm, td] = today.split("-").map(Number);
+    const eventDate = new Date(ey, em - 1, ed);
+    const todayDate = new Date(ty, tm - 1, td);
     const diffDays = Math.round(
-      (new Date(isoDate) - new Date(todayISO)) / 86400000,
+      (eventDate.getTime() - todayDate.getTime()) / 86400000,
     );
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Tomorrow";
     if (diffDays <= 6) return `In ${diffDays} days`;
-    const d = new Date(isoDate + "T00:00:00");
-    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+    return eventDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
   return (
@@ -137,20 +142,24 @@ export function NepaliCalendar() {
         {weeks.flat().map((cell, i) => {
           if (!cell) return <div key={i} />;
 
-          const isToday = cell.isoDate === todayISO;
+          const isToday = cell.isoDate === today;
           const isHoliday = !!cell.holidayName;
-          const hasEvents = cell.events.length > 0;
+          const cellEvents = cell.events || [];
+          const hasDeadline = cellEvents.some((e) => e.event_type === "deadline");
+          const hasMeeting = cellEvents.some((e) => e.event_type === "meeting");
+          const hasEvents = cellEvents.length > 0;
           const isSelectable = isHoliday || hasEvents;
           const isSelected = cell.isoDate === selectedDate;
 
           const label = isHoliday
             ? cell.holidayName
-            : hasEvents
-              ? cell.events[0].title +
-                (cell.events.length > 1 ? ` +${cell.events.length - 1}` : "")
-              : null;
-
-          const showDot = hasEvents && isHoliday;
+            : hasDeadline
+              ? "Deadline"
+              : hasMeeting
+                ? "Meeting"
+                : hasEvents
+                  ? cellEvents[0].title
+                  : null;
 
           return (
             <button
@@ -169,33 +178,50 @@ export function NepaliCalendar() {
                 transition
                 ${
                   isToday
-                    ? "bg-primary text-white font-semibold"
+                    ? "bg-primary text-white font-semibold shadow-xs"
                     : isSelected
-                      ? "bg-border text-text font-semibold"
-                      : isHoliday
-                        ? "bg-alert-light text-alert font-semibold"
-                        : hasEvents
-                          ? "bg-[#FBF3E3] text-text"
-                          : cell.isWeekend
-                            ? "text-alert"
-                            : "text-text"
+                      ? "bg-border text-text font-semibold ring-1 ring-primary"
+                      : hasDeadline
+                        ? "bg-[#FFF6F4] text-alert border border-alert/30 font-semibold"
+                        : hasMeeting
+                          ? "bg-[#EEF6F8] text-[#1E4E5F] border border-[#C5DCE4] font-semibold"
+                          : isHoliday
+                            ? "bg-alert-light text-alert font-semibold"
+                            : hasEvents
+                              ? "bg-[#FBF3E3] text-text"
+                              : cell.isWeekend
+                                ? "text-alert"
+                                : "text-text"
                 }
               `}
             >
               {cell.bsDay}
 
-              {showDot && (
-                <span
-                  className={`absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${
-                    isToday ? "bg-white" : "bg-[#E0A458]"
-                  }`}
-                />
+              {/* Indicator Dot */}
+              {!isToday && (
+                <div className="absolute top-1 right-1 flex items-center gap-0.5">
+                  {hasDeadline && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-alert" />
+                  )}
+                  {hasMeeting && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#1E4E5F]" />
+                  )}
+                  {isHoliday && !hasDeadline && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-alert" />
+                  )}
+                </div>
               )}
 
               {label && !isToday && (
                 <span
-                  className={`absolute bottom-1 left-1 right-1 font-mono text-[6px] truncate ${
-                    isHoliday ? "text-alert" : "text-[#9A6B1F]"
+                  className={`absolute bottom-0.5 left-1 right-1 font-mono text-[6px] font-bold truncate ${
+                    hasDeadline
+                      ? "text-alert"
+                      : hasMeeting
+                        ? "text-[#1E4E5F]"
+                        : isHoliday
+                          ? "text-alert"
+                          : "text-warning"
                   }`}
                 >
                   {label}
@@ -215,93 +241,141 @@ export function NepaliCalendar() {
                 <div className="text-[10px] uppercase tracking-wide text-text-subtle">
                   {selectedCell.bsDay} {NEPALI_MONTHS[view.month - 1]}
                 </div>
-                <div className="text-xs font-medium text-[#5E594E] mt-0.5">
-                  🎉 {selectedCell.holidayName}
+                <div className="text-xs font-medium text-alert mt-0.5 flex items-center gap-1.5">
+                  <PartyPopper size={12} />
+                  <span>{selectedCell.holidayName}</span>
                 </div>
               </div>
             )}
 
-            {selectedCell.events.map((ev, idx) => (
-              <div
-                key={idx}
-                className="px-3 py-2.5 rounded-lg bg-warning-light border border-[#EEDFC0]"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-[10px] uppercase tracking-wide text-text-subtle flex items-center gap-1">
-                    <CalendarClock size={10} /> {ev.event_type}
+            {selectedCell.events.map((ev, idx) => {
+              const isDeadline = ev.event_type === "deadline";
+              const isMeeting = ev.event_type === "meeting";
+
+              const cardStyle = isDeadline
+                ? "bg-[#FFF6F4] border-[#FCD9D1] text-text"
+                : isMeeting
+                  ? "bg-[#EEF6F8] border-[#C5DCE4] text-text"
+                  : "bg-warning-light border-[#EEDFC0] text-text";
+
+              const badgeStyle = isDeadline
+                ? "bg-alert text-white"
+                : isMeeting
+                  ? "bg-[#1E4E5F] text-white"
+                  : "bg-warning text-white";
+
+              const Icon = isDeadline ? Flag : isMeeting ? Users : CalendarClock;
+
+              return (
+                <div
+                  key={idx}
+                  className={`px-3 py-2.5 rounded-lg border ${cardStyle}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-fit">
+                      <span className={`${badgeStyle} px-1.5 py-0.2 rounded`}>
+                        {ev.event_type}
+                      </span>
+                    </div>
+                    {ev.time && (
+                      <span className="flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full bg-white border border-border-light">
+                        <Clock size={9} />
+                        {fmtTimeAmPm(ev.time)}
+                      </span>
+                    )}
                   </div>
-                  {ev.time && (
-                    <span className="flex items-center gap-1 text-[10px] font-mono font-medium text-warning bg-[#F0DFA8] px-1.5 py-0.5 rounded-full">
-                      <Clock size={9} />
-                      {fmtTimeAmPm(ev.time)}
-                    </span>
+                  <div className="text-xs font-bold text-text mt-1.5">
+                    {ev.title}
+                  </div>
+                  {ev.description && (
+                    <div className="text-[11px] text-text-muted mt-1 leading-relaxed max-h-8 overflow-hidden relative">
+                      {ev.description}
+                    </div>
                   )}
                 </div>
-                <div className="text-xs font-medium text-[#5E594E] mt-1">
-                  {ev.title}
-                </div>
-                {ev.description && (
-                  <div className="text-[11px] text-[#8A8374] mt-1 leading-relaxed max-h-8 overflow-hidden relative">
-                    {ev.description}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
       {/* LEGEND */}
       <div className="flex items-center gap-3 mt-3 text-[9px] text-text-subtle flex-wrap">
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1 font-medium">
           <span className="w-2 h-2 rounded-full bg-primary" />
           Today
         </span>
-        <span className="flex items-center gap-1">
+        <span className="flex items-center gap-1 font-medium">
           <span className="w-2 h-2 rounded-full bg-alert" />
           Holiday
         </span>
-        <span className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#E0A458]" />
-          Event
+        <span className="flex items-center gap-1 font-medium">
+          <span className="w-2 h-2 rounded-full bg-alert" />
+          Deadline
+        </span>
+        <span className="flex items-center gap-1 font-medium">
+          <span className="w-2 h-2 rounded-full bg-[#1E4E5F]" />
+          Meeting
         </span>
       </div>
 
       {/* UPCOMING */}
       {upcoming.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border space-y-2">
-          {upcoming.map((ev) => (
-            <button
-              key={ev.id}
-              onClick={() => jumpToEvent(ev.date)}
-              className="w-full flex items-start justify-between gap-2 text-left group"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full shrink-0 ${ev.event_type === "deadline" ? "bg-alert" : "bg-primary"}`}
-                  />
-                  <span className="text-[11px] truncate group-hover:underline">
-                    {ev.title}
-                  </span>
-                </div>
-                {ev.time && (
-                  <div className="flex items-center gap-1 mt-1 ml-3">
-                    <span className="flex items-center gap-1 text-[9px] font-mono font-medium text-warning bg-[#F0DFA8] px-1.5 py-0.5 rounded-full">
-                      <Clock size={8} />
-                      {fmtTimeAmPm(ev.time)}
+          {upcoming.map((ev) => {
+            const isDeadline = ev.event_type === "deadline";
+            const isMeeting = ev.event_type === "meeting";
+
+            const dotColor = isDeadline
+              ? "bg-alert"
+              : isMeeting
+                ? "bg-[#1E4E5F]"
+                : "bg-warning";
+
+            return (
+              <button
+                key={ev.id}
+                onClick={() => jumpToEvent(ev.date)}
+                className="w-full flex items-start justify-between gap-2 text-left group"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`}
+                    />
+                    <span className="text-[11px] font-semibold truncate group-hover:text-primary transition-colors">
+                      {ev.title}
+                    </span>
+                    <span
+                      className={`text-[8px] uppercase font-bold px-1 rounded ${
+                        isDeadline
+                          ? "bg-alert-light text-alert"
+                          : isMeeting
+                            ? "bg-[#EEF6F8] text-[#1E4E5F]"
+                            : "bg-warning-light text-warning"
+                      }`}
+                    >
+                      {ev.event_type}
                     </span>
                   </div>
-                )}
-              </div>
-              <span className="text-[10px] text-text-subtle font-mono shrink-0 flex items-center gap-0.5 pt-0.5">
-                {relativeDayLabel(ev.date)}
-                <ArrowRight
-                  size={9}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
-                />
-              </span>
-            </button>
-          ))}
+                  {ev.time && (
+                    <div className="flex items-center gap-1 mt-1 ml-3">
+                      <span className="flex items-center gap-1 text-[9px] font-mono font-medium text-text-muted bg-surface px-1.5 py-0.5 rounded-full border border-border-light">
+                        <Clock size={8} />
+                        {fmtTimeAmPm(ev.time)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-[10px] text-text-subtle font-mono shrink-0 flex items-center gap-0.5 pt-0.5">
+                  {relativeDayLabel(ev.date)}
+                  <ArrowRight
+                    size={9}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  />
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </Card>

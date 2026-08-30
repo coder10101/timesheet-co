@@ -10,7 +10,7 @@ export default function AttendanceSummary({ stats, formatDifference }) {
       color: "bg-warning",
       label: "Late",
       value: stats.late,
-      footer: "after 10:00 AM",
+      footer: "after 10:30 AM",
     },
     {
       color: "bg-alert",

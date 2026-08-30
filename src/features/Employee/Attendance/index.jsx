@@ -16,6 +16,7 @@ import {
   getWeekday,
   getWorkStatus,
   formatDifference,
+  isLateClockIn,
 } from "../../../utils/attendance";
 
 import AttendanceTable from "./AttendanceTable";
@@ -174,12 +175,7 @@ export function EmployeeAttendance({ me }) {
      */
 
     if (record?.clock_in) {
-      const clockIn = new Date(record.clock_in);
-
-      const late =
-        !Number.isNaN(clockIn.getTime()) &&
-        (clockIn.getHours() > 10 ||
-          (clockIn.getHours() === 10 && clockIn.getMinutes() > 0));
+      const late = isLateClockIn(record.clock_in);
 
       return {
         status: late ? "late" : "present",

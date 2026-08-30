@@ -1,6 +1,20 @@
 export const WORK_DAY_MINUTES = 8 * 60;
 export const LUNCH_MINUTES = 60;
-export const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * Returns today's date in YYYY-MM-DD in the Nepal timezone (Asia/Kathmandu).
+ */
+export const todayISO = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kathmandu",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+};
 
 /**
  * Calculates actual working time.
@@ -67,7 +81,12 @@ export const calculateLeaveDays = (startDate, endDate) => {
     return 0;
   }
 
-  return Math.round((new Date(endDate) - new Date(startDate)) / 86400000) + 1;
+  const [sy, sm, sd] = startDate.split("-").map(Number);
+  const [ey, em, ed] = endDate.split("-").map(Number);
+  const start = new Date(sy, sm - 1, sd);
+  const end = new Date(ey, em - 1, ed);
+
+  return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
 };
 
 export const fmtTime = (value) => {
@@ -81,15 +100,23 @@ export const fmtTime = (value) => {
   }).format(new Date(value));
 };
 
-export const fmtDate = (iso) =>
-  new Date(iso + "T00:00:00").toLocaleDateString([], {
+export const fmtDate = (iso) => {
+  if (!iso) return "—";
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
+};
 
-export const daysBetween = (a, b) =>
-  Math.round((new Date(b) - new Date(a)) / 86400000) + 1;
+export const daysBetween = (a, b) => {
+  const [ay, am, ad] = a.split("-").map(Number);
+  const [by, bm, bd] = b.split("-").map(Number);
+  const da = new Date(ay, am - 1, ad);
+  const db = new Date(by, bm - 1, bd);
+  return Math.round((db.getTime() - da.getTime()) / 86400000) + 1;
+};
 
 export const LEAVE_TYPES = ["Annual", "Sick"];
 
@@ -105,16 +132,23 @@ export function fmtTimeAmPm(timeStr) {
 }
 
 export function getWeekDates(isoDate) {
-  const date = new Date(`${isoDate}T00:00:00`);
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const dayOfWeek = date.getDay(); // 0 = Sunday ... 6 = Saturday
 
   // Sunday = 0
-  const sunday = new Date(date);
-  sunday.setDate(date.getDate() - date.getDay());
+  const sunday = new Date(year, month - 1, day - dayOfWeek);
 
   return Array.from({ length: 7 }, (_, index) => {
-    const d = new Date(sunday);
-    d.setDate(sunday.getDate() + index);
-
-    return d.toISOString().slice(0, 10);
+    const cur = new Date(
+      sunday.getFullYear(),
+      sunday.getMonth(),
+      sunday.getDate() + index,
+    );
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, "0");
+    const d = String(cur.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   });
 }
+

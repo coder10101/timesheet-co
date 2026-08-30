@@ -1,9 +1,22 @@
 import { getDailyMessage } from "../../../utils/dailyMessage";
 import { isoToBSLabel } from "../../../utils/nepaliCalendar";
+import { fmtDate } from "../../../utils/workTime";
+
+const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 export function Header({ holidays, records, me, today }) {
+  const [year, month, day] = today.split("-").map(Number);
+  const dayName = WEEKDAYS[new Date(year, month - 1, day).getDay()];
   const presentDay = isoToBSLabel(today);
-  const todayHoliday = holidays.find((holiday) => holiday.date === today);
+  const todayHoliday = (holidays || []).find((holiday) => holiday.date === today);
   const dailyMessage = getDailyMessage(today, todayHoliday?.name);
 
   return (
@@ -19,7 +32,7 @@ export function Header({ holidays, records, me, today }) {
               color: dailyMessage.color,
             }}
           >
-            {dailyMessage.text} {me.name.split(" ")[0]}.
+            {dailyMessage.text} {me.name?.split(" ")[0]}.
           </h1>
         </div>
       </div>
@@ -32,11 +45,14 @@ export function Header({ holidays, records, me, today }) {
             })}
           </p>
 
-          <div className="flex items-center gap-1.5 text-xs text-text-muted">
-            {presentDay}
+          <div className="flex items-center justify-end gap-1.5 text-xs text-text-muted">
+            <span className="font-semibold text-text">{dayName}</span>
+            <span>·</span>
+            <span>{presentDay}</span>
           </div>
         </div>
       </div>
     </header>
   );
 }
+

@@ -1,33 +1,48 @@
 import { useMemo } from "react";
 import { Card } from "../../../components/Card";
 import { isoToBS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
-import { Check } from "lucide-react";
+import { Check, PartyPopper } from "lucide-react";
 import { getWeekDates } from "../../../utils/workTime";
 
-export function WeekAtGlance({ records, leaveRequests, today }) {
+export function WeekAtGlance({ records, leaveRequests, holidays, today }) {
   const weekDates = useMemo(() => {
     return getWeekDates(today);
   }, [today]);
 
   const loggedDates = useMemo(() => {
     return new Set(
-      records.filter((record) => record.clock_in).map((record) => record.date),
+      (records || [])
+        .filter((record) => record.clock_in)
+        .map((record) => record.date),
     );
   }, [records]);
+
+  const holidayMap = useMemo(() => {
+    const map = new Map();
+    (holidays || []).forEach((h) => {
+      map.set(h.date, h.name);
+    });
+    return map;
+  }, [holidays]);
 
   const leaveDates = useMemo(() => {
     const dates = new Set();
 
-    leaveRequests
+    (leaveRequests || [])
       .filter((request) => request.status === "Approved")
       .forEach((request) => {
-        const start = new Date(`${request.start_date}T00:00:00`);
-        const end = new Date(`${request.end_date}T00:00:00`);
+        const [sy, sm, sd] = request.start_date.split("-").map(Number);
+        const [ey, em, ed] = request.end_date.split("-").map(Number);
+        const start = new Date(sy, sm - 1, sd);
+        const end = new Date(ey, em - 1, ed);
 
         const current = new Date(start);
 
         while (current <= end) {
-          dates.add(current.toISOString().slice(0, 10));
+          const y = current.getFullYear();
+          const m = String(current.getMonth() + 1).padStart(2, "0");
+          const d = String(current.getDate()).padStart(2, "0");
+          dates.add(`${y}-${m}-${d}`);
           current.setDate(current.getDate() + 1);
         }
       });
@@ -35,14 +50,29 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
     return dates;
   }, [leaveRequests]);
 
-  const pastDates = weekDates.filter((date) => date <= today);
+  // Expected working days up to today (excludes Saturdays and Holidays unless they were logged)
+  const pastWorkingDates = useMemo(() => {
+    return weekDates.filter((date) => {
+      if (date > today) return false;
+      const [y, m, dt] = date.split("-").map(Number);
+      const isSat = new Date(y, m - 1, dt).getDay() === 6;
+      const isHol = holidayMap.has(date);
+      if (isSat || isHol) {
+        // Only count if the employee worked on the holiday/Saturday
+        return loggedDates.has(date);
+      }
+      return true;
+    });
+  }, [weekDates, today, holidayMap, loggedDates]);
 
-  const loggedCount = pastDates.filter((date) => loggedDates.has(date)).length;
+  const loggedCount = pastWorkingDates.filter((date) => loggedDates.has(date)).length;
 
   return (
     <Card
-      title="Your attendance at a glance"
-      subtitle={`${loggedCount} of ${pastDates.length} days logged`}
+      title="Your Attendance at a Glance"
+      subtitle={`${loggedCount} of ${pastWorkingDates.length} working day${
+        pastWorkingDates.length !== 1 ? "s" : ""
+      } logged this week`}
       cardStyle={{ marginBottom: 0 }}
     >
       <div className="grid grid-cols-7 gap-1.5">
@@ -51,6 +81,10 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
           const isFuture = date > today;
           const isLogged = loggedDates.has(date);
           const isLeave = leaveDates.has(date);
+          const holidayName = holidayMap.get(date);
+          const isHoliday = !!holidayName;
+          const [y, m, dt] = date.split("-").map(Number);
+          const isSaturday = new Date(y, m - 1, dt).getDay() === 6;
 
           const bs = isoToBS(date);
 
@@ -60,7 +94,15 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
             status = "leave";
           } else if (isLogged) {
             status = "logged";
-          } else if (!isFuture) {
+          } else if (isHoliday) {
+            status = "holiday";
+          } else if (isSaturday) {
+            status = "weekend";
+          } else if (isFuture) {
+            status = "future";
+          } else if (isToday) {
+            status = "today";
+          } else {
             status = "missing";
           }
 
@@ -68,75 +110,106 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
             <div
               key={date}
               className={`
-                  min-w-0 rounded-xl p-2 text-center border
-                  ${
-                    isToday
-                      ? "border-primary bg-primary-light"
-                      : "border-border bg-surface"
-                  }
-                `}
+                min-w-0 rounded-xl p-2 text-center border transition-all
+                ${
+                  isToday
+                    ? "border-primary bg-primary-light/40 ring-1 ring-primary/20 shadow-xs"
+                    : isSaturday || isHoliday
+                      ? "border-border-light bg-surface-muted/40"
+                      : "border-border bg-white"
+                }
+              `}
             >
               {/* Gregorian weekday */}
               <div
-                className={`text-[9px] uppercase tracking-wide font-medium ${
-                  isToday ? "text-primary" : "text-text-subtle"
+                className={`text-[9px] uppercase tracking-wide font-semibold ${
+                  isToday
+                    ? "text-primary"
+                    : isSaturday
+                      ? "text-alert"
+                      : "text-text-muted"
                 }`}
               >
                 {WEEKDAY_LABELS[index]}
               </div>
 
-              {/* Nepali date */}
+              {/* Nepali BS date day */}
               <div
-                className={`mt-1 text-sm font-mono font-semibold ${
-                  isToday ? "text-primary" : "text-text"
+                className={`mt-1 text-sm font-mono font-bold ${
+                  isToday
+                    ? "text-primary"
+                    : isSaturday
+                      ? "text-alert"
+                      : "text-text"
                 }`}
               >
                 {bs?.day}
               </div>
 
-              {/* Status */}
-              <div className="mt-1.5">
+              {/* Status indicator */}
+              <div className="mt-1.5 min-h-[22px] flex items-center justify-center">
                 {status === "logged" && (
                   <div
-                    className="mx-auto w-5 h-5 rounded-full bg-success-light text-[#5D8065]
-                      flex items-center justify-center"
+                    className="mx-auto w-5 h-5 rounded-full bg-success-light text-success flex items-center justify-center shadow-xs"
+                    title="Attendance logged"
                   >
-                    <Check size={11} strokeWidth={2.5} />
+                    <Check size={11} strokeWidth={3} />
                   </div>
                 )}
 
                 {status === "leave" && (
                   <div
-                    className="text-[8px] font-medium text-primary
-                      truncate"
+                    className="text-[9px] font-semibold text-primary px-1.5 py-0.5 rounded bg-primary-light border border-primary/20 truncate"
+                    title="Approved leave"
                   >
                     Leave
                   </div>
                 )}
 
+                {status === "holiday" && (
+                  <div
+                    className="text-[9px] font-semibold text-warning px-1.5 py-0.5 rounded bg-warning-light border border-warning/20 truncate"
+                    title={holidayName || "Public Holiday"}
+                  >
+                    Holiday
+                  </div>
+                )}
+
+                {status === "weekend" && (
+                  <div className="text-[9px] font-medium text-text-muted">
+                    Off
+                  </div>
+                )}
+
                 {status === "missing" && (
                   <div
-                    className="mx-auto w-5 h-5 rounded-full bg-alert-light text-alert
-                      flex items-center justify-center text-[9px]"
+                    className="mx-auto w-5 h-5 rounded-full bg-alert-light text-alert flex items-center justify-center text-[10px] font-bold shadow-xs"
+                    title="Missing attendance"
                   >
                     !
                   </div>
                 )}
 
+                {status === "today" && (
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                )}
+
                 {status === "future" && (
-                  <div className="text-text-faint text-xs">—</div>
+                  <div className="text-text-faint text-xs font-mono">—</div>
                 )}
               </div>
 
-              {/* Today label */}
+              {/* Bottom label */}
               {isToday && (
-                <div className="mt-1 text-[7px] uppercase tracking-wide text-primary font-semibold">
+                <div className="mt-1 text-[8px] uppercase tracking-wider text-primary font-bold">
                   Today
                 </div>
               )}
 
               {!isToday && status === "missing" && (
-                <div className="mt-1 text-[7px] text-alert">Missing</div>
+                <div className="mt-1 text-[8px] font-semibold text-alert">
+                  Missing
+                </div>
               )}
             </div>
           );
@@ -144,20 +217,25 @@ export function WeekAtGlance({ records, leaveRequests, today }) {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-border">
-        <div className="flex items-center gap-1.5 text-[9px] text-text-muted">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-border-light text-[10px] text-text-muted">
+        <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-success" />
-          Logged
+          <span>Logged</span>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[9px] text-text-muted">
+        <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-alert" />
-          Missing
+          <span>Missing</span>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[9px] text-text-muted">
+        <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-primary" />
-          Leave
+          <span>Leave</span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-warning" />
+          <span>Holiday / Off</span>
         </div>
       </div>
     </Card>

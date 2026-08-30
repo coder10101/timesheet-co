@@ -1,4 +1,5 @@
 import bs from "bikram-sambat";
+import { todayISO } from "./workTime";
 
 export const NEPALI_MONTHS = [
   "Baisakh",
@@ -22,7 +23,7 @@ function pad(n) {
 }
 
 export function getTodayBS() {
-  const iso = new Date().toISOString().slice(0, 10);
+  const iso = todayISO();
   return bs.toBik(iso); // { year, month, day } — month is 1-indexed
 }
 

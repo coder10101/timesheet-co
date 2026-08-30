@@ -63,7 +63,12 @@ export function EmployeeOverview({ me }) {
           setErr={setErr}
           today={today}
         />
-        <WeekAtGlance records={records} leaveRequests={myLeave} today={today} />
+        <WeekAtGlance
+          records={records}
+          leaveRequests={myLeave}
+          holidays={holidays}
+          today={today}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 mt-4 items-start">
