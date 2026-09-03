@@ -47,6 +47,21 @@ export function toNepalDateTimeLocal(isoString) {
 }
 
 /**
+ * Convert a Supabase UTC timestamp
+ * into an HH:mm string in Nepal timezone (suitable for <input type="time" />).
+ *
+ * Example:
+ * 2026-08-19T03:15:00Z -> "09:00"
+ */
+export function toNepalTimeString(isoString) {
+  if (!isoString) return "";
+  const dt = toNepalDateTimeLocal(isoString);
+  if (!dt) return "";
+  const parts = dt.split("T");
+  return parts[1] || "";
+}
+
+/**
  * Convert Nepal datetime-local value
  * into UTC ISO timestamp for Supabase.
  *
@@ -57,11 +72,23 @@ export function toNepalDateTimeLocal(isoString) {
 export function nepalDateTimeToISO(localValue) {
   if (!localValue) return null;
 
-  const [datePart, timePart] = localValue.split("T");
+  // Clean trailing Z or milliseconds if inadvertently passed
+  const cleanStr = localValue.replace(/Z$/, "").split(".")[0];
+  const [datePart, timePart] = cleanStr.split("T");
+  if (!datePart || !timePart) return null;
 
   const [year, month, day] = datePart.split("-").map(Number);
-
   const [hour, minute] = timePart.split(":").map(Number);
+
+  if (
+    Number.isNaN(year) ||
+    Number.isNaN(month) ||
+    Number.isNaN(day) ||
+    Number.isNaN(hour) ||
+    Number.isNaN(minute)
+  ) {
+    return null;
+  }
 
   // Nepal is UTC+05:45
   const utcDate = new Date(
@@ -72,3 +99,4 @@ export function nepalDateTimeToISO(localValue) {
 
   return utcDate.toISOString();
 }
+

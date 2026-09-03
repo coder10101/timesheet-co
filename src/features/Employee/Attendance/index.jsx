@@ -7,6 +7,7 @@ import {
 } from "../../../hooks/useOrgData";
 
 import { getWorkedMinutes, todayISO } from "../../../utils/workTime";
+import { toNepalTimeString } from "../../../utils/timezone";
 
 import {
   getMonthKey,
@@ -31,7 +32,7 @@ import {
   getDaysInBSMonth,
 } from "../../../utils/nepaliCalendar";
 import AttendanceOverview from "./MonthlyOverview";
-import { WorkHoursChart } from "../../../components/charts/WorkHoursChart";
+import { PunctualityRhythmChart } from "../../../components/charts/PunctualityRhythmChart";
 
 export function EmployeeAttendance({ me }) {
   const { records, updateAttendance } = useAttendance(me.id);
@@ -312,38 +313,30 @@ export function EmployeeAttendance({ me }) {
   const startEdit = (date, record) => {
     setError("");
 
-    if (record) {
-      const clockIn = record.clock_in
-        ? new Date(record.clock_in).toLocaleTimeString("en-US", {
-            hour12: false,
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "09:30";
+    const isToday = date.isoDate === today;
 
-      const clockOut = record.clock_out
-        ? new Date(record.clock_out).toLocaleTimeString("en-US", {
-            hour12: false,
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "18:00";
+    const clockIn = record?.clock_in
+      ? toNepalTimeString(record.clock_in)
+      : "10:00";
 
-      setEditing({
-        date: date.isoDate,
-        clockIn,
-        clockOut,
-        isNew: false,
-      });
-
-      return;
-    }
+    // If it's today and no clock_out has been recorded, leave clockOut empty so employee is not prematurely clocked out
+    const clockOut = record?.clock_out
+      ? toNepalTimeString(record.clock_out)
+      : isToday
+        ? ""
+        : record?.clock_in
+          ? "19:00"
+          : "19:00";
 
     setEditing({
+      id: record?.id || null,
       date: date.isoDate,
-      clockIn: "09:30",
-      clockOut: "18:00",
-      isNew: true,
+      bsDay: date.day,
+      bsMonth: date.month || selectedMonth.month,
+      bsYear: date.year || selectedMonth.year,
+      clockIn,
+      clockOut,
+      isNew: !record?.id,
     });
   };
 
@@ -352,7 +345,12 @@ export function EmployeeAttendance({ me }) {
 
     setError("");
 
-    if (editing.clockIn >= editing.clockOut) {
+    if (!editing.clockIn) {
+      setError("Clock-in time is required.");
+      return;
+    }
+
+    if (editing.clockOut && editing.clockIn >= editing.clockOut) {
       setError("Clock-out must be after clock-in.");
       return;
     }
@@ -360,13 +358,18 @@ export function EmployeeAttendance({ me }) {
     setSaving(true);
 
     try {
-      const clockInISO = `${editing.date}T${editing.clockIn}:00.000Z`;
-      const clockOutISO = `${editing.date}T${editing.clockOut}:00.000Z`;
+      const clockInVal = `${editing.date}T${editing.clockIn}`;
+      const clockOutVal = editing.clockOut
+        ? `${editing.date}T${editing.clockOut}`
+        : null;
 
-      await updateAttendance({
+      await updateAttendance(editing.id, {
+        attendanceId: editing.id,
         date: editing.date,
-        clock_in: clockInISO,
-        clock_out: clockOutISO,
+        clockIn: clockInVal,
+        clockOut: clockOutVal,
+        clock_in: clockInVal,
+        clock_out: clockOutVal,
       });
 
       setEditing(null);
@@ -408,8 +411,8 @@ export function EmployeeAttendance({ me }) {
         />
       </div>
 
-      {/* ERROR */}
-      {error && (
+      {/* ERROR (only show at top if not currently editing in table) */}
+      {!editing && error && (
         <div className="px-3 py-2 rounded-lg bg-alert-light text-alert text-xs">
           {error}
         </div>
@@ -418,11 +421,10 @@ export function EmployeeAttendance({ me }) {
       {/* SUMMARY */}
       <AttendanceSummary stats={stats} formatDifference={formatDifference} />
 
-      {/* DAILY WORK HOURS & VARIANCE CHART */}
-      <WorkHoursChart
-        monthDates={monthDates}
+      {/* PUNCTUALITY & CHECK-IN RHYTHM CHART */}
+      <PunctualityRhythmChart
         records={monthRecords}
-        employeeName={me.name}
+        monthDates={monthDates}
       />
 
       {/* MONTHLY OVERVIEW */}
@@ -440,10 +442,14 @@ export function EmployeeAttendance({ me }) {
         getDateStatus={getDateStatus}
         editing={editing}
         saving={saving}
+        error={error}
         setEditing={setEditing}
         onStartEdit={startEdit}
         onSaveEdit={saveEdit}
-        onCancelEdit={() => setEditing(null)}
+        onCancelEdit={() => {
+          setEditing(null);
+          setError("");
+        }}
       />
     </div>
   );

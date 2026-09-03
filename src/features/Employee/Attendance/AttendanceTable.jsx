@@ -18,19 +18,19 @@ const columns = [
     width: "1fr",
   },
   {
-    key: "timeStatus",
-    label: "Time status",
-    width: "1.1fr",
+    key: "hours",
+    label: "Net Worked",
+    width: "1fr",
   },
   {
-    key: "hours",
-    label: "Worked",
-    width: "0.9fr",
+    key: "timeStatus",
+    label: "Shift Status",
+    width: "1.1fr",
   },
   {
     key: "action",
     label: "",
-    width: "50px",
+    width: "44px",
   },
 ];
 
@@ -41,6 +41,7 @@ export default function AttendanceTable({
   getDateStatus,
   editing,
   saving,
+  error,
   setEditing,
   onStartEdit,
   onSaveEdit,
@@ -53,9 +54,12 @@ export default function AttendanceTable({
   return (
     <div className="mt-4">
       {/* TABLE TITLE */}
-      <div className="bg-white border border-border border-b-0 rounded-t-xl px-4 py-2.5 flex items-center justify-between">
+      <div className="bg-white border border-border border-b-0 rounded-t-xl px-4 py-3 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-sm text-text">Daily log</h3>
+          <h3 className="font-semibold text-sm text-text">Daily Shift Log</h3>
+          <p className="text-[11px] text-text-muted mt-0.5">
+            Shift check-in/out records, net working hours after lunch, and variance.
+          </p>
         </div>
 
         <span className="text-[11px] font-mono text-text-muted bg-surface-muted px-2 py-0.5 rounded-md border border-border-light">
@@ -75,6 +79,7 @@ export default function AttendanceTable({
             result={getDateStatus(date)}
             editing={editing}
             saving={saving}
+            error={error}
             setEditing={setEditing}
             onStartEdit={onStartEdit}
             onSaveEdit={onSaveEdit}
@@ -85,3 +90,4 @@ export default function AttendanceTable({
     </div>
   );
 }
+

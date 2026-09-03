@@ -9,13 +9,12 @@ import {
 } from "lucide-react";
 
 import { NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
-
 import {
   fmtTime,
   formatDuration,
   getWorkedMinutes,
+  todayISO,
 } from "../../../utils/workTime";
-
 import {
   formatDifference,
   getWorkStatus,
@@ -32,18 +31,41 @@ export default function AttendanceRow({
   result,
   editing,
   saving,
+  error,
   setEditing,
   onStartEdit,
   onSaveEdit,
   onCancelEdit,
 }) {
   /*
-   * No attendance record
+   * Check if this date/record is currently being edited
+   */
+  const isEditing =
+    editing &&
+    (editing.id && record?.id
+      ? editing.id === record.id
+      : editing.date === date.isoDate);
+
+  if (isEditing) {
+    return (
+      <AttendanceEditForm
+        editing={editing}
+        saving={saving}
+        error={error}
+        setEditing={setEditing}
+        onSave={onSaveEdit}
+        onCancel={onCancelEdit}
+      />
+    );
+  }
+
+  /*
+   * No attendance record for this day
    */
   if (!record) {
     return (
       <div className="border-b border-border-light last:border-0 hover:bg-surface-muted/30 transition-colors">
-        <div className="px-4 py-2.5 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1.1fr_0.9fr_50px] gap-2 sm:gap-4 items-center">
+        <div className="px-4 py-2.5 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1.1fr_44px] gap-2 sm:gap-4 items-center">
           <DateCell date={date} />
 
           <MobileCell label="Clock in">
@@ -54,34 +76,25 @@ export default function AttendanceRow({
             <span className="text-xs text-text-faint font-mono">—</span>
           </MobileCell>
 
-          <MobileCell label="Time status">
-            <span className="text-xs text-text-faint">—</span>
+          <MobileCell label="Net Worked">
+            <span className="text-xs text-text-faint font-mono">—</span>
           </MobileCell>
 
-          <MobileCell label="Worked">
+          <MobileCell label="Shift Status">
             <StatusCell result={result} />
           </MobileCell>
 
-          <div />
+          <div className="flex justify-end">
+            <button
+              onClick={() => onStartEdit(date, null)}
+              className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-primary transition-colors"
+              title="Log attendance for this day"
+            >
+              <Pencil size={13} />
+            </button>
+          </div>
         </div>
       </div>
-    );
-  }
-
-  /*
-   * Editing
-   */
-  const isEditing = editing?.id === record.id;
-
-  if (isEditing) {
-    return (
-      <AttendanceEditForm
-        editing={editing}
-        saving={saving}
-        setEditing={setEditing}
-        onSave={onSaveEdit}
-        onCancel={onCancelEdit}
-      />
     );
   }
 
@@ -115,14 +128,14 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
 
   return (
     <div className="border-b border-border-light last:border-0 hover:bg-surface-muted/40 transition-colors">
-      <div className="px-4 py-2.5 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1.1fr_0.9fr_50px] gap-2 sm:gap-4 items-center">
+      <div className="px-4 py-2.5 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1.1fr_44px] gap-2 sm:gap-4 items-center">
         {/* DATE */}
         <DateCell date={date} workedOnHoliday={workedOnHoliday} />
 
         {/* CLOCK IN */}
         <MobileCell label="Clock in">
           <div>
-            <div className="font-mono text-xs font-medium text-text">
+            <div className="font-mono text-xs font-semibold text-text">
               {fmtTime(record.clock_in)}
             </div>
             <div className="mt-0.5">
@@ -145,30 +158,39 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
 
         {/* CLOCK OUT */}
         <MobileCell label="Clock out">
-          <span className="font-mono text-xs font-medium text-text">
-            {record.clock_out ? fmtTime(record.clock_out) : <span className="text-text-muted italic font-sans text-xs">Working</span>}
+          <span className="font-mono text-xs font-semibold text-text">
+            {record.clock_out ? (
+              fmtTime(record.clock_out)
+            ) : date.isoDate === todayISO() ? (
+              <span className="text-primary italic font-sans text-xs font-medium">
+                Working...
+              </span>
+            ) : (
+              <span className="inline-flex items-center text-[10px] font-semibold text-alert bg-alert-light px-2 py-0.5 rounded font-sans">
+                Missed check-out
+              </span>
+            )}
           </span>
         </MobileCell>
 
-        {/* TIME STATUS */}
-        <MobileCell label="Time status">
-          <TimeStatus record={record} workStatus={workStatus} />
-        </MobileCell>
-
-        {/* HOURS */}
-        <MobileCell label="Worked">
+        {/* NET WORKED HOURS */}
+        <MobileCell label="Net Worked">
           <HoursCell
             record={record}
             worked={worked}
-            workStatus={workStatus}
-            isLate={isLate}
+            date={date}
           />
+        </MobileCell>
+
+        {/* SHIFT STATUS / VARIANCE */}
+        <MobileCell label="Shift Status">
+          <TimeStatus record={record} workStatus={workStatus} date={date} />
         </MobileCell>
 
         {/* ACTION */}
         <div className="flex justify-end">
           <button
-            onClick={() => onStartEdit(record)}
+            onClick={() => onStartEdit(date, record)}
             className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text transition-colors"
             title="Edit attendance"
           >
@@ -211,50 +233,69 @@ function MobileCell({ label, children }) {
   );
 }
 
-function HoursCell({ record, worked, workStatus, isLate }) {
+function HoursCell({ record, worked, date }) {
+  const isToday = date?.isoDate === todayISO();
+
   return (
     <div>
       <div className="font-mono text-xs font-semibold text-text">
         {record.clock_out ? (
-          formatDuration(worked)
+          <>
+            <span>{formatDuration(worked)}</span>
+            <span className="text-[10px] text-text-muted block font-sans font-normal">
+              (after 1h lunch)
+            </span>
+          </>
+        ) : isToday ? (
+          <span className="text-xs font-normal text-text-muted italic">
+            In progress
+          </span>
         ) : (
-          <span className="text-xs font-normal text-text-muted italic">In progress</span>
+          <span className="text-xs font-normal text-alert italic font-sans">
+            Incomplete
+          </span>
         )}
       </div>
     </div>
   );
 }
 
-function TimeStatus({ record, workStatus }) {
+function TimeStatus({ record, workStatus, date }) {
+  const isToday = date?.isoDate === todayISO();
+
   return (
     <div>
       {record.clock_out ? (
         <>
           {/* OVERTIME */}
           {workStatus.type === "overtime" && (
-            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-overtime font-medium bg-[#E8F5E2] px-1.5 py-0.5 rounded leading-tight">
-              <TrendingUp size={11} />
-              +{formatDifference(workStatus.minutes)} OT
+            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-overtime font-bold bg-[#E8F5E2] px-2 py-0.5 rounded leading-tight">
+              <TrendingUp size={11} />+{formatDifference(workStatus.minutes)} OT
             </span>
           )}
 
           {/* UNDERTIME */}
           {workStatus.type === "undertime" && (
-            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-alert font-medium bg-alert-light px-1.5 py-0.5 rounded leading-tight">
-              <TrendingDown size={11} />
-              -{formatDifference(workStatus.minutes)} under
+            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-alert font-bold bg-alert-light px-2 py-0.5 rounded leading-tight">
+              <TrendingDown size={11} />-
+              {formatDifference(workStatus.minutes)} under
             </span>
           )}
 
-          {/* NORMAL */}
+          {/* NORMAL / STANDARD */}
           {workStatus.type === "normal" && (
-            <span className="font-mono text-[11px] text-text-muted">
-              8h completed
+            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-primary font-bold bg-primary-light px-2 py-0.5 rounded leading-tight">
+              <CheckCircle2 size={11} />
+              8h standard
             </span>
           )}
         </>
-      ) : (
+      ) : isToday ? (
         <span className="text-[11px] text-text-muted">8h expected</span>
+      ) : (
+        <span className="text-[11px] text-alert font-medium font-sans">
+          Click edit to fix
+        </span>
       )}
     </div>
   );
@@ -272,7 +313,7 @@ function StatusCell({ result }) {
   if (result.status === "holiday") {
     return (
       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-surface-muted text-text-muted border border-border">
-        {result.holiday?.name || "Saturday"}
+        {result.holiday?.name || (result.isSaturday ? "Saturday" : "Holiday")}
       </span>
     );
   }
@@ -283,3 +324,4 @@ function StatusCell({ result }) {
     </span>
   );
 }
+

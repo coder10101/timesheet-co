@@ -53,18 +53,54 @@ export function useAttendance(employeeId) {
   const updateAttendance = useMutation({
     mutationFn: async ({
       attendanceId,
-      clockIn: newClockIn,
-      clockOut: newClockOut,
+      clockIn,
+      clockOut,
+      clock_in,
+      clock_out,
+      date,
     }) => {
-      const { error } = await supabase
-        .from("attendance")
-        .update({
-          clock_in: newClockIn ? nepalDateTimeToISO(newClockIn) : null,
-          clock_out: newClockOut ? nepalDateTimeToISO(newClockOut) : null,
-        })
-        .eq("id", attendanceId)
-        .eq("employee_id", employeeId);
-      if (error) throw error;
+      const rawIn = clockIn !== undefined ? clockIn : clock_in;
+      const rawOut = clockOut !== undefined ? clockOut : clock_out;
+
+      const formatField = (val) => {
+        if (!val) return null;
+        if (
+          typeof val === "string" &&
+          val.endsWith("Z") &&
+          !val.includes("undefined")
+        ) {
+          return val;
+        }
+        return nepalDateTimeToISO(val);
+      };
+
+      const finalIn = formatField(rawIn);
+      const finalOut = formatField(rawOut);
+
+      if (attendanceId) {
+        const { error } = await supabase
+          .from("attendance")
+          .update({
+            clock_in: finalIn,
+            clock_out: finalOut,
+          })
+          .eq("id", attendanceId)
+          .eq("employee_id", employeeId);
+        if (error) throw error;
+      } else if (date) {
+        const { error } = await supabase.from("attendance").upsert(
+          {
+            employee_id: employeeId,
+            date,
+            clock_in: finalIn,
+            clock_out: finalOut,
+          },
+          { onConflict: "employee_id,date" },
+        );
+        if (error) throw error;
+      } else {
+        throw new Error("Missing attendance record ID or date.");
+      }
     },
     onSuccess: invalidate,
   });
@@ -75,8 +111,18 @@ export function useAttendance(employeeId) {
     clockIn: () => clockIn.mutateAsync(),
     clockInPending: clockIn.isPending,
     clockOut: () => clockOut.mutateAsync(),
-    updateAttendance: (attendanceId, payload) =>
-      updateAttendance.mutateAsync({ attendanceId, ...payload }),
+    updateAttendance: (attendanceIdOrPayload, maybePayload) => {
+      if (
+        typeof attendanceIdOrPayload === "object" &&
+        attendanceIdOrPayload !== null
+      ) {
+        return updateAttendance.mutateAsync(attendanceIdOrPayload);
+      }
+      return updateAttendance.mutateAsync({
+        attendanceId: attendanceIdOrPayload,
+        ...maybePayload,
+      });
+    },
   };
 }
 

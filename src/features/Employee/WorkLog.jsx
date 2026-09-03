@@ -100,6 +100,41 @@ export function EmployeeWorklog({ me }) {
     return Array.from(set).sort((a, b) => new Date(b) - new Date(a));
   }, [records, entries, filteredEntries, searchQuery, filterProjectId]);
 
+  // Compute project distribution
+  const projectStats = useMemo(() => {
+    if (!entries || entries.length === 0) return { segments: [], totalLogs: 0 };
+    const counts = new Map();
+    let total = 0;
+
+    const COLORS_PALETTE = [
+      "#63537E",
+      "#497833",
+      "#7A5A17",
+      "#913030",
+      "#3E8F18",
+      "#514366",
+    ];
+
+    entries.forEach((e) => {
+      const pId = e.project_id || "general";
+      counts.set(pId, (counts.get(pId) || 0) + 1);
+      total += 1;
+    });
+
+    const segments = Array.from(counts.entries())
+      .map(([pId, count], idx) => {
+        const proj = projectMap.get(pId);
+        const name =
+          pId === "general" ? "General / Misc" : proj?.name || "Project";
+        const pct = Math.round((count / total) * 100);
+        const color = COLORS_PALETTE[idx % COLORS_PALETTE.length];
+        return { pId, name, count, pct, color };
+      })
+      .sort((a, b) => b.count - a.count);
+
+    return { segments, totalLogs: total };
+  }, [entries, projectMap]);
+
   if (records === null || entries === null || projects === null) {
     return null;
   }
@@ -183,41 +218,6 @@ export function EmployeeWorklog({ me }) {
       setErr(e.message || "Failed to delete work log.");
     }
   };
-
-  // Compute project distribution
-  const projectStats = useMemo(() => {
-    if (!entries || entries.length === 0) return { segments: [], totalLogs: 0 };
-    const counts = new Map();
-    let total = 0;
-
-    const COLORS_PALETTE = [
-      "#63537E",
-      "#497833",
-      "#7A5A17",
-      "#913030",
-      "#3E8F18",
-      "#514366",
-    ];
-
-    entries.forEach((e) => {
-      const pId = e.project_id || "general";
-      counts.set(pId, (counts.get(pId) || 0) + 1);
-      total += 1;
-    });
-
-    const segments = Array.from(counts.entries())
-      .map(([pId, count], idx) => {
-        const proj = projectMap.get(pId);
-        const name =
-          pId === "general" ? "General / Misc" : proj?.name || "Project";
-        const pct = Math.round((count / total) * 100);
-        const color = COLORS_PALETTE[idx % COLORS_PALETTE.length];
-        return { pId, name, count, pct, color };
-      })
-      .sort((a, b) => b.count - a.count);
-
-    return { segments, totalLogs: total };
-  }, [entries, projectMap]);
 
   return (
     <div className="max-w-5xl mx-auto space-y-4 fade-in">
