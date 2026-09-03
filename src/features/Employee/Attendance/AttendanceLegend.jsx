@@ -7,6 +7,10 @@ export default function AttendanceLegend() {
       label: "Present",
     },
     {
+      color: "bg-[#63537E]",
+      label: "Site Visit",
+    },
+    {
       color: "bg-warning",
       label: "Late",
     },

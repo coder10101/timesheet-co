@@ -29,10 +29,16 @@ import {
   Search,
   Clock,
   AlertCircle,
+  Building2,
+  MapPin,
 } from "lucide-react";
 
 import { EmptyState } from "../../components/EmptyState";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
+import {
+  parseWorkLogEntry,
+  formatWorkLogEntryText,
+} from "../../utils/workType";
 
 export function EmployeeWorklog({ me }) {
   const { records } = useAttendance(me.id);
@@ -44,6 +50,8 @@ export function EmployeeWorklog({ me }) {
   const [text, setText] = useState("");
   const [projectId, setProjectId] = useState("");
   const [selectedDate, setSelectedDate] = useState(todayISO());
+  const [workType, setWorkType] = useState("desk"); // 'desk' | 'site'
+  const [duration, setDuration] = useState("2h"); // '1h' | '2h' | '4h' | 'Full Day'
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -70,12 +78,16 @@ export function EmployeeWorklog({ me }) {
   const filteredEntries = useMemo(() => {
     if (!entries) return [];
     return entries.filter((e) => {
+      const parsed = parseWorkLogEntry(e);
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const textMatch = e.entry_text?.toLowerCase().includes(q);
+        const textMatch = parsed.cleanText?.toLowerCase().includes(q);
         const proj = projectMap.get(e.project_id);
         const projMatch = proj?.name?.toLowerCase().includes(q);
-        if (!textMatch && !projMatch) return false;
+        const typeMatch =
+          parsed.workType.toLowerCase().includes(q) ||
+          (parsed.workType === "site" && "site visit".includes(q));
+        if (!textMatch && !projMatch && !typeMatch) return false;
       }
       if (filterProjectId !== "all") {
         if (filterProjectId === "none") {
@@ -104,9 +116,12 @@ export function EmployeeWorklog({ me }) {
 
   // Compute project distribution
   const projectStats = useMemo(() => {
-    if (!entries || entries.length === 0) return { segments: [], totalLogs: 0 };
+    if (!entries || entries.length === 0)
+      return { segments: [], totalLogs: 0, totalSiteLogs: 0, totalDeskLogs: 0 };
     const counts = new Map();
     let total = 0;
+    let totalSiteLogs = 0;
+    let totalDeskLogs = 0;
 
     const COLORS_PALETTE = [
       "#63537E",
@@ -118,6 +133,12 @@ export function EmployeeWorklog({ me }) {
     ];
 
     entries.forEach((e) => {
+      const parsed = parseWorkLogEntry(e);
+      if (parsed.workType === "site") {
+        totalSiteLogs++;
+      } else {
+        totalDeskLogs++;
+      }
       const pId = e.project_id || "general";
       counts.set(pId, (counts.get(pId) || 0) + 1);
       total += 1;
@@ -134,7 +155,7 @@ export function EmployeeWorklog({ me }) {
       })
       .sort((a, b) => b.count - a.count);
 
-    return { segments, totalLogs: total };
+    return { segments, totalLogs: total, totalSiteLogs, totalDeskLogs };
   }, [entries, projectMap]);
 
   if (records === null || entries === null || projects === null) {
@@ -162,9 +183,12 @@ export function EmployeeWorklog({ me }) {
   };
 
   const startEdit = (entry) => {
+    const parsed = parseWorkLogEntry(entry);
     setSelectedDate(entry.date);
     setEditingId(entry.id);
-    setText(entry.entry_text);
+    setText(parsed.cleanText);
+    setWorkType(parsed.workType);
+    if (parsed.duration) setDuration(parsed.duration);
     setProjectId(entry.project_id || "");
     setErr("");
 
@@ -183,6 +207,8 @@ export function EmployeeWorklog({ me }) {
   const resetForm = () => {
     setText("");
     setProjectId("");
+    setWorkType("desk");
+    setDuration("2h");
     setEditingId(null);
     setErr("");
   };
@@ -195,10 +221,21 @@ export function EmployeeWorklog({ me }) {
     setErr("");
 
     try {
+      const formattedText = formatWorkLogEntryText(value, workType, duration);
       if (editingId) {
-        await updateEntry(editingId, value, projectId || null);
+        await updateEntry({
+          entryId: editingId,
+          text: formattedText,
+          projectId: projectId || null,
+          workType,
+        });
       } else {
-        await addEntry(value, selectedDate, projectId || null);
+        await addEntry({
+          text: formattedText,
+          date: selectedDate,
+          projectId: projectId || null,
+          workType,
+        });
       }
 
       setOpenDates((prev) => {
@@ -246,10 +283,18 @@ export function EmployeeWorklog({ me }) {
       {/* VISUAL PROJECT EFFORT DISTRIBUTION BAR */}
       {projectStats.totalLogs > 0 && (
         <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-2.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-text">
-              Project Contribution Breakdown
-            </span>
+          <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-text">
+                Project Contribution Breakdown
+              </span>
+              {projectStats.totalSiteLogs > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/20 px-2 py-0.5 rounded-md">
+                  <MapPin size={10} /> {projectStats.totalSiteLogs} site visit
+                  {projectStats.totalSiteLogs !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
             <span className="font-mono text-text-muted text-[11px]">
               {projectStats.totalLogs} total entries across{" "}
               {projectStats.segments.length} initiative
@@ -296,6 +341,59 @@ export function EmployeeWorklog({ me }) {
           editingId ? "border-primary ring-2 ring-primary/20" : "border-border"
         }`}
       >
+        {/* WORK TYPE SELECTOR: DESK WORK VS SITE VISIT */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border-light">
+          <div className="flex items-center p-0.5 bg-surface-muted rounded-xl border border-border-light text-xs">
+            <button
+              type="button"
+              onClick={() => setWorkType("desk")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                workType === "desk"
+                  ? "bg-white text-text shadow-xs border border-border/50"
+                  : "text-text-muted hover:text-text"
+              }`}
+            >
+              <Building2 size={13} />
+              <span>Desk Work</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkType("site")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                workType === "site"
+                  ? "bg-[#63537E] text-white shadow-xs"
+                  : "text-text-muted hover:text-text"
+              }`}
+            >
+              <MapPin size={13} />
+              <span>Site Visit</span>
+            </button>
+          </div>
+
+          {/* DURATION PRESET CHIPS WHEN SITE VISIT IS CHOSEN */}
+          {workType === "site" && (
+            <div className="flex items-center gap-1 animate-fadeIn">
+              <span className="text-[11px] font-medium text-text-muted mr-1 hidden sm:inline">
+                Site Duration:
+              </span>
+              {["1h", "2h", "4h", "Full Day"].map((dur) => (
+                <button
+                  key={dur}
+                  type="button"
+                  onClick={() => setDuration(dur)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    duration === dur
+                      ? "bg-[#EEEAF2] text-[#63537E] border border-[#63537E]/40"
+                      : "bg-surface-muted/60 text-text-muted hover:text-text border border-border-light"
+                  }`}
+                >
+                  {dur}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* BIGGER TEXT AREA */}
         <div>
           <textarea
@@ -312,7 +410,9 @@ export function EmployeeWorklog({ me }) {
             placeholder={
               editingId
                 ? "Update your work description..."
-                : "What did you work on?"
+                : workType === "site"
+                  ? "What did you work on during this site visit?"
+                  : "What did you work on at your desk?"
             }
             className="w-full bg-surface-muted/40 focus:bg-white border border-border-light focus:border-primary rounded-xl p-3 text-xs sm:text-sm text-text outline-none resize-none transition-all shadow-2xs leading-relaxed"
           />
@@ -564,13 +664,14 @@ export function EmployeeWorklog({ me }) {
                         {dayEntries.map((entry) => {
                           const proj = projectMap.get(entry.project_id);
                           const dotColor = proj?.color || "#4F46E5";
+                          const parsed = parseWorkLogEntry(entry);
 
                           return (
                             <div
                               key={entry.id}
                               className="group flex items-start sm:items-center justify-between gap-2 px-2.5 sm:px-3 py-2 rounded-xl hover:bg-surface-muted/60 transition-colors"
                             >
-                              <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1">
+                              <div className="flex items-start sm:items-center gap-2 min-w-0 flex-1 flex-wrap sm:flex-nowrap">
                                 {proj && (
                                   <span
                                     className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shrink-0 mt-0.5 sm:mt-0"
@@ -579,8 +680,20 @@ export function EmployeeWorklog({ me }) {
                                     {proj.name}
                                   </span>
                                 )}
+
+                                {parsed.workType === "site" ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/30 px-2 py-0.5 rounded-md shrink-0">
+                                    <MapPin size={10} /> Site Visit
+                                    {parsed.duration && ` · ${parsed.duration}`}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-text-muted bg-surface-muted border border-border-light px-1.5 py-0.5 rounded-md shrink-0">
+                                    <Building2 size={10} /> Desk
+                                  </span>
+                                )}
+
                                 <span className="text-xs text-text leading-relaxed break-words min-w-0">
-                                  {entry.entry_text}
+                                  {parsed.cleanText}
                                 </span>
                               </div>
 

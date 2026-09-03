@@ -4,6 +4,7 @@ import {
   useAttendance,
   useHolidays,
   useLeaveRequests,
+  useWorkLogs,
 } from "../../hooks/useOrgData";
 import {
   fmtDate,
@@ -37,9 +38,11 @@ import {
   Calendar,
   AlertCircle,
   TrendingUp,
+  MapPin,
 } from "lucide-react";
 import { getEmployeeColor, COLORS } from "../../constants/colors";
 import { WorkHoursChart } from "../../components/charts/WorkHoursChart";
+import { getSiteSummaryForDate } from "../../utils/workType";
 
 export function AdminAttendance() {
   const { employees } = useRoster();
@@ -59,6 +62,7 @@ export function AdminAttendance() {
   }, [selected, employees]);
 
   const { records } = useAttendance(effectiveSelectedId);
+  const { entries: workLogs } = useWorkLogs(effectiveSelectedId);
   const { requests: leaveRequests } = useLeaveRequests(null, "org");
   const { holidays } = useHolidays();
 
@@ -93,29 +97,76 @@ export function AdminAttendance() {
     return list;
   }, [selectedBSYear, selectedBSMonth]);
 
+  const siteSummaryByDate = useMemo(() => {
+    const map = new Map();
+    if (!workLogs || !workLogs.length) return map;
+    monthDates.forEach((d) => {
+      const summary = getSiteSummaryForDate(workLogs, d.isoDate);
+      if (summary.hasSiteVisit) {
+        map.set(d.isoDate, summary);
+      }
+    });
+    return map;
+  }, [monthDates, workLogs]);
+
   const monthRecords = useMemo(() => {
-    if (!records || monthDates.length === 0) return [];
+    if (monthDates.length === 0) return [];
     const minISO = monthDates[0].isoDate;
     const maxISO = monthDates[monthDates.length - 1].isoDate;
-    return records
+    const recs = (records || [])
       .filter((r) => r.date >= minISO && r.date <= maxISO)
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [records, monthDates]);
+      .map((r) => ({ ...r }));
+    const recDateMap = new Map(recs.map((r) => [r.date, r]));
+
+    // Include days that have site visits even if no office punch exists
+    if (workLogs && workLogs.length > 0) {
+      monthDates.forEach((d) => {
+        if (!recDateMap.has(d.isoDate)) {
+          const site = siteSummaryByDate.get(d.isoDate);
+          if (site?.hasSiteVisit) {
+            recs.push({
+              id: `site-${d.isoDate}`,
+              date: d.isoDate,
+              clock_in: null,
+              clock_out: null,
+              is_site_only: true,
+              site_hours: site.totalHours,
+            });
+          }
+        }
+      });
+    }
+
+    return recs.sort((a, b) => b.date.localeCompare(a.date));
+  }, [records, monthDates, workLogs, siteSummaryByDate]);
 
   // Aggregate monthly stats
-  const monthPresentCount = monthRecords.filter(
-    (r) => r.clock_in && !isLateClockIn(r.clock_in),
-  ).length;
-  const monthLateCount = monthRecords.filter(
-    (r) => r.clock_in && isLateClockIn(r.clock_in),
-  ).length;
+  const monthPresentCount = monthRecords.filter((r) => {
+    return (
+      r.is_site_only ||
+      (r.clock_in && !isLateClockIn(r.clock_in))
+    );
+  }).length;
+
+  const monthLateCount = monthRecords.filter((r) => {
+    return r.clock_in && isLateClockIn(r.clock_in);
+  }).length;
+
   const totalWorkedMinutes = monthRecords.reduce((acc, r) => {
+    if (r.is_site_only) {
+      return acc + Math.round((r.site_hours || 8) * 60);
+    }
     if (r.clock_in && r.clock_out) {
       return acc + getWorkedMinutes(r.clock_in, r.clock_out);
     }
     return acc;
   }, 0);
+
   const netOvertimeMinutes = monthRecords.reduce((acc, r) => {
+    if (r.is_site_only) {
+      const worked = Math.round((r.site_hours || 8) * 60);
+      return acc + (worked - WORK_DAY_MINUTES);
+    }
     if (r.clock_in && r.clock_out) {
       const worked = getWorkedMinutes(r.clock_in, r.clock_out);
       return acc + (worked - WORK_DAY_MINUTES);
@@ -371,11 +422,14 @@ export function AdminAttendance() {
                   </thead>
                   <tbody className="divide-y divide-border-light">
                     {monthRecords.map((r) => {
-                      const workedMinutes =
-                        r.clock_in && r.clock_out
+                      const siteInfo = siteSummaryByDate.get(r.date);
+                      const hasSite = !!siteInfo?.hasSiteVisit;
+                      const workedMinutes = r.is_site_only
+                        ? Math.round((r.site_hours || 8) * 60)
+                        : r.clock_in && r.clock_out
                           ? getWorkedMinutes(r.clock_in, r.clock_out)
                           : null;
-                      const isLate = isLateClockIn(r.clock_in);
+                      const isLate = r.clock_in && isLateClockIn(r.clock_in);
                       const bs = isoToBS(r.date);
                       const weekday = getWeekday(r.date);
                       const diffMinutes =
@@ -400,11 +454,28 @@ export function AdminAttendance() {
                           </td>
 
                           <td className="px-3 py-3 font-mono text-xs text-text font-medium">
-                            {r.clock_in ? fmtTime(r.clock_in) : "—"}
+                            {r.is_site_only ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/30 px-1.5 py-0.5 rounded">
+                                <MapPin size={9} /> Site Duty
+                              </span>
+                            ) : (
+                              <>
+                                {r.clock_in ? fmtTime(r.clock_in) : "—"}
+                                {hasSite && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] px-1.5 py-0.2 rounded ml-1">
+                                    <MapPin size={8} /> Site
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </td>
 
                           <td className="px-3 py-3 font-mono text-xs text-text font-medium">
-                            {r.clock_out ? (
+                            {r.is_site_only ? (
+                              <span className="text-[11px] text-text-muted">
+                                Field Visit
+                              </span>
+                            ) : r.clock_out ? (
                               fmtTime(r.clock_out)
                             ) : r.clock_in ? (
                               <span className="text-primary italic font-sans text-[11px]">
@@ -442,13 +513,17 @@ export function AdminAttendance() {
                           </td>
 
                           <td className="px-4 py-3 text-right">
-                            {isLate ? (
-                              <span className="px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">
-                                Late
+                            {r.is_site_only ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#EEEAF2] text-[#63537E] border border-[#63537E]/30 text-[10px] font-semibold">
+                                <MapPin size={9} /> Site Visit
+                              </span>
+                            ) : isLate ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">
+                                Late {hasSite && "· Site"}
                               </span>
                             ) : r.clock_in ? (
-                              <span className="px-2 py-0.5 rounded-md bg-success-light text-success border border-success/30 text-[10px] font-semibold">
-                                On-Time
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-light text-success border border-success/30 text-[10px] font-semibold">
+                                On-Time {hasSite && "· Site"}
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-md bg-surface-muted text-text-muted border border-border text-[10px] font-semibold">

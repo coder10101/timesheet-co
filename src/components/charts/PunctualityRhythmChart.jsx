@@ -15,7 +15,7 @@ import { toNepalTimeString } from "../../utils/timezone";
 import { getWeekday } from "../../utils/attendance";
 import { WEEKDAY_LABELS } from "../../utils/nepaliCalendar";
 
-export function PunctualityRhythmChart({ records, monthDates }) {
+export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate }) {
   const stats = useMemo(() => {
     let earlyCount = 0;
     let onTimeCount = 0;
@@ -168,7 +168,7 @@ export function PunctualityRhythmChart({ records, monthDates }) {
       segments,
       circumference,
     };
-  }, [records]);
+  }, [records, siteSummaryByDate]);
 
   return (
     <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4">

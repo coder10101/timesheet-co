@@ -176,28 +176,74 @@ export function useWorkLogs(employeeId) {
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
 
   const addEntry = useMutation({
-    mutationFn: async ({ text, date = todayISO(), projectId }) => {
-      const { error } = await supabase.from("work_logs").insert({
+    mutationFn: async ({
+      text,
+      date = todayISO(),
+      projectId,
+      workType = "desk",
+    }) => {
+      const insertData = {
         employee_id: employeeId,
         date,
         entry_text: text,
         project_id: projectId ?? null,
-      });
-      if (error) throw error;
+        work_type: workType,
+      };
+
+      const { error } = await supabase.from("work_logs").insert(insertData);
+      if (error) {
+        if (error.message?.includes("work_type") || error.code === "42703") {
+          delete insertData.work_type;
+          const { error: err2 } = await supabase
+            .from("work_logs")
+            .insert(insertData);
+          if (err2) throw err2;
+        } else {
+          throw error;
+        }
+      }
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["attendance", employeeId] });
+      qc.invalidateQueries({ queryKey: ["org-attendance"] });
+    },
   });
 
   const updateEntry = useMutation({
-    mutationFn: async ({ entryId, text, projectId }) => {
+    mutationFn: async ({ entryId, text, projectId, workType }) => {
+      const updateData = {
+        entry_text: text,
+        project_id: projectId ?? null,
+      };
+      if (workType) {
+        updateData.work_type = workType;
+      }
+
       const { error } = await supabase
         .from("work_logs")
-        .update({ entry_text: text, project_id: projectId ?? null })
+        .update(updateData)
         .eq("id", entryId)
         .eq("employee_id", employeeId);
-      if (error) throw error;
+      if (error) {
+        if (error.message?.includes("work_type") || error.code === "42703") {
+          delete updateData.work_type;
+          const { error: err2 } = await supabase
+            .from("work_logs")
+            .update(updateData)
+            .eq("id", entryId)
+            .eq("employee_id", employeeId);
+          if (err2) throw err2;
+        } else {
+          throw error;
+        }
+      }
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["attendance", employeeId] });
+      qc.invalidateQueries({ queryKey: ["org-attendance"] });
+    },
   });
 
   const deleteEntry = useMutation({
@@ -209,16 +255,38 @@ export function useWorkLogs(employeeId) {
         .eq("employee_id", employeeId);
       if (error) throw error;
     },
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["attendance", employeeId] });
+      qc.invalidateQueries({ queryKey: ["org-attendance"] });
+    },
   });
 
   return {
     entries: query.data ?? null,
     isLoading: query.isLoading,
-    addEntry: (text, date, projectId) =>
-      addEntry.mutateAsync({ text, date, projectId }),
-    updateEntry: (entryId, text, projectId) =>
-      updateEntry.mutateAsync({ entryId, text, projectId }),
+    addEntry: (textOrPayload, date, projectId, workType) => {
+      if (typeof textOrPayload === "object" && textOrPayload !== null) {
+        return addEntry.mutateAsync(textOrPayload);
+      }
+      return addEntry.mutateAsync({
+        text: textOrPayload,
+        date,
+        projectId,
+        workType,
+      });
+    },
+    updateEntry: (entryIdOrPayload, text, projectId, workType) => {
+      if (typeof entryIdOrPayload === "object" && entryIdOrPayload !== null) {
+        return updateEntry.mutateAsync(entryIdOrPayload);
+      }
+      return updateEntry.mutateAsync({
+        entryId: entryIdOrPayload,
+        text,
+        projectId,
+        workType,
+      });
+    },
     deleteEntry: (entryId) => deleteEntry.mutateAsync(entryId),
   };
 }

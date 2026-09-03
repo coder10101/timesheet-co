@@ -57,6 +57,7 @@ export function EmployeeOverview({ me }) {
       <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4">
         <Today
           records={records}
+          entries={entries}
           clockIn={clockIn}
           clockOut={clockOut}
           clockInPending={clockInPending}

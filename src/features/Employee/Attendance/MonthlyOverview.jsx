@@ -5,6 +5,9 @@ function getBlockClass(status) {
     case "present":
       return "bg-success text-success";
 
+    case "site_full":
+      return "bg-[#63537E] text-white";
+
     case "late":
       return "bg-warning text-warning";
 
@@ -26,6 +29,10 @@ function getBlockClass(status) {
 }
 
 function getTooltip(result) {
+  if (result.status === "site_full") {
+    return `Site Visit (${result.siteInfo?.totalHours || 8}h)`;
+  }
+
   if (result.status === "holiday") {
     return result.holiday?.name || (result.isSaturday ? "Saturday" : "Holiday");
   }

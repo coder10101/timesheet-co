@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock, LogIn, LogOut, Check } from "lucide-react";
+import { Clock, LogIn, LogOut, Check, MapPin } from "lucide-react";
 
 import {
   formatDuration,
@@ -8,9 +8,11 @@ import {
   WORK_DAY_MINUTES,
 } from "../../../utils/workTime";
 import { ClockRing } from "../../../components/ClockRing";
+import { getSiteSummaryForDate } from "../../../utils/workType";
 
 export function Today({
   records,
+  entries = [],
   clockIn,
   clockOut,
   clockInPending,
@@ -21,6 +23,7 @@ export function Today({
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const todayRecord = records.find((record) => record.date === today);
+  const siteSummary = getSiteSummaryForDate(entries, today);
 
   useEffect(() => {
     if (!todayRecord?.clock_in || todayRecord?.clock_out) return;
@@ -152,12 +155,22 @@ export function Today({
               )}
               <p className="text-sm font-medium truncate">
                 {!todayRecord?.clock_in
-                  ? "Not clocked in yet"
+                  ? siteSummary.hasSiteVisit
+                    ? "Site visit logged today"
+                    : "Not clocked in yet"
                   : todayRecord.clock_out
                     ? "Workday completed"
                     : "Currently working"}
               </p>
             </div>
+
+            {siteSummary.hasSiteVisit && (
+              <div className="mt-1">
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/90 bg-[#63537E]/60 border border-white/20 px-2 py-0.5 rounded-full">
+                  <MapPin size={10} /> Site ({siteSummary.totalHours}h)
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

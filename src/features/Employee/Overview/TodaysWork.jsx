@@ -1,7 +1,20 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Check, X, ClipboardList } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  ClipboardList,
+  Building2,
+  MapPin,
+} from "lucide-react";
 import { todayISO } from "../../../utils/workTime";
 import { Card } from "../../../components/Card";
+import {
+  parseWorkLogEntry,
+  formatWorkLogEntryText,
+} from "../../../utils/workType";
 
 export function TodaysWork({
   entries,
@@ -14,6 +27,8 @@ export function TodaysWork({
 }) {
   const [workText, setWorkText] = useState("");
   const [workProjectId, setWorkProjectId] = useState("");
+  const [workType, setWorkType] = useState("desk"); // 'desk' | 'site'
+  const [duration, setDuration] = useState("2h");
   const [editingWorkId, setEditingWorkId] = useState(null);
   const [savingWork, setSavingWork] = useState(false);
 
@@ -30,14 +45,26 @@ export function TodaysWork({
     setErr("");
 
     try {
+      const formattedText = formatWorkLogEntryText(text, workType, duration);
       if (editingWorkId) {
-        await updateEntry(editingWorkId, text, workProjectId || null);
+        await updateEntry({
+          entryId: editingWorkId,
+          text: formattedText,
+          projectId: workProjectId || null,
+          workType,
+        });
       } else {
-        await addEntry(text, undefined, workProjectId || null);
+        await addEntry({
+          text: formattedText,
+          projectId: workProjectId || null,
+          workType,
+        });
       }
 
       setWorkText("");
       setWorkProjectId("");
+      setWorkType("desk");
+      setDuration("2h");
       setEditingWorkId(null);
     } catch (error) {
       setErr(error.message);
@@ -47,8 +74,11 @@ export function TodaysWork({
   };
 
   const startEditWork = (entry) => {
+    const parsed = parseWorkLogEntry(entry);
     setEditingWorkId(entry.id);
-    setWorkText(entry.entry_text);
+    setWorkText(parsed.cleanText);
+    setWorkType(parsed.workType);
+    if (parsed.duration) setDuration(parsed.duration);
     setWorkProjectId(entry.project_id || "");
   };
 
@@ -56,6 +86,8 @@ export function TodaysWork({
     setEditingWorkId(null);
     setWorkText("");
     setWorkProjectId("");
+    setWorkType("desk");
+    setDuration("2h");
   };
 
   const removeWork = async (id) => {
@@ -79,6 +111,55 @@ export function TodaysWork({
           : "Nothing logged yet"
       }
     >
+      {/* Category selector */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="flex items-center p-0.5 bg-surface-muted rounded-xl border border-border-light text-xs">
+          <button
+            type="button"
+            onClick={() => setWorkType("desk")}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+              workType === "desk"
+                ? "bg-white text-text shadow-xs border border-border/50"
+                : "text-text-muted hover:text-text"
+            }`}
+          >
+            <Building2 size={12} />
+            <span>Desk Work</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setWorkType("site")}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+              workType === "site"
+                ? "bg-[#63537E] text-white shadow-xs"
+                : "text-text-muted hover:text-text"
+            }`}
+          >
+            <MapPin size={12} />
+            <span>Site Visit</span>
+          </button>
+        </div>
+
+        {workType === "site" && (
+          <div className="flex items-center gap-1">
+            {["1h", "2h", "4h", "Full Day"].map((dur) => (
+              <button
+                key={dur}
+                type="button"
+                onClick={() => setDuration(dur)}
+                className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                  duration === dur
+                    ? "bg-[#EEEAF2] text-[#63537E] border border-[#63537E]/40"
+                    : "bg-surface-muted/60 text-text-muted hover:text-text"
+                }`}
+              >
+                {dur}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Compose bar */}
       <div className="flex items-center gap-2 mb-5">
         <div className="flex-1 flex items-center gap-2 bg-surface-muted rounded-full pl-1.5 pr-1 py-1 border border-transparent focus-within:border-primary focus-within:bg-white transition-colors">
@@ -103,7 +184,11 @@ export function TodaysWork({
             onKeyDown={(e) => {
               if (e.key === "Enter") saveWork();
             }}
-            placeholder="What did you work on?"
+            placeholder={
+              workType === "site"
+                ? "What did you do during this site visit?"
+                : "What did you work on?"
+            }
             className="flex-1 min-w-0 bg-transparent text-sm outline-none px-2 py-1.5"
           />
         </div>
@@ -142,6 +227,7 @@ export function TodaysWork({
             const project = projects.find((p) => p.id === entry.project_id);
             const dotColor = project?.color || "#B6B0A2";
             const isLast = idx === todayWorkLogs.length - 1;
+            const parsed = parseWorkLogEntry(entry);
 
             return (
               <div
@@ -166,7 +252,13 @@ export function TodaysWork({
                         {project.name}
                       </span>
                     )}
-                    {entry.entry_text}
+                    {parsed.workType === "site" && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/20 px-1.5 py-0.2 rounded mr-1.5 align-middle">
+                        <MapPin size={9} /> Site
+                        {parsed.duration && ` · ${parsed.duration}`}
+                      </span>
+                    )}
+                    {parsed.cleanText}
                   </span>
 
                   <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">

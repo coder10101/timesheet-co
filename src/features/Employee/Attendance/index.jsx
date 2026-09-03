@@ -4,10 +4,12 @@ import {
   useAttendance,
   useLeaveRequests,
   useHolidays,
+  useWorkLogs,
 } from "../../../hooks/useOrgData";
 
 import { getWorkedMinutes, todayISO } from "../../../utils/workTime";
 import { toNepalTimeString } from "../../../utils/timezone";
+import { getSiteSummaryForDate } from "../../../utils/workType";
 
 import {
   getMonthKey,
@@ -36,7 +38,7 @@ import { PunctualityRhythmChart } from "../../../components/charts/PunctualityRh
 
 export function EmployeeAttendance({ me }) {
   const { records, updateAttendance } = useAttendance(me.id);
-
+  const { entries: workLogs } = useWorkLogs(me.id);
   const { requests: leaveRequests } = useLeaveRequests(me.id);
 
   const { holidays } = useHolidays();
@@ -129,6 +131,19 @@ export function EmployeeAttendance({ me }) {
     return count;
   }, [monthDates, approvedLeaves]);
 
+  // SITE VISITS FROM WORK LOGS
+  const siteSummaryByDate = useMemo(() => {
+    const map = new Map();
+    if (!workLogs || !workLogs.length) return map;
+    monthDates.forEach((d) => {
+      const summary = getSiteSummaryForDate(workLogs, d.isoDate);
+      if (summary.hasSiteVisit) {
+        map.set(d.isoDate, summary);
+      }
+    });
+    return map;
+  }, [monthDates, workLogs]);
+
   // GET DATE STATUS
 
   const getDateStatus = (date) => {
@@ -149,6 +164,9 @@ export function EmployeeAttendance({ me }) {
     const isLeave = !!leave;
 
     const record = recordsByDate.get(date.isoDate);
+
+    const siteInfo = siteSummaryByDate.get(date.isoDate);
+    const hasSite = !!siteInfo?.hasSiteVisit;
 
     if (isFuture) {
       return {
@@ -187,6 +205,20 @@ export function EmployeeAttendance({ me }) {
     }
 
     if (!record || !record.clock_in) {
+      if (hasSite) {
+        // Employee logged site work for this day, so they are NOT absent!
+        return {
+          status: "site_full",
+          isHoliday: false,
+          isSaturday: false,
+          holiday: null,
+          isLeave: false,
+          leave: null,
+          record: null,
+          siteInfo,
+        };
+      }
+
       return {
         status: "absent",
         isHoliday: false,
@@ -195,6 +227,7 @@ export function EmployeeAttendance({ me }) {
         isLeave: false,
         leave: null,
         record: null,
+        siteInfo: null,
       };
     }
 
@@ -208,6 +241,8 @@ export function EmployeeAttendance({ me }) {
       isLeave: false,
       leave: null,
       record,
+      siteInfo,
+      isSiteHybrid: hasSite,
     };
   };
 
@@ -224,12 +259,28 @@ export function EmployeeAttendance({ me }) {
     monthDates.forEach((date) => {
       const result = getDateStatus(date);
 
-      if (result.status === "present" || result.status === "late") {
-        if (result.status === "present") {
+      if (
+        result.status === "present" ||
+        result.status === "late" ||
+        result.status === "site_full"
+      ) {
+        if (result.status === "present" || result.status === "site_full") {
           present++;
         }
 
-        if (result.record?.clock_in && result.record?.clock_out) {
+        if (result.status === "site_full") {
+          const creditedMins = Math.round(
+            (result.siteInfo?.totalHours || 8) * 60,
+          );
+          totalWorked += creditedMins;
+          const workStatus = getWorkStatus(creditedMins);
+          if (workStatus.type === "overtime") {
+            grossOvertimeMinutes += workStatus.minutes;
+          }
+          if (workStatus.type === "undertime") {
+            grossUndertimeMinutes += workStatus.minutes;
+          }
+        } else if (result.record?.clock_in && result.record?.clock_out) {
           const worked = getWorkedMinutes(
             result.record.clock_in,
             result.record.clock_out,
@@ -331,9 +382,7 @@ export function EmployeeAttendance({ me }) {
       ? toNepalTimeString(record.clock_out)
       : isToday
         ? ""
-        : record?.clock_in
-          ? "19:00"
-          : "19:00";
+        : "18:00";
 
     setEditing({
       id: record?.id || null,
@@ -432,6 +481,7 @@ export function EmployeeAttendance({ me }) {
       <PunctualityRhythmChart
         records={monthRecords}
         monthDates={monthDates}
+        siteSummaryByDate={siteSummaryByDate}
       />
 
       {/* MONTHLY OVERVIEW */}
