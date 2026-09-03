@@ -312,7 +312,7 @@ export function EmployeeWorklog({ me }) {
             placeholder={
               editingId
                 ? "Update your work description..."
-                : "What did you work on? e.g. Finished sprint deliverables, built API endpoints..."
+                : "What did you work on?"
             }
             className="w-full bg-surface-muted/40 focus:bg-white border border-border-light focus:border-primary rounded-xl p-3 text-xs sm:text-sm text-text outline-none resize-none transition-all shadow-2xs leading-relaxed"
           />
