@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   useAttendance,
   useWorkLogs,
@@ -38,6 +38,8 @@ export function EmployeeWorklog({ me }) {
   const { records } = useAttendance(me.id);
   const { entries, addEntry, updateEntry, deleteEntry } = useWorkLogs(me.id);
   const { projects } = useProjects();
+
+  const textareaRef = useRef(null);
 
   const [text, setText] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -173,6 +175,9 @@ export function EmployeeWorklog({ me }) {
     });
 
     window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 100);
   };
 
   const resetForm = () => {
@@ -294,6 +299,7 @@ export function EmployeeWorklog({ me }) {
         {/* BIGGER TEXT AREA */}
         <div>
           <textarea
+            ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -352,6 +358,7 @@ export function EmployeeWorklog({ me }) {
                 )}
 
                 <button
+                  type="button"
                   onClick={saveEntry}
                   disabled={!text.trim() || saving}
                   className="h-10 flex items-center gap-1 px-3 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 shrink-0 cursor-pointer"
@@ -376,6 +383,7 @@ export function EmployeeWorklog({ me }) {
             )}
 
             <button
+              type="button"
               onClick={saveEntry}
               disabled={!text.trim() || saving}
               className="h-10 flex items-center gap-1.5 px-4 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 shrink-0 cursor-pointer"
@@ -535,12 +543,18 @@ export function EmployeeWorklog({ me }) {
                       <div className="py-2 px-3 text-xs text-text-muted flex items-center justify-between">
                         <span>No work logged for this day.</span>
                         <button
-                          onClick={() => {
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setSelectedDate(date);
                             setEditingId(null);
                             window.scrollTo({ top: 0, behavior: "smooth" });
+                            setTimeout(() => {
+                              textareaRef.current?.focus();
+                            }, 100);
                           }}
-                          className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-dark hover:underline cursor-pointer"
                         >
                           + Log for this day
                         </button>
