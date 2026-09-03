@@ -14,7 +14,9 @@ import {
 import {
   useProjects,
   useOrgWorkLogs,
+  useRoster,
 } from "../../hooks/useOrgData";
+import { getEmployeeColor } from "../../constants/colors";
 
 const PRESET_COLORS = [
   "#63537E", // Plum (Primary)
@@ -31,6 +33,7 @@ export function AdminProjects({ me }) {
   const { projects, createProject, archiveProject, updateProject } =
     useProjects();
   const { entries } = useOrgWorkLogs();
+  const { employees } = useRoster();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -40,28 +43,52 @@ export function AdminProjects({ me }) {
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // Compute contributor counts per project
+  // Compute contributors and stats per project
   const projectStats = useMemo(() => {
     const map = new Map();
     const projList = projects || [];
     const entryList = entries || [];
+    const empMap = new Map((employees || []).map((e) => [e.id, e]));
 
     projList.forEach((p) => {
       const pEntries = entryList.filter((e) => e.project_id === p.id);
-      const uniqueEmployees = new Set(
-        pEntries.map((e) => e.employee_id).filter(Boolean),
-      );
+
+      // Map unique contributors with log counts
+      const contributorMap = new Map();
+      pEntries.forEach((e) => {
+        if (!e.employee_id) return;
+        const current = contributorMap.get(e.employee_id) || {
+          count: 0,
+          name: e.employeeName,
+        };
+        current.count += 1;
+        if (e.employeeName) current.name = e.employeeName;
+        contributorMap.set(e.employee_id, current);
+      });
+
+      const contributors = Array.from(contributorMap.entries())
+        .map(([empId, cStat]) => {
+          const emp = empMap.get(empId);
+          return {
+            id: empId,
+            name: emp?.name || cStat.name || "Team Member",
+            employee: emp || null,
+            logCount: cStat.count,
+          };
+        })
+        .sort((a, b) => b.logCount - a.logCount);
 
       const status = p.status || (p.archived ? "Completed" : "Active");
       map.set(p.id, {
-        memberCount: Math.max(uniqueEmployees.size, 1),
+        memberCount: contributors.length,
+        contributors,
         entryCount: pEntries.length,
         status,
       });
     });
 
     return map;
-  }, [projects, entries]);
+  }, [projects, entries, employees]);
 
   if (projects === null || entries === null) return null;
 
@@ -247,15 +274,53 @@ export function AdminProjects({ me }) {
                     </div>
                   </div>
 
-                  {/* METADATA ROW */}
-                  <div className="mt-3 flex items-center justify-between text-xs text-text-muted pt-2.5 border-t border-border-light">
-                    <span className="flex items-center gap-1">
-                      <Users size={13} />
-                      <span>{stats.memberCount} contributor{stats.memberCount !== 1 ? "s" : ""}</span>
-                    </span>
-                    <span className="font-mono text-[11px]">
-                      {stats.entryCount} log{stats.entryCount !== 1 ? "s" : ""} recorded
-                    </span>
+                  {/* CONTRIBUTORS SECTION */}
+                  <div className="mt-3.5 pt-3 border-t border-border-light space-y-2">
+                    <div className="flex items-center justify-between text-xs text-text-muted">
+                      <span className="flex items-center gap-1.5 font-semibold text-text">
+                        <Users size={13} className="text-text-muted" />
+                        <span>
+                          {stats.contributors?.length || 0} Contributor
+                          {(stats.contributors?.length || 0) !== 1 ? "s" : ""}
+                        </span>
+                      </span>
+                      <span className="font-mono text-[11px]">
+                        {stats.entryCount} log{stats.entryCount !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+
+                    {stats.contributors && stats.contributors.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {stats.contributors.map((c) => (
+                          <span
+                            key={c.id}
+                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-surface-muted border border-border-light text-[11px] font-medium text-text hover:border-border transition-colors shadow-2xs"
+                            title={`${c.name}: ${c.logCount} work log${c.logCount !== 1 ? "s" : ""}`}
+                          >
+                            <span
+                              className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0 shadow-2xs"
+                              style={{
+                                backgroundColor: c.employee
+                                  ? getEmployeeColor(c.employee)
+                                  : "#63537E",
+                              }}
+                            >
+                              {c.name?.slice(0, 1).toUpperCase()}
+                            </span>
+                            <span className="truncate max-w-[130px] font-medium">
+                              {c.name}
+                            </span>
+                            <span className="text-[10px] text-text-muted font-mono font-normal">
+                              ({c.logCount})
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-text-muted italic pt-0.5">
+                        No team contributions yet
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
