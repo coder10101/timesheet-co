@@ -24,6 +24,7 @@ import {
   Trash2,
   ChevronDown,
   Plus,
+  Minus,
   X,
   Check,
   Search,
@@ -51,7 +52,8 @@ export function EmployeeWorklog({ me }) {
   const [projectId, setProjectId] = useState("");
   const [selectedDate, setSelectedDate] = useState(todayISO());
   const [workType, setWorkType] = useState("desk"); // 'desk' | 'site'
-  const [duration, setDuration] = useState("2h"); // '1h' | '2h' | '4h' | 'Full Day'
+  const [siteHours, setSiteHours] = useState(2);
+  const [isFullDay, setIsFullDay] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -182,13 +184,35 @@ export function EmployeeWorklog({ me }) {
     setOpenDates(new Set());
   };
 
+  const adjustSiteHours = (delta) => {
+    setIsFullDay(false);
+    setSiteHours((prev) => {
+      const next = Math.max(0.5, Math.min(12, Math.round((prev + delta) * 2) / 2));
+      return next;
+    });
+  };
+
   const startEdit = (entry) => {
     const parsed = parseWorkLogEntry(entry);
     setSelectedDate(entry.date);
     setEditingId(entry.id);
     setText(parsed.cleanText);
     setWorkType(parsed.workType);
-    if (parsed.duration) setDuration(parsed.duration);
+
+    if (parsed.workType === "site") {
+      if (parsed.duration?.toLowerCase().includes("full")) {
+        setIsFullDay(true);
+        setSiteHours(8);
+      } else {
+        setIsFullDay(false);
+        const match = parsed.duration?.match(/(\d+(?:\.\d+)?)/);
+        setSiteHours(match ? parseFloat(match[1]) : 2);
+      }
+    } else {
+      setIsFullDay(false);
+      setSiteHours(2);
+    }
+
     setProjectId(entry.project_id || "");
     setErr("");
 
@@ -208,7 +232,8 @@ export function EmployeeWorklog({ me }) {
     setText("");
     setProjectId("");
     setWorkType("desk");
-    setDuration("2h");
+    setSiteHours(2);
+    setIsFullDay(false);
     setEditingId(null);
     setErr("");
   };
@@ -221,7 +246,8 @@ export function EmployeeWorklog({ me }) {
     setErr("");
 
     try {
-      const formattedText = formatWorkLogEntryText(value, workType, duration);
+      const finalDuration = isFullDay ? "Full Day" : `${siteHours}h`;
+      const formattedText = formatWorkLogEntryText(value, workType, finalDuration);
       if (editingId) {
         await updateEntry({
           entryId: editingId,
@@ -370,26 +396,94 @@ export function EmployeeWorklog({ me }) {
             </button>
           </div>
 
-          {/* DURATION PRESET CHIPS WHEN SITE VISIT IS CHOSEN */}
+          {/* DURATION INPUT & STEPPER WHEN SITE VISIT IS CHOSEN */}
           {workType === "site" && (
-            <div className="flex items-center gap-1 animate-fadeIn">
-              <span className="text-[11px] font-medium text-text-muted mr-1 hidden sm:inline">
-                Site Duration:
+            <div className="flex items-center gap-1.5 flex-wrap animate-fadeIn">
+              <span className="text-[11px] font-medium text-text-muted mr-0.5 hidden sm:inline">
+                Site Hours:
               </span>
-              {["1h", "2h", "4h", "Full Day"].map((dur) => (
+
+              {/* Number box with Stepper */}
+              <div className="flex items-center bg-surface-muted border border-border-light rounded-xl p-0.5 shadow-2xs">
                 <button
-                  key={dur}
                   type="button"
-                  onClick={() => setDuration(dur)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    duration === dur
-                      ? "bg-[#EEEAF2] text-[#63537E] border border-[#63537E]/40"
+                  disabled={isFullDay || siteHours <= 0.5}
+                  onClick={() => adjustSiteHours(-0.5)}
+                  className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white text-text-muted hover:text-text disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  title="Decrease by 30 mins"
+                >
+                  <Minus size={11} />
+                </button>
+
+                <div className="flex items-center px-1 font-mono text-xs">
+                  <input
+                    type="number"
+                    min="0.5"
+                    max="12"
+                    step="0.5"
+                    disabled={isFullDay}
+                    value={isFullDay ? 8 : siteHours}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val) && val > 0) {
+                        setSiteHours(Math.min(12, Math.max(0.5, val)));
+                        setIsFullDay(false);
+                      }
+                    }}
+                    className="w-9 text-center font-bold text-text bg-transparent outline-none disabled:text-text-muted"
+                  />
+                  <span className="text-text-muted text-[10px] font-medium pr-0.5">h</span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isFullDay || siteHours >= 12}
+                  onClick={() => adjustSiteHours(0.5)}
+                  className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-white text-text-muted hover:text-text disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                  title="Increase by 30 mins"
+                >
+                  <Plus size={11} />
+                </button>
+              </div>
+
+              {/* Quick presets for common hours */}
+              {[1, 2, 3, 4, 5].map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => {
+                    setSiteHours(h);
+                    setIsFullDay(false);
+                  }}
+                  className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    !isFullDay && siteHours === h
+                      ? "bg-[#EEEAF2] text-[#63537E] border border-[#63537E]/40 shadow-2xs"
                       : "bg-surface-muted/60 text-text-muted hover:text-text border border-border-light"
                   }`}
                 >
-                  {dur}
+                  {h}h
                 </button>
               ))}
+
+              {/* Full Day (8h) Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isFullDay) {
+                    setIsFullDay(false);
+                  } else {
+                    setIsFullDay(true);
+                    setSiteHours(8);
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  isFullDay
+                    ? "bg-[#63537E] text-white shadow-2xs"
+                    : "bg-surface-muted/60 text-text-muted hover:text-text border border-border-light"
+                }`}
+              >
+                Full Day (8h)
+              </button>
             </div>
           )}
         </div>
