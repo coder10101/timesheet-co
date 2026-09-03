@@ -28,19 +28,37 @@ export default function AttendanceSummary({ stats, formatDifference }) {
     },
     {
       icon: TrendingUp,
-      color: "text-success",
-      bg: "bg-success-light border-success/30",
+      color: stats.overtimeMinutes > 0 ? "text-success" : "text-text-muted",
+      bg:
+        stats.overtimeMinutes > 0
+          ? "bg-success-light border-success/30"
+          : "bg-surface-muted border-border-light",
       label: "Overtime",
-      value: formatDifference(stats.overtimeMinutes),
-      footer: "above 8 hours",
+      value:
+        stats.overtimeMinutes > 0
+          ? `+${formatDifference(stats.overtimeMinutes)}`
+          : "0m",
+      footer:
+        stats.overtimeMinutes > 0
+          ? "extra hours worked"
+          : "no extra hours",
     },
     {
       icon: TrendingDown,
-      color: "text-alert",
-      bg: "bg-alert-light border-alert/30",
-      label: "Undertime",
-      value: formatDifference(stats.undertimeMinutes),
-      footer: "below 8 hours",
+      color: stats.undertimeMinutes > 0 ? "text-alert" : "text-success",
+      bg:
+        stats.undertimeMinutes > 0
+          ? "bg-alert-light border-alert/30"
+          : "bg-success-light border-success/30",
+      label: "Short Hours",
+      value:
+        stats.undertimeMinutes > 0
+          ? `-${formatDifference(stats.undertimeMinutes)}`
+          : "0m",
+      footer:
+        stats.undertimeMinutes > 0
+          ? "time to make up"
+          : "target hours met",
     },
   ];
 

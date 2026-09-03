@@ -218,8 +218,8 @@ export function EmployeeAttendance({ me }) {
     let late = 0;
     let absent = 0;
     let totalWorked = 0;
-    let overtimeMinutes = 0;
-    let undertimeMinutes = 0;
+    let grossOvertimeMinutes = 0;
+    let grossUndertimeMinutes = 0;
 
     monthDates.forEach((date) => {
       const result = getDateStatus(date);
@@ -240,11 +240,11 @@ export function EmployeeAttendance({ me }) {
           const workStatus = getWorkStatus(worked);
 
           if (workStatus.type === "overtime") {
-            overtimeMinutes += workStatus.minutes;
+            grossOvertimeMinutes += workStatus.minutes;
           }
 
           if (workStatus.type === "undertime") {
-            undertimeMinutes += workStatus.minutes;
+            grossUndertimeMinutes += workStatus.minutes;
           }
         }
 
@@ -268,6 +268,10 @@ export function EmployeeAttendance({ me }) {
       }
     });
 
+    const netMinutes = grossOvertimeMinutes - grossUndertimeMinutes;
+    const overtimeMinutes = netMinutes > 0 ? netMinutes : 0;
+    const undertimeMinutes = netMinutes < 0 ? Math.abs(netMinutes) : 0;
+
     return {
       present,
       late,
@@ -276,6 +280,9 @@ export function EmployeeAttendance({ me }) {
       totalWorked,
       overtimeMinutes,
       undertimeMinutes,
+      grossOvertimeMinutes,
+      grossUndertimeMinutes,
+      netMinutes,
     };
   }, [
     monthDates,
