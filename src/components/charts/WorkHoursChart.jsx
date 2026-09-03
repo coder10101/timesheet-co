@@ -154,7 +154,7 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
             </span>
           </div>
           <p className="text-xs text-text-muted mt-0.5">
-            Click or hover on any day to inspect detailed shift hours and lunch deduction.
+            Standard shift: 8 hours (including lunch). Click or hover on any day to inspect detailed shift hours.
           </p>
         </div>
 
@@ -349,7 +349,7 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
                   {activeDay.elapsedMinutes > 0 && (
                     <span className="inline-flex items-center gap-1 text-[11px] text-text-muted">
                       <Coffee size={11} className="text-text-faint" />
-                      Gross: {formatDuration(activeDay.elapsedMinutes)} (incl. 1h lunch)
+                      Duration: {formatDuration(activeDay.elapsedMinutes)} (incl. lunch)
                     </span>
                   )}
                 </>

@@ -139,12 +139,14 @@ export default function AttendanceEditForm({
           ) : (
             <button
               type="button"
-              onClick={() => handleApplyPreset(editing.clockIn || "10:00", "19:00")}
+              onClick={() =>
+                handleApplyPreset(editing.clockIn || "10:00", "18:00")
+              }
               className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-white border border-border hover:border-primary/50 text-text-muted hover:text-primary transition-all shadow-2xs"
-              title="Set standard shift 10:00 AM to 7:00 PM (8h worked + 1h lunch)"
+              title="Set standard shift 10:00 AM to 6:00 PM (8h shift including lunch)"
             >
               <Sparkles size={11} className="text-primary" />
-              Standard Shift (10–19)
+              Standard Shift (10–18)
             </button>
           )}
         </div>
@@ -178,7 +180,7 @@ export default function AttendanceEditForm({
             <span className="text-[10px] font-normal text-text-muted">
               {!editing.clockOut
                 ? "(Optional — leave empty if still on shift)"
-                : "(Standard ~07:00 PM)"}
+                : "(Standard ~06:00 PM)"}
             </span>
           </span>
           <input
@@ -212,7 +214,7 @@ export default function AttendanceEditForm({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="p-2 rounded-lg bg-surface-muted/50 border border-border-light">
                 <span className="text-[10px] text-text-muted block">
-                  Gross Elapsed
+                  Elapsed Time
                 </span>
                 <span className="font-mono font-semibold text-text">
                   {formatDuration(preview.elapsedMins)}
@@ -221,16 +223,16 @@ export default function AttendanceEditForm({
 
               <div className="p-2 rounded-lg bg-surface-muted/50 border border-border-light">
                 <span className="text-[10px] text-text-muted block">
-                  Lunch Deducted
+                  Lunch Break
                 </span>
-                <span className="font-mono font-semibold text-text-muted">
-                  -1h 00m
+                <span className="font-mono font-semibold text-text-muted text-[11px]">
+                  Included in 8h
                 </span>
               </div>
 
               <div className="p-2 rounded-lg bg-surface-muted/50 border border-border-light">
                 <span className="text-[10px] text-text-muted block">
-                  Net Worked
+                  Worked Hours
                 </span>
                 <span className="font-mono font-bold text-text">
                   {formatDuration(preview.workedMins)}

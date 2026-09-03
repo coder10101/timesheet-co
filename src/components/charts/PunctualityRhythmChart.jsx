@@ -75,7 +75,7 @@ export function PunctualityRhythmChart({ records, monthDates }) {
     const avgInStr = `${avgInH % 12 || 12}:${String(avgInM).padStart(2, "0")} ${avgInH >= 12 ? "PM" : "AM"}`;
 
     const avgOutMins =
-      clockedOutCount > 0 ? Math.round(totalOutMinutes / clockedOutCount) : 1140;
+      clockedOutCount > 0 ? Math.round(totalOutMinutes / clockedOutCount) : 1080;
     const avgOutH = Math.floor(avgOutMins / 60);
     const avgOutM = avgOutMins % 60;
     const avgOutStr =
@@ -178,7 +178,7 @@ export function PunctualityRhythmChart({ records, monthDates }) {
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-text">Punctuality & Check-In Rhythm</h3>
             <span className="text-[11px] font-mono text-primary bg-primary-light px-2 py-0.5 rounded font-semibold border border-primary/20">
-              Shift: 10:00 AM – 7:00 PM
+              Shift: 10:00 AM – 6:00 PM (8h incl. lunch)
             </span>
           </div>
           <p className="text-xs text-text-muted mt-0.5">
@@ -283,7 +283,7 @@ export function PunctualityRhythmChart({ records, monthDates }) {
             <p className="text-base font-bold font-mono text-text">
               {stats.avgOutStr}
             </p>
-            <p className="text-[10px] text-text-muted">Standard: 07:00 PM</p>
+            <p className="text-[10px] text-text-muted">Standard: 06:00 PM</p>
           </div>
 
           {/* BEST DAY */}

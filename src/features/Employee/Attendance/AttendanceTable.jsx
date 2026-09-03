@@ -58,7 +58,7 @@ export default function AttendanceTable({
         <div>
           <h3 className="font-semibold text-sm text-text">Daily Shift Log</h3>
           <p className="text-[11px] text-text-muted mt-0.5">
-            Shift check-in/out records, net working hours after lunch, and variance.
+            Shift check-in/out records, worked hours (8h shift incl. lunch), and variance.
           </p>
         </div>
 

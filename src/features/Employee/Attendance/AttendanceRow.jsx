@@ -240,12 +240,7 @@ function HoursCell({ record, worked, date }) {
     <div>
       <div className="font-mono text-xs font-semibold text-text">
         {record.clock_out ? (
-          <>
-            <span>{formatDuration(worked)}</span>
-            <span className="text-[10px] text-text-muted block font-sans font-normal">
-              (after 1h lunch)
-            </span>
-          </>
+          <span>{formatDuration(worked)}</span>
         ) : isToday ? (
           <span className="text-xs font-normal text-text-muted italic">
             In progress

@@ -1,7 +1,7 @@
 import { isoToBSLabel } from "./nepaliCalendar";
 
 export const WORK_DAY_MINUTES = 8 * 60;
-export const LUNCH_MINUTES = 60;
+export const LUNCH_MINUTES = 0; // Work hours is 8 hours including lunch
 
 /**
  * Returns today's date in YYYY-MM-DD in the Nepal timezone (Asia/Kathmandu).
@@ -19,12 +19,11 @@ export const todayISO = () => {
 };
 
 /**
- * Calculates actual working time.
+ * Calculates actual working time (8-hour work day including lunch).
  *
  * Example:
- * 9:00 AM -> 6:00 PM
- * = 9 hours elapsed
- * - 1 hour lunch
+ * 10:00 AM -> 6:00 PM
+ * = 8 hours elapsed (lunch included)
  * = 8 hours worked
  */
 export const getWorkedMinutes = (clockIn, clockOut) => {
@@ -46,7 +45,7 @@ export const getWorkedMinutes = (clockIn, clockOut) => {
     return 0;
   }
 
-  // 1 hour lunch deduction
+  // Work hour is 8 hours including lunch
   return Math.max(0, totalMinutes - LUNCH_MINUTES);
 };
 
