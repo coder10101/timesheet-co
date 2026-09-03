@@ -27,8 +27,11 @@ import {
   Briefcase,
   Layers,
   ChevronRight,
+  Building2,
+  MapPin,
 } from "lucide-react";
 import { getEmployeeColor } from "../../constants/colors";
+import { parseWorkLogEntry } from "../../utils/workType";
 
 const PROJECT_BORDER_COLORS = [
   "#2563EB", // Blue
@@ -80,22 +83,73 @@ export function AdminWorklogs() {
     return map;
   }, [records]);
 
-  // Filtered & grouped entries for selected month
-  const filteredEntries = useMemo(() => {
+  const [workTypeFilter, setWorkTypeFilter] = useState("all"); // "all" | "desk" | "site"
+
+  // All entries for selected month
+  const monthEntries = useMemo(() => {
     return (entries || []).filter((item) => {
       const bs = isoToBS(item.date);
       if (bs && (bs.month !== selectedBSMonth || bs.year !== selectedBSYear)) {
         return false;
       }
-      if (
-        search.trim() &&
-        !item.entry_text.toLowerCase().includes(search.toLowerCase())
-      ) {
-        return false;
-      }
       return true;
     });
-  }, [entries, search, selectedBSMonth, selectedBSYear]);
+  }, [entries, selectedBSMonth, selectedBSYear]);
+
+  // Counts of Desk vs Site
+  const countsByType = useMemo(() => {
+    let deskCount = 0;
+    let siteCount = 0;
+    let siteHours = 0;
+
+    monthEntries.forEach((item) => {
+      const parsed = parseWorkLogEntry(item);
+      if (parsed.workType === "site") {
+        siteCount++;
+        const numMatch = parsed.duration?.match(/(\d+(?:\.\d+)?)/);
+        if (numMatch) {
+          siteHours += parseFloat(numMatch[1]);
+        } else if (parsed.duration?.toLowerCase().includes("full")) {
+          siteHours += 8;
+        } else {
+          siteHours += 2;
+        }
+      } else {
+        deskCount++;
+      }
+    });
+
+    return {
+      all: monthEntries.length,
+      desk: deskCount,
+      site: siteCount,
+      siteHours,
+    };
+  }, [monthEntries]);
+
+  // Filtered entries for selected month, search, and workTypeFilter
+  const filteredEntries = useMemo(() => {
+    return monthEntries.filter((item) => {
+      const parsed = parseWorkLogEntry(item);
+
+      if (workTypeFilter === "desk" && parsed.workType !== "desk") {
+        return false;
+      }
+      if (workTypeFilter === "site" && parsed.workType !== "site") {
+        return false;
+      }
+
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const textMatch = parsed.cleanText.toLowerCase().includes(q);
+        const proj = projectMap[item.project_id];
+        const projMatch = proj?.name?.toLowerCase().includes(q);
+        if (!textMatch && !projMatch) return false;
+      }
+
+      return true;
+    });
+  }, [monthEntries, workTypeFilter, search, projectMap]);
 
   const grouped = useMemo(() => {
     return filteredEntries.reduce((acc, e) => {
@@ -235,11 +289,91 @@ export function AdminWorklogs() {
             </div>
           )}
 
+          {/* WORK TYPE FILTER TABS: ALL vs DESK WORK vs SITE VISITS */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white border border-border rounded-2xl p-2.5 sm:px-3.5 shadow-2xs">
+            <div className="flex items-center p-0.5 bg-surface-muted rounded-xl border border-border-light text-xs">
+              <button
+                type="button"
+                onClick={() => setWorkTypeFilter("all")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                  workTypeFilter === "all"
+                    ? "bg-white text-text shadow-xs border border-border/50"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                <Layers size={13} />
+                <span>All Logs</span>
+                <span className="ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full bg-surface-muted text-text-muted font-mono font-bold">
+                  {countsByType.all}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setWorkTypeFilter("desk")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                  workTypeFilter === "desk"
+                    ? "bg-white text-text shadow-xs border border-border/50"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                <Building2 size={13} />
+                <span>Desk Work</span>
+                <span className="ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full bg-surface-muted text-text-muted font-mono font-bold">
+                  {countsByType.desk}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setWorkTypeFilter("site")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                  workTypeFilter === "site"
+                    ? "bg-[#63537E] text-white shadow-xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                <MapPin size={13} />
+                <span>Site Visits</span>
+                <span
+                  className={`ml-0.5 text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    workTypeFilter === "site"
+                      ? "bg-white/20 text-white"
+                      : "bg-[#EEEAF2] text-[#63537E]"
+                  }`}
+                >
+                  {countsByType.site}
+                </span>
+              </button>
+            </div>
+
+            {/* QUICK STAT SUMMARY */}
+            <div className="flex items-center gap-2.5 text-xs text-text-muted">
+              {countsByType.site > 0 && (
+                <span className="inline-flex items-center gap-1 font-medium text-[#63537E] bg-[#EEEAF2] px-2 py-0.5 rounded-md text-[11px]">
+                  <MapPin size={11} /> {countsByType.site} site visit
+                  {countsByType.site !== 1 ? "s" : ""} (~{countsByType.siteHours}
+                  h)
+                </span>
+              )}
+              <span className="font-mono text-[11px]">
+                Showing {filteredEntries.length} of {countsByType.all}
+              </span>
+            </div>
+          </div>
+
           {/* VISUAL PROJECT EFFORT DISTRIBUTION BAR */}
           {filteredEntries.length > 0 && (() => {
             const counts = new Map();
             let total = 0;
-            const COLORS_PALETTE = ["#63537E", "#497833", "#7A5A17", "#913030", "#3E8F18", "#514366"];
+            const COLORS_PALETTE = [
+              "#63537E",
+              "#497833",
+              "#7A5A17",
+              "#913030",
+              "#3E8F18",
+              "#514366",
+            ];
 
             filteredEntries.forEach((e) => {
               const pId = e.project_id || "general";
@@ -247,18 +381,31 @@ export function AdminWorklogs() {
               total += 1;
             });
 
-            const segments = Array.from(counts.entries()).map(([pId, count], idx) => {
-              const proj = projectMap[pId];
-              const name = pId === "general" ? "General / Misc" : proj?.name || "Project";
-              const pct = Math.round((count / total) * 100);
-              const color = COLORS_PALETTE[idx % COLORS_PALETTE.length];
-              return { pId, name, count, pct, color };
-            }).sort((a, b) => b.count - a.count);
+            const segments = Array.from(counts.entries())
+              .map(([pId, count], idx) => {
+                const proj = projectMap[pId];
+                const name =
+                  pId === "general" ? "General / Misc" : proj?.name || "Project";
+                const pct = Math.round((count / total) * 100);
+                const color = COLORS_PALETTE[idx % COLORS_PALETTE.length];
+                return { pId, name, count, pct, color };
+              })
+              .sort((a, b) => b.count - a.count);
 
             return (
               <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-2.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold text-text">Project Allocation Breakdown</span>
+                <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-text">
+                      Project Allocation Breakdown
+                    </span>
+                    {countsByType.site > 0 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/20 px-2 py-0.5 rounded-md">
+                        <MapPin size={9} /> {countsByType.site} site visit
+                        {countsByType.site !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
                   <span className="font-mono text-text-muted text-[11px]">
                     {total} logged entries ({segments.length} projects)
                   </span>
@@ -349,21 +496,33 @@ export function AdminWorklogs() {
                           const borderColor =
                             project?.color ||
                             PROJECT_BORDER_COLORS[idx % PROJECT_BORDER_COLORS.length];
+                          const parsed = parseWorkLogEntry(it);
 
                           return (
                             <div
                               key={it.id}
-                              className="pl-3.5 py-1 border-l-3 space-y-1 transition-colors"
+                              className="pl-3.5 py-1.5 border-l-3 space-y-1 transition-colors"
                               style={{ borderColor }}
                             >
-                              <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center justify-between gap-2 flex-wrap">
                                 <span className="text-xs font-bold text-text">
                                   {project ? project.name : "General Work"}
                                 </span>
+
+                                {parsed.workType === "site" ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/30 px-2 py-0.5 rounded-md">
+                                    <MapPin size={10} /> Site Visit
+                                    {parsed.duration && ` · ${parsed.duration}`}
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-text-muted bg-surface-muted border border-border-light px-1.5 py-0.5 rounded-md">
+                                    <Building2 size={10} /> Desk Work
+                                  </span>
+                                )}
                               </div>
 
-                              <p className="text-xs text-text-muted leading-relaxed">
-                                {it.entry_text}
+                              <p className="text-xs text-text leading-relaxed">
+                                {parsed.cleanText}
                               </p>
                             </div>
                           );

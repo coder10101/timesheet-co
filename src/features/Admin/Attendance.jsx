@@ -140,6 +140,22 @@ export function AdminAttendance() {
     return recs.sort((a, b) => b.date.localeCompare(a.date));
   }, [records, monthDates, workLogs, siteSummaryByDate]);
 
+  const displayedRecords = useMemo(() => {
+    if (filterTab === "site") {
+      return monthRecords.filter((r) => {
+        const site = siteSummaryByDate.get(r.date);
+        return r.is_site_only || !!site?.hasSiteVisit;
+      });
+    }
+    if (filterTab === "office") {
+      return monthRecords.filter((r) => {
+        const site = siteSummaryByDate.get(r.date);
+        return !r.is_site_only && !site?.hasSiteVisit;
+      });
+    }
+    return monthRecords;
+  }, [monthRecords, filterTab, siteSummaryByDate]);
+
   // Aggregate monthly stats
   const monthPresentCount = monthRecords.filter((r) => {
     return (
@@ -397,15 +413,75 @@ export function AdminAttendance() {
               </div>
             </div>
 
+            {/* FILTER TABS: ALL RECORDS vs OFFICE ONLY vs SITE DUTY */}
+            <div className="px-4 py-2 bg-surface-muted/20 border-b border-border-light flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-1 p-0.5 bg-surface-muted rounded-xl border border-border-light text-xs">
+                <button
+                  type="button"
+                  onClick={() => setFilterTab("all")}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    filterTab === "all"
+                      ? "bg-white text-text shadow-xs border border-border/50"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  All Days ({monthRecords.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterTab("office")}
+                  className={`px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    filterTab === "office"
+                      ? "bg-white text-text shadow-xs border border-border/50"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  Office Only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterTab("site")}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                    filterTab === "site"
+                      ? "bg-[#63537E] text-white shadow-xs"
+                      : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  <MapPin size={12} />
+                  <span>Site Duty</span>
+                  <span
+                    className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      filterTab === "site"
+                        ? "bg-white/20 text-white"
+                        : "bg-[#EEEAF2] text-[#63537E]"
+                    }`}
+                  >
+                    {
+                      monthRecords.filter(
+                        (r) =>
+                          r.is_site_only ||
+                          siteSummaryByDate.get(r.date)?.hasSiteVisit,
+                      ).length
+                    }
+                  </span>
+                </button>
+              </div>
+
+              <span className="text-[11px] font-mono text-text-muted">
+                Showing {displayedRecords.length} of {monthRecords.length}
+              </span>
+            </div>
+
             {/* TABLE */}
             {records === null ? (
               <div className="py-8 text-center text-xs text-text-muted">
                 Loading logs...
               </div>
-            ) : monthRecords.length === 0 ? (
+            ) : displayedRecords.length === 0 ? (
               <div className="py-12 text-center text-xs text-text-muted">
-                No attendance records for {NEPALI_MONTHS[selectedBSMonth - 1]}{" "}
-                {selectedBSYear}.
+                {filterTab === "site"
+                  ? "No site visits logged for this month."
+                  : `No attendance records for ${NEPALI_MONTHS[selectedBSMonth - 1]} ${selectedBSYear}.`}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -421,7 +497,7 @@ export function AdminAttendance() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-light">
-                    {monthRecords.map((r) => {
+                    {displayedRecords.map((r) => {
                       const siteInfo = siteSummaryByDate.get(r.date);
                       const hasSite = !!siteInfo?.hasSiteVisit;
                       const workedMinutes = r.is_site_only
