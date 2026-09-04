@@ -58,6 +58,14 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
     return isoToBSLabel(date);
   };
 
+  const getDiffDays = (date) => {
+    const [ey, em, ed] = date.split("-").map(Number);
+    const [ty, tm, td] = today.split("-").map(Number);
+    const eventDate = new Date(ey, em - 1, ed);
+    const todayDate = new Date(ty, tm - 1, td);
+    return Math.round((eventDate.getTime() - todayDate.getTime()) / 86400000);
+  };
+
   return (
     <Card>
       {/* HEADER — title left, calendar link right */}
@@ -82,6 +90,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
             const isHoliday = item.type === "holiday";
             const isDeadline = item.event_type === "deadline";
             const isMeeting = item.event_type === "meeting";
+            const diffDays = getDiffDays(item.date);
 
             const badgeColor = isHoliday
               ? "bg-alert-light text-alert"
@@ -123,9 +132,19 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
                     {item.title}
                   </p>
 
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <span className="text-[10px] font-medium text-text-muted">
                       {formatDate(item.date)}
+                    </span>
+
+                    <span className="text-text-faint">·</span>
+
+                    <span className="text-[10px] font-semibold text-primary bg-primary-light/70 px-1.5 py-0.5 rounded leading-none">
+                      {diffDays === 0
+                        ? "coming today"
+                        : diffDays === 1
+                          ? "coming in 1 day"
+                          : `coming in ${diffDays} days`}
                     </span>
 
                     {!isHoliday && item.time && (

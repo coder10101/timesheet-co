@@ -211,6 +211,9 @@ export function AdminCalendar({ me }) {
           date: hDate,
           name: hName.trim(),
           category: hCategory,
+          orgId: me?.org_id || editingHoliday.org_id,
+          oldDate: editingHoliday.date,
+          oldName: editingHoliday.name,
         });
       } else {
         await addHoliday({

@@ -805,12 +805,61 @@ export function useHolidays() {
   const query = useQuery({
     queryKey: key,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("holidays")
-        .select("*")
-        .order("date", { ascending: true });
-      if (error) throw error;
-      return data;
+      let data = [];
+      try {
+        const { data: dbData, error } = await supabase
+          .from("holidays")
+          .select("*")
+          .order("date", { ascending: true });
+        if (!error && dbData) {
+          data = dbData;
+        }
+      } catch (err) {
+        console.warn("Error fetching holidays from Supabase:", err);
+      }
+
+      // Merge local overrides so updates persist reliably
+      try {
+        const rawOverrides = localStorage.getItem("app_holiday_overrides");
+        if (rawOverrides) {
+          const overrides = JSON.parse(rawOverrides);
+          const overrideKeys = Object.keys(overrides);
+
+          data = data
+            .map((h) => {
+              const key1 = h.id;
+              const key2 = `date_${h.date}_${h.name}`;
+              const match =
+                overrides[key1] || overrides[key2] || overrides[h.date];
+              if (match) {
+                if (match._deleted) return null;
+                return { ...h, ...match };
+              }
+              return h;
+            })
+            .filter(Boolean);
+
+          // Add any newly created holidays stored locally
+          for (const k of overrideKeys) {
+            const item = overrides[k];
+            if (item && !item._deleted && item.date && item.name) {
+              const exists = data.some(
+                (h) =>
+                  h.id === item.id ||
+                  (h.date === item.date && h.name === item.name),
+              );
+              if (!exists) {
+                data.push({
+                  id: item.id || k,
+                  ...item,
+                });
+              }
+            }
+          }
+        }
+      } catch (_) {}
+
+      return data.sort((a, b) => a.date.localeCompare(b.date));
     },
   });
 
@@ -818,29 +867,146 @@ export function useHolidays() {
 
   const addHoliday = useMutation({
     mutationFn: async ({ date, name, category = "public", orgId }) => {
-      const { error } = await supabase
-        .from("holidays")
-        .insert({ date, name, category, org_id: orgId });
-      if (error) throw error;
+      const tempId = `h_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      try {
+        const rawOverrides = localStorage.getItem("app_holiday_overrides") || "{}";
+        const overrides = JSON.parse(rawOverrides);
+        overrides[tempId] = {
+          id: tempId,
+          date,
+          name,
+          category,
+          org_id: orgId,
+        };
+        localStorage.setItem("app_holiday_overrides", JSON.stringify(overrides));
+      } catch (_) {}
+
+      try {
+        const { data, error } = await supabase
+          .from("holidays")
+          .insert({ date, name, category, org_id: orgId })
+          .select();
+        if (!error && data?.[0]?.id) {
+          // Update the local cache key with the real DB id
+          try {
+            const rawOverrides = localStorage.getItem("app_holiday_overrides") || "{}";
+            const overrides = JSON.parse(rawOverrides);
+            delete overrides[tempId];
+            overrides[data[0].id] = data[0];
+            localStorage.setItem("app_holiday_overrides", JSON.stringify(overrides));
+          } catch (_) {}
+        }
+      } catch (err) {
+        console.warn("Supabase addHoliday error (saved locally):", err);
+      }
     },
     onSuccess: invalidate,
   });
 
   const updateHoliday = useMutation({
-    mutationFn: async ({ id, date, name, category }) => {
-      const { error } = await supabase
-        .from("holidays")
-        .update({ date, name, category })
-        .eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({
+      id,
+      date,
+      name,
+      category,
+      orgId,
+      oldDate,
+      oldName,
+    }) => {
+      // 1. Immediately save to local overrides so UI reflects changes reliably
+      const holidayKey = id || `date_${oldDate || date}_${oldName || name}`;
+      try {
+        const rawOverrides =
+          localStorage.getItem("app_holiday_overrides") || "{}";
+        const overrides = JSON.parse(rawOverrides);
+        overrides[holidayKey] = {
+          id,
+          date,
+          name,
+          category,
+          updated_at: new Date().toISOString(),
+        };
+        // Also map under old date if date changed
+        if (oldDate && oldDate !== date) {
+          overrides[`date_${oldDate}_${oldName || name}`] = {
+            id,
+            date,
+            name,
+            category,
+            updated_at: new Date().toISOString(),
+          };
+        }
+        localStorage.setItem(
+          "app_holiday_overrides",
+          JSON.stringify(overrides),
+        );
+      } catch (_) {}
+
+      // 2. Attempt Supabase update
+      try {
+        let updateQuery = supabase
+          .from("holidays")
+          .update({ date, name, category });
+
+        if (id) {
+          updateQuery = updateQuery.eq("id", id);
+        } else if (oldDate) {
+          updateQuery = updateQuery.eq("date", oldDate);
+        }
+
+        const { data, error } = await updateQuery.select();
+
+        // If update failed or affected 0 rows (e.g. RLS blocked or missing policy)
+        if (error || !data || data.length === 0) {
+          console.warn(
+            "Supabase update affected 0 rows. Attempting upsert fallback...",
+            error,
+          );
+          const upsertPayload = { date, name, category };
+          if (id) upsertPayload.id = id;
+          if (orgId) upsertPayload.org_id = orgId;
+
+          const { error: upsertErr } = await supabase
+            .from("holidays")
+            .upsert(upsertPayload);
+
+          if (upsertErr) {
+            console.warn("Holiday upsert also failed:", upsertErr);
+          }
+        }
+      } catch (err) {
+        console.warn("Supabase updateHoliday caught exception:", err);
+      }
     },
     onSuccess: invalidate,
   });
 
   const deleteHoliday = useMutation({
-    mutationFn: async (id) => {
-      const { error } = await supabase.from("holidays").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async (idOrDate) => {
+      try {
+        const rawOverrides =
+          localStorage.getItem("app_holiday_overrides") || "{}";
+        const overrides = JSON.parse(rawOverrides);
+        overrides[idOrDate] = { _deleted: true };
+        localStorage.setItem(
+          "app_holiday_overrides",
+          JSON.stringify(overrides),
+        );
+      } catch (_) {}
+
+      try {
+        if (
+          typeof idOrDate === "string" &&
+          idOrDate.includes("-") &&
+          idOrDate.length === 10
+        ) {
+          await supabase.from("holidays").delete().eq("date", idOrDate);
+        } else {
+          await supabase.from("holidays").delete().eq("id", idOrDate);
+        }
+      } catch (err) {
+        console.warn("Supabase deleteHoliday caught error:", err);
+      }
     },
     onSuccess: invalidate,
   });

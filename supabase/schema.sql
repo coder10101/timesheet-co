@@ -156,3 +156,38 @@ create policy "admin decides org leave requests" on leave_requests
   for update using (
     exists (select 1 from profiles p where p.id = leave_requests.employee_id and is_org_admin(p.org_id))
   );
+
+-- ---------- holidays ----------
+create table if not exists holidays (
+  id uuid primary key default uuid_generate_v4(),
+  org_id uuid references organizations(id) default '00000000-0000-0000-0000-000000000001',
+  date date not null,
+  name text not null,
+  category text not null default 'public' check (category in ('public', 'festival', 'company')),
+  created_at timestamptz default now()
+);
+
+alter table holidays enable row level security;
+
+drop policy if exists "anyone reads holidays" on holidays;
+create policy "anyone reads holidays" on holidays
+  for select using (true);
+
+drop policy if exists "admins insert holidays" on holidays;
+create policy "admins insert holidays" on holidays
+  for insert with check (
+    org_id is null or is_org_admin(org_id) or exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+drop policy if exists "admins update holidays" on holidays;
+create policy "admins update holidays" on holidays
+  for update using (
+    org_id is null or is_org_admin(org_id) or exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+drop policy if exists "admins delete holidays" on holidays;
+create policy "admins delete holidays" on holidays
+  for delete using (
+    org_id is null or is_org_admin(org_id) or exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
