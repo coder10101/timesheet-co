@@ -14,8 +14,8 @@ export default defineConfig({
         short_name: "Ledger",
         description: "Attendance, leave, and work log tracking",
 
-        theme_color: "#101820",
-        background_color: "#101820",
+        theme_color: "#011E26",
+        background_color: "#0D1F3C",
 
         display: "standalone",
         start_url: "/",
@@ -26,11 +26,25 @@ export default defineConfig({
             src: "/icon-192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any",
           },
           {
             src: "/icon-512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/icon-maskable-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "maskable",
+          },
+          {
+            src: "/icon-maskable-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
       },
