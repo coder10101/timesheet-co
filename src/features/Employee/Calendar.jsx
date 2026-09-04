@@ -260,7 +260,7 @@ export function EmployeeCalendar({ me }) {
       {/* MAIN TWO-COLUMN LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5 items-start">
         {/* LEFT COLUMN: INTERACTIVE NEPALI CALENDAR */}
-        <div className="bg-white border border-border rounded-2xl p-5 shadow-xs space-y-4">
+        <div className="bg-white border border-border rounded-2xl p-3 sm:p-5 shadow-xs space-y-3 sm:space-y-4 w-full max-w-full overflow-hidden">
           {/* MONTH NAVIGATION BAR */}
           <div className="flex items-center justify-between">
             <button
@@ -306,13 +306,13 @@ export function EmployeeCalendar({ me }) {
           </div>
 
           {/* CALENDAR DAYS GRID */}
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-7 gap-1 sm:gap-1.5 w-full">
             {weeks.flat().map((cell, i) => {
               if (!cell) {
                 return (
                   <div
                     key={`empty-${i}`}
-                    className="min-h-[72px] sm:min-h-[82px] rounded-xl bg-surface-muted/30 border border-transparent"
+                    className="min-h-[64px] sm:min-h-[82px] rounded-lg sm:rounded-xl bg-surface-muted/30 border border-transparent"
                   />
                 );
               }
@@ -348,7 +348,7 @@ export function EmployeeCalendar({ me }) {
                   key={cell.isoDate}
                   onClick={() => setSelectedDate(cell.isoDate)}
                   className={`
-                    relative min-h-[72px] sm:min-h-[82px] rounded-xl p-1.5
+                    relative min-h-[64px] sm:min-h-[82px] rounded-lg sm:rounded-xl p-1 sm:p-1.5 overflow-hidden
                     flex flex-col justify-between items-start
                     border text-left transition-all
                     ${

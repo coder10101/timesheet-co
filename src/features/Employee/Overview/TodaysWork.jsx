@@ -257,12 +257,80 @@ export function TodaysWork({
       </div>
 
       {/* Compose bar */}
-      <div className="flex items-center gap-2 mb-5">
-        <div className="flex-1 flex items-center gap-2 bg-surface-muted rounded-full pl-1.5 pr-1 py-1 border border-transparent focus-within:border-primary focus-within:bg-white transition-colors">
+      {/* MOBILE COMPOSE FORM (< sm) */}
+      <div className="sm:hidden space-y-2 mb-4">
+        <div className="bg-surface-muted rounded-xl px-3 py-2 border border-border-light focus-within:border-primary focus-within:bg-white transition-all shadow-2xs">
+          <input
+            value={workText}
+            onChange={(e) => setWorkText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") saveWork();
+            }}
+            placeholder={
+              workType === "site"
+                ? "What did you work on during site visit?"
+                : "What did you work on at your desk?"
+            }
+            className="w-full bg-transparent text-xs outline-none text-text leading-relaxed"
+          />
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex-1 max-w-[150px] bg-surface-muted rounded-xl px-2.5 py-1.5 border border-border-light text-xs">
+            <select
+              value={workProjectId}
+              onChange={(e) => setWorkProjectId(e.target.value)}
+              className="w-full bg-transparent text-xs outline-none text-text-muted font-medium cursor-pointer"
+            >
+              <option value="">No tag</option>
+              {activeProjects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {editingWorkId && (
+              <button
+                type="button"
+                onClick={cancelWork}
+                className="px-2.5 py-1.5 rounded-xl border border-border text-xs font-semibold text-text-muted hover:bg-surface-muted transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={saveWork}
+              disabled={!workText.trim() || savingWork}
+              className="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs disabled:opacity-40 transition-all cursor-pointer"
+            >
+              {editingWorkId ? (
+                <>
+                  <Check size={13} strokeWidth={2.5} />
+                  <span>Update</span>
+                </>
+              ) : (
+                <>
+                  <Plus size={13} strokeWidth={2.5} />
+                  <span>Add Log</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* DESKTOP / TABLET INLINE COMPOSE PILL (>= sm) */}
+      <div className="hidden sm:flex items-center gap-2 mb-5">
+        <div className="flex-1 min-w-0 flex items-center gap-2 bg-surface-muted rounded-full pl-1.5 pr-1 py-1 border border-transparent focus-within:border-primary focus-within:bg-white transition-colors shadow-2xs">
           <select
             value={workProjectId}
             onChange={(e) => setWorkProjectId(e.target.value)}
-            className="bg-transparent text-xs rounded-full px-3 py-2 outline-none text-text-muted w-24 sm:w-32 shrink-0"
+            className="bg-transparent text-xs rounded-full px-3 py-2 outline-none text-text-muted w-28 sm:w-32 shrink-0 cursor-pointer font-medium"
           >
             <option value="">No tag</option>
             {activeProjects.map((project) => (
@@ -272,7 +340,7 @@ export function TodaysWork({
             ))}
           </select>
 
-          <span className="w-px h-4 bg-[#DDD8CB] shrink-0" />
+          <span className="w-px h-4 bg-border shrink-0" />
 
           <input
             value={workText}
@@ -293,7 +361,7 @@ export function TodaysWork({
           <button
             onClick={cancelWork}
             title="Cancel edit"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-text-muted hover:bg-surface-muted transition-colors shrink-0"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-text-muted hover:bg-surface-muted transition-colors shrink-0 cursor-pointer"
           >
             <X size={15} />
           </button>
@@ -303,7 +371,7 @@ export function TodaysWork({
           onClick={saveWork}
           disabled={!workText.trim() || savingWork}
           title={editingWorkId ? "Update" : "Add"}
-          className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark active:scale-95 text-white flex items-center justify-center disabled:opacity-40 disabled:active:scale-100 transition-all shrink-0"
+          className="w-9 h-9 rounded-full bg-primary hover:bg-primary-dark active:scale-95 text-white flex items-center justify-center disabled:opacity-40 disabled:active:scale-100 transition-all shrink-0 cursor-pointer shadow-xs"
         >
           {editingWorkId ? <Check size={15} /> : <Plus size={15} />}
         </button>
@@ -339,7 +407,7 @@ export function TodaysWork({
                 />
 
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-xs leading-relaxed min-w-0 pt-0.5">
+                  <span className="text-xs leading-relaxed min-w-0 pt-0.5 break-words">
                     {project && (
                       <span
                         className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 text-white align-middle"

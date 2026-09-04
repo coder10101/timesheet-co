@@ -35,6 +35,9 @@ export function Header({ holidays, records, me, today }) {
             {dailyMessage.text} {me.name?.split(" ")[0]}.
           </h1>
         </div>
+        <p className="sm:hidden text-xs text-text-muted mt-1 font-medium">
+          {dayName} · {presentDay}
+        </p>
       </div>
       <div className="flex items-center gap-2 text-right">
         <div className="hidden sm:block">

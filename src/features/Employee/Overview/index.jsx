@@ -81,7 +81,7 @@ export function EmployeeOverview({ me }) {
   const today = todayISO();
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto overflow-x-hidden">
       <MissedClockOutModal
         records={records}
         today={today}
@@ -110,7 +110,7 @@ export function EmployeeOverview({ me }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 w-full max-w-full">
         <Today
           records={records}
           entries={entries}
@@ -137,7 +137,7 @@ export function EmployeeOverview({ me }) {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 mt-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 mt-4 items-start w-full max-w-full">
         <TodaysWork
           entries={entries}
           addEntry={addEntry}

@@ -512,8 +512,8 @@ export function AdminAttendance() {
                   : `No attendance records for ${NEPALI_MONTHS[selectedBSMonth - 1]} ${selectedBSYear}.`}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto w-full max-w-full touch-pan-x">
+                <table className="w-full min-w-[560px] text-left text-xs">
                   <thead className="bg-surface-muted/60 text-[10px] font-bold uppercase tracking-wider text-text-muted border-b border-border-light">
                     <tr>
                       <th className="px-4 py-2.5">Date</th>

@@ -596,12 +596,12 @@ export function EmployeeLeave({ me }) {
       {/* LEAVE HISTORY LIST */}
       <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-2xs">
         {/* TABS HEADER */}
-        <div className="px-4 py-3 border-b border-border-light flex items-center justify-between gap-3">
+        <div className="px-4 py-3 border-b border-border-light flex flex-wrap items-center justify-between gap-2.5">
           <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
             Leave History
           </h3>
 
-          <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-xl border border-border-light text-xs">
+          <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-xl border border-border-light text-xs overflow-x-auto max-w-full">
             {["all", "Pending", "Approved", "Rejected"].map((tab) => (
               <button
                 key={tab}

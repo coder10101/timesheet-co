@@ -141,20 +141,20 @@ export function MissingAttendanceBanner({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end pt-1 sm:pt-0">
           <button
             type="button"
             onClick={() => handleDismissDate(primaryMissingDate)}
-            className="px-3 py-1.5 rounded-xl border border-amber-300 bg-white/80 hover:bg-white text-amber-900 text-xs font-semibold cursor-pointer shadow-2xs transition-all"
+            className="flex-1 sm:flex-none text-center px-3 py-1.5 rounded-xl border border-amber-300 bg-white/90 hover:bg-white text-amber-900 text-xs font-semibold cursor-pointer shadow-2xs transition-all"
             title="Mark as absent or dismiss reminder"
           >
-            I was Absent / Dismiss
+            Dismiss
           </button>
 
           <button
             type="button"
             onClick={() => onLogDate(primaryMissingDate)}
-            className="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-98 text-white text-xs font-bold cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+            className="flex-1 sm:flex-none text-center px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-98 text-white text-xs font-bold cursor-pointer shadow-xs transition-all flex items-center justify-center gap-1.5"
           >
             <Plus size={13} strokeWidth={2.5} />
             <span>Log Attendance</span>

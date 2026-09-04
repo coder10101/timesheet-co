@@ -53,7 +53,7 @@ export default function AttendanceOverview({ monthDates, getDateStatus }) {
   const officeHours = useOfficeHours();
 
   return (
-    <div className="bg-white rounded-xl p-4 border border-border mb-5">
+    <div className="bg-white rounded-2xl p-4 border border-border mb-5 w-full max-w-full overflow-hidden shadow-2xs">
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="font-semibold text-base text-text">Monthly overview</h3>
 
@@ -62,7 +62,7 @@ export default function AttendanceOverview({ monthDates, getDateStatus }) {
         </div>
       </div>
 
-      <div className="flex gap-[3px] overflow-x-auto pb-0.5">
+      <div className="flex gap-[3px] overflow-x-auto pb-1.5 w-full max-w-full touch-pan-x">
         {monthDates.map((date) => {
           const result = getDateStatus(date);
 
