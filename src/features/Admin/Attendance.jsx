@@ -41,10 +41,12 @@ import {
   AlertCircle,
   TrendingUp,
   MapPin,
+  Settings,
 } from "lucide-react";
 import { getEmployeeColor, COLORS } from "../../constants/colors";
 import { WorkHoursChart } from "../../components/charts/WorkHoursChart";
 import { getSiteSummaryForDate } from "../../utils/workType";
+import { EditOfficeHoursModal } from "./EditOfficeHoursModal";
 
 export function AdminAttendance() {
   const officeHours = useOfficeHours();
@@ -58,6 +60,7 @@ export function AdminAttendance() {
   const [filterTab, setFilterTab] = useState("all");
   const [selectedBSMonth, setSelectedBSMonth] = useState(todayBS.month);
   const [selectedBSYear, setSelectedBSYear] = useState(todayBS.year);
+  const [showHoursModal, setShowHoursModal] = useState(false);
 
   const effectiveSelectedId = useMemo(() => {
     if (selected) return selected;
@@ -234,6 +237,17 @@ export function AdminAttendance() {
             Track daily work hours, check-ins, departures, and monthly records.
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowHoursModal(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-border bg-white hover:bg-surface-muted text-xs font-semibold text-text transition-all shadow-2xs cursor-pointer self-start sm:self-auto"
+          title="Configure Organization Shift Hours"
+        >
+          <Clock size={13} className="text-primary" />
+          <span>{officeHours.workDayHours}h Shift ({officeHours.startTimeAmPm} – {officeHours.endTimeAmPm})</span>
+          <Settings size={12} className="text-text-muted ml-0.5" />
+        </button>
       </div>
 
       {/* 2-COLUMN MASTER-DETAIL LAYOUT */}
@@ -665,6 +679,12 @@ export function AdminAttendance() {
           </div>
         </div>
       </div>
+
+      <EditOfficeHoursModal
+        isOpen={showHoursModal}
+        onClose={() => setShowHoursModal(false)}
+        orgId={officeHours.orgId}
+      />
     </div>
   );
 }

@@ -1,11 +1,52 @@
-import { useState, useEffect } from "react";
-import { X, Clock, Check, AlertCircle, Sparkles, Building2 } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  X,
+  Clock,
+  Check,
+  AlertCircle,
+  CheckCircle2,
+  Coffee,
+} from "lucide-react";
 import {
   useOfficeHours,
   computeOfficeSchedule,
-  DEFAULT_OFFICE_CONFIG,
 } from "../../constants/officeHours";
 import { useOrganization } from "../../hooks/useOrgData";
+
+const PRESETS = [
+  {
+    id: "7h-10-5",
+    label: "7h Workday",
+    time: "10 AM – 5 PM",
+    workDayHours: 7,
+    startTime: "10:00",
+    graceMinutes: 30,
+    includeLunch: true,
+    lunchMinutes: 0,
+  },
+  {
+    id: "8h-10-6",
+    label: "8h Workday",
+    time: "10 AM – 6 PM",
+    workDayHours: 8,
+    startTime: "10:00",
+    graceMinutes: 30,
+    includeLunch: true,
+    lunchMinutes: 0,
+  },
+  {
+    id: "8h-9-5",
+    label: "8h Workday",
+    time: "9 AM – 5 PM",
+    workDayHours: 8,
+    startTime: "09:00",
+    graceMinutes: 30,
+    includeLunch: true,
+    lunchMinutes: 0,
+  },
+];
+
+const GRACE_OPTIONS = [15, 30, 45, 60];
 
 export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
   const currentOfficeHours = useOfficeHours();
@@ -31,7 +72,7 @@ export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // Sync state whenever modal opens or current schedule changes
+  // Sync state whenever modal opens
   useEffect(() => {
     if (isOpen) {
       setWorkDayHours(currentOfficeHours.workDayHours ?? 7);
@@ -44,16 +85,31 @@ export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
     }
   }, [isOpen, currentOfficeHours]);
 
+  // Derived live schedule
+  const schedule = useMemo(() => {
+    return computeOfficeSchedule({
+      workDayHours: Number(workDayHours) || 7,
+      startTime: startTime || "10:00",
+      graceMinutes: Number(graceMinutes) || 0,
+      includeLunch: Boolean(includeLunch),
+      lunchMinutes: Number(lunchMinutes) || 0,
+    });
+  }, [workDayHours, startTime, graceMinutes, includeLunch, lunchMinutes]);
+
   if (!isOpen) return null;
 
-  // Live schedule preview calculation
-  const previewSchedule = computeOfficeSchedule({
-    workDayHours: Number(workDayHours) || 7,
-    startTime: startTime || "10:00",
-    graceMinutes: Number(graceMinutes) || 0,
-    includeLunch: Boolean(includeLunch),
-    lunchMinutes: Number(lunchMinutes) || 0,
-  });
+  // Handle End Time edit directly by user
+  const handleEndTimeChange = (newEndTime) => {
+    if (!newEndTime) return;
+    const [eH, eM] = newEndTime.split(":").map(Number);
+    const [sH, sM] = startTime.split(":").map(Number);
+    let diff = eH * 60 + eM - (sH * 60 + sM);
+    if (diff <= 0) diff += 1440;
+    const extraBreak = includeLunch ? 0 : lunchMinutes;
+    const netMins = Math.max(120, diff - extraBreak);
+    const netHours = Math.round((netMins / 60) * 10) / 10;
+    setWorkDayHours(netHours);
+  };
 
   const applyPreset = (preset) => {
     setWorkDayHours(preset.workDayHours);
@@ -81,12 +137,12 @@ export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
       setSuccess(true);
       setTimeout(() => {
         onClose();
-      }, 700);
+      }, 600);
     } catch (err) {
       console.error("Failed to update office hours:", err);
       if (err.message?.includes("column") || err.code === "42703") {
         setError(
-          "Supabase migration pending: Please add the 'office_hours' column to the 'organizations' table using the provided SQL script.",
+          "Database migration pending: Please run the SQL migration in Supabase SQL editor to add office_hours column to organizations table.",
         );
       } else {
         setError(err.message || "Failed to update office hours.");
@@ -97,20 +153,20 @@ export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-border overflow-hidden">
-        {/* MODAL HEADER */}
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-muted/30">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
-              <Clock size={16} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
+      <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-border overflow-hidden my-auto">
+        {/* HEADER */}
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-surface-muted/40">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+              <Clock size={18} />
             </div>
             <div>
               <h3 className="text-sm font-bold text-text">
-                Organization Office Hours
+                Edit Office Shift & Timing
               </h3>
-              <p className="text-[11px] text-text-muted">
-                Configure shift schedules, work day targets, and grace periods
+              <p className="text-xs text-text-muted">
+                Configure your organization's shift hours and punctuality rules.
               </p>
             </div>
           </div>
@@ -123,7 +179,7 @@ export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
           </button>
         </div>
 
-        {/* MODAL BODY */}
+        {/* BODY */}
         <form onSubmit={handleSave} className="p-5 space-y-4">
           {error && (
             <div className="p-3 rounded-xl bg-alert-light border border-alert/20 text-alert text-xs flex items-start gap-2">
@@ -139,185 +195,222 @@ export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
             </div>
           )}
 
-          {/* QUICK PRESETS */}
+          {/* 1. QUICK PRESETS */}
           <div>
-            <label className="text-[11px] font-semibold text-text-muted uppercase tracking-wider block mb-1.5">
-              Quick Presets
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                Quick Presets
+              </label>
+              <span className="text-[10px] text-text-muted">One-click standard templates</span>
+            </div>
             <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  applyPreset({
-                    workDayHours: 7,
-                    startTime: "10:00",
-                    graceMinutes: 30,
-                    includeLunch: true,
-                    lunchMinutes: 0,
-                  })
-                }
-                className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                  workDayHours === 7 && startTime === "10:00"
-                    ? "bg-primary text-white border-primary shadow-xs"
-                    : "bg-surface hover:bg-surface-muted text-text border-border"
-                }`}
-              >
-                7h (10 AM – 5 PM)
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  applyPreset({
-                    workDayHours: 8,
-                    startTime: "10:00",
-                    graceMinutes: 30,
-                    includeLunch: true,
-                    lunchMinutes: 0,
-                  })
-                }
-                className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                  workDayHours === 8 && startTime === "10:00"
-                    ? "bg-primary text-white border-primary shadow-xs"
-                    : "bg-surface hover:bg-surface-muted text-text border-border"
-                }`}
-              >
-                8h (10 AM – 6 PM)
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  applyPreset({
-                    workDayHours: 8,
-                    startTime: "09:00",
-                    graceMinutes: 30,
-                    includeLunch: true,
-                    lunchMinutes: 0,
-                  })
-                }
-                className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-semibold text-center transition-all cursor-pointer ${
-                  workDayHours === 8 && startTime === "09:00"
-                    ? "bg-primary text-white border-primary shadow-xs"
-                    : "bg-surface hover:bg-surface-muted text-text border-border"
-                }`}
-              >
-                8h (9 AM – 5 PM)
-              </button>
+              {PRESETS.map((p) => {
+                const isSelected =
+                  Number(workDayHours) === p.workDayHours &&
+                  startTime === p.startTime &&
+                  Boolean(includeLunch) === p.includeLunch;
+
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => applyPreset(p)}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                        : "border-border-light bg-surface-muted/30 hover:bg-surface-muted"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-text">
+                        {p.label}
+                      </span>
+                      {isSelected && <Check size={12} className="text-primary shrink-0" />}
+                    </div>
+                    <div className="text-[11px] text-text-muted mt-0.5 font-medium">
+                      {p.time}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* INPUT FORM FIELDS */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* WORK DAY HOURS */}
-            <div>
-              <label className="text-xs font-semibold text-text block mb-1">
-                Work Hours per Day
-              </label>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min="4"
-                  max="14"
-                  step="0.5"
-                  value={workDayHours}
-                  onChange={(e) => setWorkDayHours(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-text bg-surface-muted/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  required
-                />
-                <span className="text-xs text-text-muted font-medium">hrs</span>
+          {/* 2. SHIFT TIMINGS (START & END) */}
+          <div className="p-3.5 rounded-xl border border-border-light bg-surface-muted/30 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-text">Daily Shift Hours</span>
+              <span className="text-xs font-mono font-bold text-primary bg-primary-light px-2.5 py-0.5 rounded-lg border border-primary/20">
+                {schedule.workDayHours} hours / day
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 items-center">
+              {/* START TIME */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-semibold text-text-muted">
+                    Shift Starts
+                  </label>
+                  <span className="text-[11px] font-mono font-bold text-primary">
+                    {schedule.startTimeAmPm}
+                  </span>
+                </div>
+                <div className="flex items-center h-10 px-3 bg-white border border-border rounded-xl focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                  <Clock size={15} className="text-primary shrink-0 mr-2" />
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full bg-transparent text-xs font-mono font-bold text-text outline-none cursor-pointer"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* END TIME */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-semibold text-text-muted">
+                    Shift Ends
+                  </label>
+                  <span className="text-[11px] font-mono font-bold text-primary">
+                    {schedule.endTimeAmPm}
+                  </span>
+                </div>
+                <div className="flex items-center h-10 px-3 bg-white border border-border rounded-xl focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                  <Clock size={15} className="text-primary shrink-0 mr-2" />
+                  <input
+                    type="time"
+                    value={schedule.endTime}
+                    onChange={(e) => handleEndTimeChange(e.target.value)}
+                    className="w-full bg-transparent text-xs font-mono font-bold text-text outline-none cursor-pointer"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
-            {/* SHIFT START TIME */}
-            <div>
-              <label className="text-xs font-semibold text-text block mb-1">
-                Office Start Time
+            {/* QUICK DURATION STEPPER */}
+            <div className="flex items-center justify-between text-xs pt-1 border-t border-border-light text-text-muted">
+              <span>Work Duration</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setWorkDayHours((h) => Math.max(4, Number(h) - 0.5))}
+                  className="w-6 h-6 rounded-lg border border-border bg-white hover:bg-surface-muted flex items-center justify-center font-bold text-xs cursor-pointer"
+                  title="Subtract 30 mins"
+                >
+                  -
+                </button>
+                <span className="font-mono font-bold text-text px-1">
+                  {workDayHours}h
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setWorkDayHours((h) => Math.min(14, Number(h) + 0.5))}
+                  className="w-6 h-6 rounded-lg border border-border bg-white hover:bg-surface-muted flex items-center justify-center font-bold text-xs cursor-pointer"
+                  title="Add 30 mins"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. ARRIVAL GRACE BUFFER */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted">
+                Arrival Grace Buffer
               </label>
+              <span className="text-xs font-mono font-semibold text-text">
+                {graceMinutes} minutes
+              </span>
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              {GRACE_OPTIONS.map((mins) => (
+                <button
+                  key={mins}
+                  type="button"
+                  onClick={() => setGraceMinutes(mins)}
+                  className={`py-1.5 rounded-xl border text-xs font-semibold text-center transition-all cursor-pointer ${
+                    Number(graceMinutes) === mins
+                      ? "bg-primary text-white border-primary shadow-xs"
+                      : "bg-surface hover:bg-surface-muted text-text border-border"
+                  }`}
+                >
+                  {mins} mins
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-2.5 p-2.5 rounded-xl bg-surface-muted/60 border border-border-light flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 text-success font-medium">
+                <CheckCircle2 size={13} className="shrink-0" />
+                <span>On-Time: before {schedule.graceCutoffAmPm}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-warning font-medium">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>Late: after {schedule.graceCutoffAmPm}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 4. LUNCH POLICY */}
+          <div className="p-3 rounded-xl border border-border-light bg-surface-muted/30">
+            <label className="flex items-start gap-2.5 cursor-pointer">
               <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-1.5 text-xs font-mono font-semibold text-text bg-surface-muted/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
-                required
+                type="checkbox"
+                checked={includeLunch}
+                onChange={(e) => setIncludeLunch(e.target.checked)}
+                className="mt-0.5 rounded text-primary focus:ring-primary cursor-pointer shrink-0"
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {/* GRACE PERIOD */}
-            <div>
-              <label className="text-xs font-semibold text-text block mb-1">
-                Arrival Grace Period
-              </label>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min="0"
-                  max="120"
-                  step="5"
-                  value={graceMinutes}
-                  onChange={(e) => setGraceMinutes(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-text bg-surface-muted/50 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  required
-                />
-                <span className="text-xs text-text-muted font-medium">mins</span>
+              <div className="text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-text">
+                  <Coffee size={13} className="text-primary shrink-0" />
+                  <span>Include Lunch inside standard shift hours</span>
+                </div>
+                <p className="text-text-muted mt-0.5">
+                  {includeLunch
+                    ? `Employees work ${workDayHours}h total (${schedule.startTimeAmPm} to ${schedule.endTimeAmPm}), with lunch taken during this window.`
+                    : "Lunch break is unpaid and extends required shift hours."}
+                </p>
               </div>
-            </div>
-
-            {/* LUNCH INCLUSION */}
-            <div>
-              <label className="text-xs font-semibold text-text block mb-1">
-                Lunch Break Policy
-              </label>
-              <label className="flex items-center gap-2 p-1.5 rounded-xl border border-border bg-surface-muted/30 cursor-pointer text-xs font-medium text-text mt-0.5">
-                <input
-                  type="checkbox"
-                  checked={includeLunch}
-                  onChange={(e) => setIncludeLunch(e.target.checked)}
-                  className="rounded text-primary focus:ring-primary cursor-pointer"
-                />
-                <span>Include lunch in hours</span>
-              </label>
-            </div>
+            </label>
           </div>
 
-          {/* LIVE SCHEDULE PREVIEW CARD */}
-          <div className="p-3 rounded-xl bg-primary-light/30 border border-primary/20 space-y-2">
+          {/* 5. ACTIVE SHIFT SCHEDULE SUMMARY */}
+          <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-primary">
-              <span className="flex items-center gap-1.5">
-                <Sparkles size={13} />
-                Calculated Schedule Summary
-              </span>
-              <span className="font-mono bg-white px-2 py-0.5 rounded-md border border-primary/20 shadow-2xs">
-                {previewSchedule.shiftLabel}
+              <div className="flex items-center gap-1.5">
+                <Clock size={14} className="shrink-0 text-primary" />
+                <span>Active Shift Schedule</span>
+              </div>
+              <span className="font-mono bg-white px-2.5 py-0.5 rounded-md border border-primary/20 shadow-2xs font-bold">
+                {schedule.shiftLabel}
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-[11px] text-text">
-              <div className="bg-white/80 p-2 rounded-lg border border-border-light space-y-0.5">
-                <div className="text-text-muted">Daily Target</div>
-                <div className="font-semibold">
-                  {previewSchedule.workDayHours}h ({previewSchedule.workDayMinutes}m)
-                </div>
+            {/* SCHEDULE TILES */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <div className="bg-white/80 p-2 rounded-lg border border-border-light text-center">
+                <span className="text-[10px] text-text-muted block font-medium">Shift Starts</span>
+                <span className="text-xs font-bold font-mono text-text">{schedule.startTimeAmPm}</span>
               </div>
-
-              <div className="bg-white/80 p-2 rounded-lg border border-border-light space-y-0.5">
-                <div className="text-text-muted">Half-Day Target</div>
-                <div className="font-semibold">
-                  {previewSchedule.halfDayMinutes / 60}h ({previewSchedule.halfDayMinutes}m)
-                </div>
+              <div className="bg-white/80 p-2 rounded-lg border border-border-light text-center">
+                <span className="text-[10px] text-success block font-medium">Grace Cutoff</span>
+                <span className="text-xs font-bold font-mono text-success">{schedule.graceCutoffAmPm}</span>
               </div>
-
-              <div className="bg-white/80 p-2 rounded-lg border border-border-light space-y-0.5 col-span-2">
-                <div className="text-text-muted">Punctuality Rule</div>
-                <div className="font-semibold">
-                  On-Time: before {previewSchedule.graceCutoffAmPm} · Late: after{" "}
-                  {previewSchedule.graceCutoffAmPm} ({previewSchedule.graceMinutes}m grace)
-                </div>
+              <div className="bg-white/80 p-2 rounded-lg border border-border-light text-center">
+                <span className="text-[10px] text-text-muted block font-medium">Shift Ends</span>
+                <span className="text-xs font-bold font-mono text-text">{schedule.endTimeAmPm}</span>
               </div>
             </div>
           </div>
 
-          {/* MODAL FOOTER */}
+          {/* MODAL ACTIONS */}
           <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-border-light">
             <button
               type="button"
@@ -331,13 +424,7 @@ export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
               disabled={saving || success}
               className="px-5 py-2 text-xs font-semibold text-white bg-primary hover:bg-primary-hover active:scale-98 rounded-xl shadow-xs disabled:opacity-50 disabled:pointer-events-none transition-all cursor-pointer flex items-center gap-1.5"
             >
-              {saving ? (
-                <>Saving...</>
-              ) : success ? (
-                <>Saved!</>
-              ) : (
-                <>Save Office Hours</>
-              )}
+              {saving ? "Saving..." : success ? "Saved!" : "Save Office Hours"}
             </button>
           </div>
         </form>

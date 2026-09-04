@@ -279,16 +279,6 @@ export function AdminOverview({ me }) {
             {new Date().toLocaleDateString("en-US", { weekday: "long" })},{" "}
             {isoToBSLabel(today)}
           </span>
-          <button
-            type="button"
-            onClick={() => setShowHoursModal(true)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-text bg-surface-muted/70 hover:bg-surface-muted border border-border-light px-2 py-0.5 rounded-lg transition-all cursor-pointer"
-            title="Configure Organization Office Hours"
-          >
-            <Clock size={12} className="text-primary shrink-0" />
-            <span>{officeHours.shiftLabel}</span>
-            <Settings size={11} className="text-text-muted hover:text-text shrink-0" />
-          </button>
         </div>
 
         {/* RIGHT SIDE: STATUS COUNTS & PERCENTAGE WITH MINI BAR */}
@@ -347,6 +337,40 @@ export function AdminOverview({ me }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 2. DEDICATED OFFICE SHIFT & TIMING BANNER */}
+      <div className="bg-white border border-border rounded-2xl px-4 py-3 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+            <Clock size={18} />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                Standard Office Shift
+              </span>
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-light text-primary border border-primary/20 font-mono">
+                {officeHours.workDayHours}h / day
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-text truncate mt-0.5">
+              {officeHours.startTimeAmPm} – {officeHours.endTimeAmPm}
+              <span className="text-text-muted font-normal ml-1.5">
+                · {officeHours.graceMinutes}m grace (on-time before {officeHours.graceCutoffAmPm})
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowHoursModal(true)}
+          className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-text hover:text-primary bg-surface-muted hover:bg-surface-muted/80 border border-border rounded-xl transition-all cursor-pointer shrink-0 shadow-2xs active:scale-98"
+        >
+          <Settings size={13} className="text-text-muted" />
+          <span>Edit Shift Settings</span>
+        </button>
       </div>
 
       {/* 2. MAIN DASHBOARD: REST ON THE LEFT (7 COLS), EMPLOYEE LIST ON THE RIGHT (5 COLS) */}
