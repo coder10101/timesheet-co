@@ -185,10 +185,10 @@ export function Dashboard({ me, onLogout }) {
 
   return (
     <OfficeHoursProvider orgId={me?.org_id}>
-      <div className="min-h-screen bg-surface text-text w-full max-w-full overflow-x-hidden">
-      <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
+      <div className="min-h-screen bg-surface text-text">
+      <div className="flex min-h-screen">
         {/* DESKTOP SIDEBAR */}
-        <aside className="hidden md:flex flex-col w-56 lg:w-60 shrink-0 bg-[#011E26] text-white sticky top-0 h-screen border-r border-white/5">
+        <aside className="hidden md:flex flex-col md:fixed md:inset-y-0 md:left-0 md:z-30 w-56 lg:w-60 shrink-0 bg-[#011E26] text-white h-screen border-r border-white/5">
           {/* BRAND LOGO */}
           <div className="px-5 py-5 border-b border-white/5">
             <div className="flex items-center gap-2.5">
@@ -289,7 +289,7 @@ export function Dashboard({ me, onLogout }) {
         </header>
 
         {/* MAIN BODY */}
-        <main className="flex-1 min-w-0 w-full max-w-full overflow-x-hidden">
+        <main className="flex-1 min-w-0 w-full max-w-full md:pl-56 lg:pl-60 overflow-x-hidden">
           <div className="w-full max-w-full overflow-x-hidden pt-[calc(4.25rem+env(safe-area-inset-top,0px))] md:pt-0 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] md:pb-8 p-3.5 sm:p-5 md:p-7 lg:p-8">
             <Outlet />
           </div>
