@@ -79,43 +79,43 @@ export function PunctualityRadar({
   }, [employees, allAttendance, currentBSMonth, currentBSYear]);
 
   return (
-    <div className="w-full bg-white border border-border rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3 overflow-hidden">
+    <div className="w-full bg-white border border-border rounded-2xl p-3 sm:px-3.5 sm:py-2.5 shadow-2xs space-y-2 overflow-hidden">
       {/* HEADER */}
-      <div className="flex items-center justify-between pb-2 border-b border-border-light">
-        <div className="flex items-center gap-2">
-          <Award size={15} className="text-primary shrink-0" />
-          <h3 className="text-xs sm:text-sm font-bold text-text">
+      <div className="flex items-center justify-between pb-1.5 border-b border-border-light">
+        <div className="flex items-center gap-1.5">
+          <Award size={14} className="text-primary shrink-0" />
+          <h3 className="text-xs font-bold text-text">
             Punctuality leaderboard
           </h3>
         </div>
 
-        <span className="text-[10px] font-semibold text-primary bg-primary-light px-2 py-0.5 rounded-md border border-primary/30 shrink-0">
+        <span className="text-[9px] font-semibold text-primary bg-primary-light px-2 py-0.5 rounded-md border border-primary/30 shrink-0">
           This Month
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 items-start">
         {/* ALWAYS ON TIME */}
         <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-1 text-[11px] font-bold text-text mb-1.5">
-            <Star size={12} className="text-success fill-success shrink-0" />
+          <div className="flex items-center gap-1 text-[10px] font-bold text-text mb-1">
+            <Star size={11} className="text-success fill-success shrink-0" />
             <span>Always On Time</span>
           </div>
 
           {punctualityStats.stars.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-surface-muted/30 border border-border-light text-center text-[11px] text-text-muted">
+            <div className="flex-1 flex flex-col items-center justify-center p-2 rounded-lg bg-surface-muted/30 border border-border-light text-center text-[10px] text-text-muted">
               <span>No records yet this month</span>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col justify-start space-y-1.5">
+            <div className="flex-1 flex flex-col justify-start space-y-1">
               {punctualityStats.stars.map((item) => (
                 <div
                   key={item.employee.id}
-                  className="flex items-center justify-between p-2 rounded-xl bg-success-light/20 border border-success/30 min-w-0 gap-2"
+                  className="flex items-center justify-between p-1.5 rounded-lg bg-success-light/20 border border-success/30 min-w-0 gap-1.5"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                       style={{
                         backgroundColor: getEmployeeColor(item.employee),
                       }}
@@ -123,16 +123,16 @@ export function PunctualityRadar({
                       {item.employee.name?.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-text truncate">
+                      <p className="text-xs font-bold text-text truncate leading-tight">
                         {item.employee.name}
                       </p>
-                      <p className="text-[10px] text-text-muted whitespace-nowrap">
+                      <p className="text-[9px] text-text-muted whitespace-nowrap">
                         Avg: {item.avgTimeStr}
                       </p>
                     </div>
                   </div>
 
-                  <span className="font-mono text-xs font-bold text-success bg-white px-2 py-0.5 rounded-md border border-success/30 shrink-0">
+                  <span className="font-mono text-[10px] font-bold text-success bg-white px-1.5 py-0.5 rounded border border-success/30 shrink-0">
                     {item.onTimeDays}d In
                   </span>
                 </div>
@@ -143,26 +143,26 @@ export function PunctualityRadar({
 
         {/* LATE ARRIVALS */}
         <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-1 text-[11px] font-bold text-text mb-1.5">
-            <Clock size={12} className="text-warning shrink-0" />
+          <div className="flex items-center gap-1 text-[10px] font-bold text-text mb-1">
+            <Clock size={11} className="text-warning shrink-0" />
             <span>Late Arrivals</span>
           </div>
 
           {punctualityStats.repeatLate.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-3 rounded-xl bg-surface-muted/30 border border-border-light text-center text-[11px] text-text-muted">
-              <CheckCircle2 size={14} className="text-success mb-0.5" />
-              <span>Zero late check-ins recorded!</span>
+            <div className="flex-1 flex flex-col items-center justify-center p-2 rounded-lg bg-surface-muted/30 border border-border-light text-center text-[10px] text-text-muted">
+              <CheckCircle2 size={12} className="text-success mb-0.5" />
+              <span>Zero late check-ins!</span>
             </div>
           ) : (
-            <div className="flex-1 flex flex-col justify-start space-y-1.5">
+            <div className="flex-1 flex flex-col justify-start space-y-1">
               {punctualityStats.repeatLate.map((item) => (
                 <div
                   key={item.employee.id}
-                  className="flex items-center justify-between p-2 rounded-xl bg-warning-light/20 border border-warning/30 min-w-0 gap-2"
+                  className="flex items-center justify-between p-1.5 rounded-lg bg-warning-light/20 border border-warning/30 min-w-0 gap-1.5"
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                       style={{
                         backgroundColor: getEmployeeColor(item.employee),
                       }}
@@ -170,16 +170,16 @@ export function PunctualityRadar({
                       {item.employee.name?.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-text truncate">
+                      <p className="text-xs font-bold text-text truncate leading-tight">
                         {item.employee.name}
                       </p>
-                      <p className="text-[10px] text-text-muted whitespace-nowrap">
+                      <p className="text-[9px] text-text-muted whitespace-nowrap">
                         Avg: {item.avgTimeStr}
                       </p>
                     </div>
                   </div>
 
-                  <span className="font-mono text-xs font-bold text-warning bg-white px-2 py-0.5 rounded-md border border-warning/30 shrink-0">
+                  <span className="font-mono text-[10px] font-bold text-warning bg-white px-1.5 py-0.5 rounded border border-warning/30 shrink-0">
                     {item.lateDays} Late
                   </span>
                 </div>

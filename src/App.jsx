@@ -91,7 +91,7 @@ function Root() {
         )}
         {isAdmin && (
           <>
-            <Route path="overview" element={<AdminOverview />} />
+            <Route path="overview" element={<AdminOverview me={profile} />} />
             <Route path="attendance" element={<AdminAttendance />} />
             <Route
               path="leave-approvals"

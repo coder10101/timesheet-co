@@ -115,31 +115,31 @@ export function WeeklyTurnoutBarChart({
   const maxDaily = Math.max(...dailyTurnout.map((d) => d.totalStaff), 5);
 
   return (
-    <div className="w-full bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-4">
-      {/* HEADER & WEEKLY TURNOUT SUMMARY — renamed to avoid overlapping "Punctuality" with the leaderboard below */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border-light">
+    <div className="w-full bg-white border border-border rounded-2xl p-3 sm:px-3.5 sm:py-2.5 shadow-2xs space-y-2">
+      {/* HEADER & WEEKLY TURNOUT SUMMARY */}
+      <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-border-light">
         <div>
-          <h3 className="text-xs sm:text-sm font-bold text-text">This week</h3>
-          <p className="text-[11px] text-text-muted">
-            Daily attendance turnout across the last 7 days
+          <h3 className="text-xs font-bold text-text">This week</h3>
+          <p className="text-[10px] text-text-muted">
+            Daily turnout across the last 7 days
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono font-bold text-success bg-success-light border border-success/30 px-2.5 py-1 rounded-lg">
-            {avgTurnoutPct}% Avg Attendance
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-mono font-bold text-success bg-success-light border border-success/30 px-2 py-0.5 rounded-md">
+            {avgTurnoutPct}% Avg
           </span>
           {totalWeeklyLate > 0 && (
-            <span className="text-[11px] font-mono font-bold text-warning bg-warning-light border border-warning/30 px-2.5 py-1 rounded-lg">
-              {totalWeeklyLate} Late This Week
+            <span className="text-[10px] font-mono font-bold text-warning bg-warning-light border border-warning/30 px-2 py-0.5 rounded-md">
+              {totalWeeklyLate} Late
             </span>
           )}
         </div>
       </div>
 
       {/* 7-DAY BAR GRAPH */}
-      <div className="relative pt-4 pb-1">
-        <div className="grid grid-cols-7 gap-2 sm:gap-3 h-36 items-end">
+      <div className="relative pt-1.5 pb-0.5">
+        <div className="grid grid-cols-7 gap-2 sm:gap-3 h-20 items-end">
           {dailyTurnout.map((d) => {
             const isHovered = hoveredDate === d.date;
             const onTimeHeight = (d.onTimeCount / maxDaily) * 100;
@@ -255,13 +255,13 @@ export function WeeklyTurnoutBarChart({
                 </div>
 
                 {/* DAY LABEL */}
-                <div className="text-center mt-1.5">
+                <div className="text-center mt-1">
                   <span
-                    className={`text-[10px] font-bold block ${d.isToday ? "text-primary font-extrabold" : d.isSat ? "text-alert" : "text-text"}`}
+                    className={`text-[9px] font-bold block leading-none ${d.isToday ? "text-primary font-extrabold" : d.isSat ? "text-alert" : "text-text"}`}
                   >
                     {WEEKDAY_LABELS[d.weekday]}
                   </span>
-                  <span className="text-[9px] font-mono text-text-muted">
+                  <span className="text-[8px] font-mono text-text-muted">
                     {d.bs ? d.bs.day : ""}
                   </span>
                 </div>
@@ -272,27 +272,27 @@ export function WeeklyTurnoutBarChart({
       </div>
 
       {/* CLEAN LEGEND */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border-light text-[10px] text-text-muted">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-border-light text-[9px] text-text-muted">
+        <div className="flex items-center gap-2.5">
           <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-success" />
+            <span className="w-2 h-2 rounded-xs bg-success" />
             <span>On-Time</span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-warning" />
+            <span className="w-2 h-2 rounded-xs bg-warning" />
             <span>Late Check-in</span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-primary" />
+            <span className="w-2 h-2 rounded-xs bg-primary" />
             <span>On Leave</span>
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-surface-muted border border-dashed border-border" />
-            <span>Saturday Off</span>
+            <span className="w-2 h-2 rounded-xs bg-surface-muted border border-dashed border-border" />
+            <span>Sat Off</span>
           </span>
         </div>
 
-        <span className="font-mono">7-day view</span>
+        <span className="font-mono text-[8px]">7-day view</span>
       </div>
     </div>
   );

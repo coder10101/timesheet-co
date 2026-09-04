@@ -38,14 +38,19 @@ import { NavLink } from "react-router-dom";
 import { getEmployeeColor, COLORS } from "../../constants/colors";
 import { WeeklyTurnoutBarChart } from "../../components/charts/WeeklyTurnoutBarChart";
 import { PunctualityRadar } from "../../components/charts/PunctualityRadar";
+import { OverviewLeaveCard } from "./OverviewLeaveCard";
 
-export function AdminOverview() {
+export function AdminOverview({ me }) {
   const { employees } = useRoster();
-  const { requests: allLeave } = useLeaveRequests(null, "org");
+  const { requests: allLeave, decide: decideLeave } = useLeaveRequests(
+    null,
+    "org",
+  );
   const { records: todayAttendance } = useOrgAttendance(todayISO());
   const { records: allOrgAttendance } = useOrgAttendance(null);
   const { holidays } = useHolidays();
 
+  const [actingLeaveId, setActingLeaveId] = useState(null);
   const [leftTab, setLeftTab] = useState("live"); // "live" | "schedule"
   const [teamSearch, setTeamSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "Present" | "Late" | "On Leave" | "Absent"
@@ -243,124 +248,128 @@ export function AdminOverview() {
     );
   });
 
+  const handleDecideLeave = async (requestId, status) => {
+    const adminId =
+      me?.id || employees?.find((e) => e.role?.toLowerCase() === "admin")?.id;
+    setActingLeaveId(requestId);
+    try {
+      await decideLeave(requestId, status, adminId);
+    } catch (err) {
+      console.error("Failed to decide leave request:", err);
+    } finally {
+      setActingLeaveId(null);
+    }
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-4 fade-in pb-8">
-      {/* 1. TOP HEADER & ATTENDANCE STATUS BAR */}
-      <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-lg font-bold text-text">Overview</h1>
-            <span className="text-xs font-bold text-primary bg-primary-light px-2.5 py-0.5 rounded-lg border border-primary/20">
-              {isoToBSLabel(today)}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs">
-            <span className="font-semibold text-text-muted">
-              {new Date().toLocaleDateString("en-US", { weekday: "long" })}
-            </span>
-            {pendingLeave.length > 0 && (
-              <NavLink
-                to="/leave-approvals"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-warning bg-warning-light px-2.5 py-0.5 rounded-md border border-warning/30 hover:bg-warning/20 transition-colors"
-              >
-                <span>
-                  {pendingLeave.length} pending leave
-                  {pendingLeave.length !== 1 ? "s" : ""}
-                </span>
-                <ArrowRight size={11} />
-              </NavLink>
-            )}
-          </div>
+      {/* 1. TOP HEADER & ATTENDANCE STATUS BAR (ONE-LINER) */}
+      <div className="bg-white border border-border rounded-2xl px-4 py-2.5 shadow-2xs flex flex-wrap lg:flex-nowrap items-center justify-between gap-3">
+        {/* LEFT SIDE: OVERVIEW & DATE WITH FULL DAY NAME */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <h1 className="text-base sm:text-lg font-bold text-text">Overview</h1>
+          <span className="text-xs font-bold text-primary bg-primary-light px-2.5 py-0.5 rounded-lg border border-primary/20">
+            {new Date().toLocaleDateString("en-US", { weekday: "long" })},{" "}
+            {isoToBSLabel(today)}
+          </span>
         </div>
 
-        {/* CLEAN STATUS STATS STRIP — now includes Total Staff, absorbing the deleted metric-cards grid */}
-        <div className="space-y-2 pt-2 border-t border-border-light">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4 font-medium">
-              {/* TOTAL STAFF — moved here from the deleted metric-cards grid */}
-              <div className="flex items-center gap-1.5 bg-surface-muted border border-border-light px-2.5 py-1 rounded-lg">
-                <Users size={12} className="text-text-muted shrink-0" />
-                <span className="font-bold text-text text-xs">
-                  {employees.length} Total
-                </span>
-              </div>
+        {/* RIGHT SIDE: STATUS COUNTS & PERCENTAGE WITH MINI BAR */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+          {/* PRESENT (ON-TIME + LATE) */}
+          <div className="flex items-center gap-1.5 bg-success-light/40 border border-success/30 px-2.5 py-1 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-success shrink-0" />
+            <span className="font-bold text-text text-xs">
+              {totalPresent} Present
+            </span>
+            {lateCount > 0 && (
+              <span className="text-[10px] text-warning font-semibold font-mono">
+                ({lateCount} late)
+              </span>
+            )}
+          </div>
 
-              {/* PRESENT (ON-TIME + LATE) */}
-              <div className="flex items-center gap-1.5 bg-success-light/40 border border-success/30 px-2.5 py-1 rounded-lg">
-                <span className="w-2 h-2 rounded-full bg-success shrink-0" />
-                <span className="font-bold text-text text-xs">
-                  {totalPresent} Present
-                </span>
-                {lateCount > 0 && (
-                  <span className="text-[10px] text-warning font-semibold font-mono">
-                    ({lateCount} late)
-                  </span>
-                )}
-              </div>
-
-              {/* ON LEAVE */}
-              <div className="flex items-center gap-1.5 bg-primary-light/40 border border-primary/30 px-2.5 py-1 rounded-lg">
-                <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                <span className="font-bold text-text text-xs">
-                  {onLeaveCount} On Leave
-                </span>
-              </div>
-
-              {/* ABSENT */}
-              <div className="flex items-center gap-1.5 bg-alert-light/40 border border-alert/30 px-2.5 py-1 rounded-lg">
-                <span className="w-2 h-2 rounded-full bg-alert shrink-0" />
-                <span className="font-bold text-text text-xs">
-                  {absentCount} Absent
-                </span>
-              </div>
-            </div>
-
-            <span className="font-mono font-bold text-text text-xs bg-surface-muted px-2.5 py-1 rounded-lg border border-border-light">
-              {attendancePct}% in office ({totalPresent}/{totalTrackable})
+          {/* ON LEAVE */}
+          <div className="flex items-center gap-1.5 bg-primary-light/40 border border-primary/30 px-2.5 py-1 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+            <span className="font-bold text-text text-xs">
+              {onLeaveCount} On Leave
             </span>
           </div>
 
-          {/* VISUAL SEGMENTED ATTENDANCE BAR */}
-          <div className="w-full h-2 rounded-full bg-surface-muted overflow-hidden flex shadow-inner">
+          {/* ABSENT */}
+          <div className="flex items-center gap-1.5 bg-alert-light/40 border border-alert/30 px-2.5 py-1 rounded-lg">
+            <span className="w-2 h-2 rounded-full bg-alert shrink-0" />
+            <span className="font-bold text-text text-xs">
+              {absentCount} Absent
+            </span>
+          </div>
+
+          {/* % IN OFFICE WITH SMALL PROGRESS BAR */}
+          <div className="flex items-center gap-2 bg-surface-muted px-2.5 py-1 rounded-lg border border-border-light">
+            <span className="font-mono font-bold text-text text-xs whitespace-nowrap">
+              {attendancePct}% in office ({totalPresent}/{totalTrackable})
+            </span>
+            {/* Small segmented attendance bar */}
             <div
-              style={{ width: `${(onTimeCount / totalTrackable) * 100}%` }}
-              className="bg-success h-full transition-all duration-500"
-              title={`On Time: ${onTimeCount}`}
-            />
-            <div
-              style={{ width: `${(lateCount / totalTrackable) * 100}%` }}
-              className="bg-warning h-full transition-all duration-500"
-              title={`Late: ${lateCount}`}
-            />
-            <div
-              style={{ width: `${(onLeaveCount / totalTrackable) * 100}%` }}
-              className="bg-primary h-full transition-all duration-500"
-              title={`On Leave: ${onLeaveCount}`}
-            />
+              className="w-14 sm:w-16 h-2 rounded-full bg-surface-muted border border-border-light overflow-hidden flex shrink-0"
+              title={`Turnout: ${onTimeCount} on-time, ${lateCount} late, ${onLeaveCount} leave`}
+            >
+              <div
+                style={{ width: `${(onTimeCount / totalTrackable) * 100}%` }}
+                className="bg-success h-full transition-all duration-500"
+              />
+              <div
+                style={{ width: `${(lateCount / totalTrackable) * 100}%` }}
+                className="bg-warning h-full transition-all duration-500"
+              />
+              <div
+                style={{ width: `${(onLeaveCount / totalTrackable) * 100}%` }}
+                className="bg-primary h-full transition-all duration-500"
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 2. WEEKLY TURNOUT BAR CHART */}
-      <WeeklyTurnoutBarChart
-        employees={trackableEmployees}
-        allAttendance={allOrgAttendance}
-        leaveRequests={allLeave}
-        holidays={holidays}
-        todayISO={today}
-      />
-
-      {/* 3. MAIN DASHBOARD: 2-COLUMN BALANCED VIEW */}
+      {/* 2. MAIN DASHBOARD: REST ON THE LEFT (7 COLS), EMPLOYEE LIST ON THE RIGHT (5 COLS) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-        {/* LEFT COLUMN (7 COLS): TABBED ROSTER & 7-DAY SCHEDULE */}
-        <div className="lg:col-span-7 bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-3">
+        {/* LEFT COLUMN (7 COLS): REST OF IT (THIS WEEK + PUNCTUALITY + LEAVE REQUESTS) */}
+        <div className="lg:col-span-7 space-y-3">
+          {/* 1. WEEKLY TURNOUT BAR CHART */}
+          <WeeklyTurnoutBarChart
+            employees={trackableEmployees}
+            allAttendance={allOrgAttendance}
+            leaveRequests={allLeave}
+            holidays={holidays}
+            todayISO={today}
+          />
+
+          {/* 2. PUNCTUALITY LEADERBOARD */}
+          <PunctualityRadar
+            employees={employees}
+            allAttendance={allOrgAttendance}
+            currentBSMonth={todayBS.month}
+            currentBSYear={todayBS.year}
+          />
+
+          {/* 3. LEAVE REQUESTS QUICK ACTION CARD */}
+          <OverviewLeaveCard
+            requests={allLeave}
+            employees={employees}
+            onDecide={handleDecideLeave}
+            actingId={actingLeaveId}
+          />
+        </div>
+
+        {/* RIGHT COLUMN (5 COLS): LIST OF EMPLOYEES (TABBED ROSTER & 7-DAY SCHEDULE) */}
+        <div className="lg:col-span-5 bg-white border border-border rounded-2xl p-3 sm:px-3.5 sm:py-2.5 shadow-2xs space-y-2 lg:sticky lg:top-4">
           {/* TAB SWITCHER & SEARCH */}
-          <div className="flex items-center justify-between pb-2 border-b border-border-light">
+          <div className="flex items-center justify-between pb-1.5 border-b border-border-light">
             <div className="flex items-center gap-1 bg-surface-muted p-0.5 rounded-lg border border-border-light">
               <button
                 onClick={() => setLeftTab("live")}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                   leftTab === "live"
                     ? "bg-white text-text shadow-2xs font-bold"
                     : "text-text-muted hover:text-text"
@@ -370,7 +379,7 @@ export function AdminOverview() {
               </button>
               <button
                 onClick={() => setLeftTab("schedule")}
-                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                   leftTab === "schedule"
                     ? "bg-white text-text shadow-2xs font-bold"
                     : "text-text-muted hover:text-text"
@@ -381,14 +390,14 @@ export function AdminOverview() {
             </div>
 
             {leftTab === "live" && (
-              <div className="h-7 flex items-center gap-1.5 bg-surface-muted border border-border-light rounded-lg px-2 text-xs">
-                <Search size={11} className="text-text-muted shrink-0" />
+              <div className="h-6 flex items-center gap-1 bg-surface-muted border border-border-light rounded-lg px-2 text-xs">
+                <Search size={10} className="text-text-muted shrink-0" />
                 <input
                   type="text"
                   placeholder="Search staff..."
                   value={teamSearch}
                   onChange={(e) => setTeamSearch(e.target.value)}
-                  className="bg-transparent outline-none text-[11px] text-text placeholder:text-text-faint w-24 sm:w-28"
+                  className="bg-transparent outline-none text-[10px] text-text placeholder:text-text-faint w-20 sm:w-24"
                 />
               </div>
             )}
@@ -396,7 +405,7 @@ export function AdminOverview() {
 
           {/* TAB 1: LIVE ROSTER */}
           {leftTab === "live" ? (
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {/* FILTER PILLS */}
               <div className="flex flex-wrap items-center gap-1 text-[10px]">
                 {[
@@ -411,7 +420,7 @@ export function AdminOverview() {
                     <button
                       key={tab.id}
                       onClick={() => setStatusFilter(tab.id)}
-                      className={`px-2.5 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                      className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
                         active
                           ? "bg-primary text-white"
                           : "bg-surface-muted hover:bg-surface-muted/80 text-text-muted border border-border-light"
@@ -424,7 +433,7 @@ export function AdminOverview() {
               </div>
 
               {/* ROSTER LIST */}
-              <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-1">
+              <div className="space-y-1.5 max-h-[440px] sm:max-h-[460px] overflow-y-auto pr-1">
                 {filteredEmployees.length === 0 ? (
                   <div className="py-8 text-center text-xs text-text-muted">
                     No matching members found.
@@ -517,7 +526,7 @@ export function AdminOverview() {
             </div>
           ) : (
             /* TAB 2: 7-DAY SCHEDULE */
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[380px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 gap-2 max-h-[440px] sm:max-h-[460px] overflow-y-auto pr-1">
               {scheduleData.map((d) => (
                 <div
                   key={d.date}
@@ -579,16 +588,6 @@ export function AdminOverview() {
               ))}
             </div>
           )}
-        </div>
-
-        {/* RIGHT COLUMN (5 COLS): PUNCTUALITY LEADERBOARD — now sees ALL employees, not just non-admins */}
-        <div className="lg:col-span-5 space-y-4">
-          <PunctualityRadar
-            employees={employees}
-            allAttendance={allOrgAttendance}
-            currentBSMonth={todayBS.month}
-            currentBSYear={todayBS.year}
-          />
         </div>
       </div>
     </div>
