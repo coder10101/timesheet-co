@@ -1,4 +1,5 @@
 import { WORK_DAY_MINUTES } from "./workTime";
+import { isHalfDayLeave, getHalfDaySession, HALF_DAY_SESSIONS } from "./leaveUtils";
 
 export const OFFICE_START_HOUR = 10;
 
@@ -50,7 +51,7 @@ export function getWeekday(dateISO) {
   return date.getDay();
 }
 
-export function getWorkStatus(workedMinutes) {
+export function getWorkStatus(workedMinutes, targetMinutes = WORK_DAY_MINUTES) {
   if (workedMinutes == null || Number.isNaN(workedMinutes)) {
     return {
       type: "none",
@@ -58,7 +59,7 @@ export function getWorkStatus(workedMinutes) {
     };
   }
 
-  const difference = workedMinutes - WORK_DAY_MINUTES;
+  const difference = workedMinutes - targetMinutes;
 
   if (difference > 0) {
     return {
@@ -118,20 +119,29 @@ export function getClockInMinutes(dateTime) {
   return hour * 60 + minute;
 }
 
-export function isEarlyClockIn(dateTime) {
+export function isEarlyClockIn(dateTime, leave = null) {
   const mins = getClockInMinutes(dateTime);
   if (mins === null) return false;
+  if (leave && isHalfDayLeave(leave) && getHalfDaySession(leave) === HALF_DAY_SESSIONS.FIRST_HALF) {
+    return mins < 14 * 60; // Before 2:00 PM for afternoon shift
+  }
   return mins < 10 * 60; // Before 10:00 AM
 }
 
-export function isLateClockIn(dateTime) {
+export function isLateClockIn(dateTime, leave = null) {
   const mins = getClockInMinutes(dateTime);
   if (mins === null) return false;
+  if (leave && isHalfDayLeave(leave) && getHalfDaySession(leave) === HALF_DAY_SESSIONS.FIRST_HALF) {
+    return mins > 14 * 60 + 30; // After 2:30 PM for afternoon shift
+  }
   return mins > 10 * 60 + 30; // After 10:30 AM
 }
 
-export function isOnTimeClockIn(dateTime) {
+export function isOnTimeClockIn(dateTime, leave = null) {
   const mins = getClockInMinutes(dateTime);
   if (mins === null) return false;
+  if (leave && isHalfDayLeave(leave) && getHalfDaySession(leave) === HALF_DAY_SESSIONS.FIRST_HALF) {
+    return mins >= 14 * 60 && mins <= 14 * 60 + 30;
+  }
   return mins >= 10 * 60 && mins <= 10 * 60 + 30;
 }

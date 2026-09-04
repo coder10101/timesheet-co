@@ -25,6 +25,7 @@ import {
   formatDifference,
   isLateClockIn,
 } from "../../../utils/attendance";
+import { isHalfDayLeave } from "../../../utils/leaveUtils";
 
 import AttendanceTable from "./AttendanceTable";
 import AttendanceMonthSelector from "./MonthSelector";
@@ -123,12 +124,12 @@ export function EmployeeAttendance({ me }) {
     let count = 0;
 
     monthDates.forEach((date) => {
-      const isLeave = approvedLeaves.some((leave) =>
-        isDateWithinLeave(date.isoDate, leave),
+      const leave = approvedLeaves.find((l) =>
+        isDateWithinLeave(date.isoDate, l),
       );
 
-      if (isLeave) {
-        count++;
+      if (leave) {
+        count += Number(leave.days) === 0.5 ? 0.5 : 1;
       }
     });
 
@@ -166,6 +167,7 @@ export function EmployeeAttendance({ me }) {
     );
 
     const isLeave = !!leave;
+    const isHalfDay = isLeave && isHalfDayLeave(leave);
 
     const record = recordsByDate.get(date.isoDate);
 
@@ -179,30 +181,33 @@ export function EmployeeAttendance({ me }) {
         isSaturday,
         holiday,
         isLeave,
+        isHalfDay,
         leave,
         record: null,
       };
     }
 
-    if (isLeave) {
+    if (isLeave && !isHalfDay) {
       return {
         status: "leave",
         isHoliday,
         isSaturday,
         holiday,
         isLeave,
+        isHalfDay: false,
         leave,
         record,
       };
     }
 
-    if (isHoliday) {
+    if (isHoliday && (!record || !record.clock_in) && !hasSite) {
       return {
         status: "holiday",
         isHoliday,
         isSaturday,
         holiday,
         isLeave: false,
+        isHalfDay: false,
         leave: null,
         record,
       };
@@ -213,13 +218,42 @@ export function EmployeeAttendance({ me }) {
         // Employee logged site work for this day, so they are NOT absent!
         return {
           status: "site_full",
-          isHoliday: false,
-          isSaturday: false,
-          holiday: null,
+          isHoliday,
+          isSaturday,
+          holiday,
+          isLeave,
+          isHalfDay,
+          leave,
+          record: null,
+          siteInfo,
+        };
+      }
+
+      if (isHalfDay) {
+        return {
+          status: "leave",
+          isHoliday,
+          isSaturday,
+          holiday,
+          isLeave: true,
+          isHalfDay: true,
+          leave,
+          record: null,
+          siteInfo: null,
+          targetMinutes: 240,
+        };
+      }
+
+      if (isHoliday) {
+        return {
+          status: "holiday",
+          isHoliday,
+          isSaturday,
+          holiday,
           isLeave: false,
           leave: null,
           record: null,
-          siteInfo,
+          siteInfo: null,
         };
       }
 
@@ -229,24 +263,27 @@ export function EmployeeAttendance({ me }) {
         isSaturday: false,
         holiday: null,
         isLeave: false,
+        isHalfDay: false,
         leave: null,
         record: null,
         siteInfo: null,
       };
     }
 
-    const isLate = isLateClockIn(record.clock_in);
+    const isLate = isLateClockIn(record.clock_in, leave);
 
     return {
       status: isLate ? "late" : "present",
-      isHoliday: false,
-      isSaturday: false,
-      holiday: null,
-      isLeave: false,
-      leave: null,
+      isHoliday,
+      isSaturday,
+      holiday,
+      isLeave,
+      isHalfDay,
+      leave,
       record,
       siteInfo,
       isSiteHybrid: hasSite,
+      targetMinutes: isHalfDay ? 240 : 480,
     };
   };
 
@@ -296,7 +333,8 @@ export function EmployeeAttendance({ me }) {
 
             totalWorked += worked;
 
-            const workStatus = getWorkStatus(worked);
+            const targetMinutes = result.targetMinutes || 480;
+            const workStatus = getWorkStatus(worked, targetMinutes);
 
             if (workStatus.type === "overtime") {
               grossOvertimeMinutes += workStatus.minutes;

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
 import { nepalDateTimeToISO } from "../utils/timezone";
 import { todayISO } from "../utils/workTime";
+import { isHalfDayLeave } from "../utils/leaveUtils";
 
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 
@@ -510,10 +511,14 @@ export function useLeaveRequests(employeeId, scope = "mine") {
 
       if (error) throw error;
 
-      return (data || []).map((r) => ({
-        ...r,
-        employeeName: r.profiles?.name,
-      }));
+      return (data || []).map((r) => {
+        const isHalf = isHalfDayLeave(r);
+        return {
+          ...r,
+          days: isHalf ? 0.5 : Number(r.days),
+          employeeName: r.profiles?.name,
+        };
+      });
     },
 
     enabled: scope === "org" || !!employeeId,
@@ -541,14 +546,39 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         throw new Error("Leave days must be greater than 0.");
       }
 
-      const { error } = await supabase.from("leave_requests").insert({
+      const numDays = Number(days);
+
+      // Attempt insert with exact days (supports numeric/float column)
+      let { error } = await supabase.from("leave_requests").insert({
         employee_id: employeeId,
         type,
         start_date: startDate,
         end_date: endDate,
-        days: Number(days),
+        days: numDays,
         reason: reason?.trim() || null,
       });
+
+      // If Postgres days column is still typed as integer, fallback to ceil(numDays)
+      // while the reason contains the session metadata so frontend recognizes it as 0.5
+      if (
+        error &&
+        (error.message?.includes("integer") ||
+          error.code === "22P02" ||
+          error.details?.includes("integer"))
+      ) {
+        console.warn(
+          "Supabase leave_requests.days is typed as INT. Falling back to days: 1 with session metadata in reason. Run `ALTER TABLE leave_requests ALTER COLUMN days TYPE numeric;` in Supabase SQL editor to store 0.5 natively.",
+        );
+        const retry = await supabase.from("leave_requests").insert({
+          employee_id: employeeId,
+          type,
+          start_date: startDate,
+          end_date: endDate,
+          days: Math.ceil(numDays),
+          reason: reason?.trim() || null,
+        });
+        error = retry.error;
+      }
 
       if (error) throw error;
     },
@@ -567,37 +597,47 @@ export function useLeaveRequests(employeeId, scope = "mine") {
       days,
       reason,
     }) => {
-      console.log("UPDATING LEAVE:", {
-        requestId,
-        employeeId,
-        type,
-        startDate,
-        endDate,
-        days,
-        reason,
-      });
+      const numDays = Number(days);
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("leave_requests")
         .update({
           type,
           start_date: startDate,
           end_date: endDate,
-          days: Number(days),
+          days: numDays,
           reason: reason?.trim() || null,
         })
         .eq("id", requestId)
         .eq("employee_id", employeeId)
         .select("*");
 
-      console.log("UPDATE RESULT:", data);
-      console.log("UPDATE ERROR:", error);
+      if (
+        error &&
+        (error.message?.includes("integer") ||
+          error.code === "22P02" ||
+          error.details?.includes("integer"))
+      ) {
+        const retry = await supabase
+          .from("leave_requests")
+          .update({
+            type,
+            start_date: startDate,
+            end_date: endDate,
+            days: Math.ceil(numDays),
+            reason: reason?.trim() || null,
+          })
+          .eq("id", requestId)
+          .eq("employee_id", employeeId)
+          .select("*");
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         throw error;
       }
 
-      // This is important.
       // If RLS prevents the update, data will be [].
       if (!data || data.length === 0) {
         throw new Error(
@@ -649,6 +689,21 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         throw new Error("Invalid leave status.");
       }
 
+      // Fetch existing request to detect status transition and employee/type/days
+      const { data: existingReq, error: fetchErr } = await supabase
+        .from("leave_requests")
+        .select("*")
+        .eq("id", requestId)
+        .single();
+
+      if (fetchErr) throw fetchErr;
+
+      const previousStatus = existingReq?.status;
+      const isHalf = isHalfDayLeave(existingReq);
+      const leaveDays = isHalf ? 0.5 : Number(existingReq?.days || 1);
+      const empId = existingReq?.employee_id;
+      const leaveType = existingReq?.type;
+
       const { error } = await supabase
         .from("leave_requests")
         .update({
@@ -659,6 +714,48 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         .eq("id", requestId);
 
       if (error) throw error;
+
+      // Automatically update profile leave_balance if status transitioned
+      if (empId && leaveType && ["Annual", "Sick"].includes(leaveType)) {
+        try {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("leave_balance")
+            .eq("id", empId)
+            .single();
+
+          if (prof?.leave_balance) {
+            const currentBal =
+              Number(prof.leave_balance[leaveType]) ??
+              (leaveType === "Sick" ? 6 : 24);
+            let newBal = currentBal;
+
+            if (previousStatus !== "Approved" && status === "Approved") {
+              newBal = Math.max(0, currentBal - leaveDays);
+            } else if (previousStatus === "Approved" && status !== "Approved") {
+              newBal = currentBal + leaveDays;
+            }
+
+            if (newBal !== currentBal) {
+              const roundedBal = Math.round(newBal * 10) / 10;
+              await supabase
+                .from("profiles")
+                .update({
+                  leave_balance: {
+                    ...prof.leave_balance,
+                    [leaveType]: roundedBal,
+                  },
+                })
+                .eq("id", empId);
+            }
+          }
+        } catch (balErr) {
+          console.warn(
+            "Could not automatically adjust profiles.leave_balance:",
+            balErr,
+          );
+        }
+      }
     },
 
     onSuccess: invalidate,

@@ -3,6 +3,7 @@ import { AlertTriangle, Plus, X } from "lucide-react";
 import { getWeekDates } from "../../../utils/workTime";
 import { isoToBS, NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import { getWeekday } from "../../../utils/attendance";
+import { isHalfDayLeave } from "../../../utils/leaveUtils";
 
 export function MissingAttendanceBanner({
   records,
@@ -37,7 +38,7 @@ export function MissingAttendanceBanner({
   const leaveDates = useMemo(() => {
     const dates = new Set();
     (leaveRequests || [])
-      .filter((request) => request.status === "Approved")
+      .filter((request) => request.status === "Approved" && !isHalfDayLeave(request))
       .forEach((request) => {
         const [sy, sm, sd] = request.start_date.split("-").map(Number);
         const [ey, em, ed] = request.end_date.split("-").map(Number);

@@ -134,17 +134,17 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
     record.break_minutes || 0,
   );
 
-  const hasCheckout = !!record.clock_out || isAutoClockOut;
+  const targetMinutes = result?.targetMinutes || 480;
 
   const workStatus = hasCheckout
-    ? getWorkStatus(worked)
+    ? getWorkStatus(worked, targetMinutes)
     : {
         type: "none",
         minutes: 0,
       };
 
-  const isLate = isLateClockIn(record.clock_in);
-  const isEarly = isEarlyClockIn(record.clock_in);
+  const isLate = isLateClockIn(record.clock_in, result?.leave);
+  const isEarly = isEarlyClockIn(record.clock_in, result?.leave);
 
   const workedOnHoliday = result.isSaturday || !!result.holiday;
 
@@ -164,6 +164,11 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
               {result.isSiteHybrid && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/20 px-1.5 py-0.5 rounded leading-none">
                   <MapPin size={9} /> Site ({result.siteInfo?.totalHours || 2}h)
+                </span>
+              )}
+              {result.isHalfDay && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded leading-none">
+                  ½d Leave
                 </span>
               )}
               {isLate ? (
@@ -225,6 +230,7 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
             workStatus={workStatus}
             date={date}
             hasCheckout={hasCheckout}
+            result={result}
           />
         </MobileCell>
 
@@ -311,8 +317,9 @@ function HoursCell({ record, worked, date, hasCheckout }) {
   );
 }
 
-function TimeStatus({ record, workStatus, date, hasCheckout }) {
+function TimeStatus({ record, workStatus, date, hasCheckout, result }) {
   const isToday = date?.isoDate === todayISO();
+  const targetHours = (result?.targetMinutes || 480) / 60;
 
   return (
     <div>
@@ -337,12 +344,12 @@ function TimeStatus({ record, workStatus, date, hasCheckout }) {
           {workStatus.type === "normal" && (
             <span className="inline-flex items-center gap-1 font-mono text-[11px] text-primary font-bold bg-primary-light px-2 py-0.5 rounded leading-tight">
               <CheckCircle2 size={11} />
-              8h standard
+              {targetHours}h standard
             </span>
           )}
         </>
       ) : isToday ? (
-        <span className="text-[11px] text-text-muted">8h expected</span>
+        <span className="text-[11px] text-text-muted">{targetHours}h expected</span>
       ) : (
         <span className="text-[11px] text-alert font-medium font-sans">
           Click edit to fix
@@ -363,8 +370,9 @@ function StatusCell({ result }) {
 
   if (result.status === "leave") {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary-light text-primary">
-        {result.leave?.type || "On leave"}
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-primary-light text-primary">
+        <span>{result.leave?.type || "On leave"}</span>
+        {result.isHalfDay && <span className="font-bold font-mono">½d</span>}
       </span>
     );
   }

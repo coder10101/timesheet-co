@@ -15,6 +15,17 @@ import {
 import { StatusPill } from "../../components/StatusPill";
 import { COLORS } from "../../constants/colors";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
+import {
+  isHalfDayLeave,
+  getHalfDaySession,
+  formatLeaveDays,
+  formatLeaveBalance,
+  cleanLeaveReason,
+  buildLeaveReason,
+  HALF_DAY_SESSIONS,
+  SESSION_LABELS,
+  SESSION_SHORT_LABELS,
+} from "../../utils/leaveUtils";
 
 const LEAVE_TYPES = {
   Annual: {
@@ -38,6 +49,8 @@ export function EmployeeLeave({ me }) {
   );
 
   const [type, setType] = useState("Annual");
+  const [durationMode, setDurationMode] = useState("full");
+  const [session, setSession] = useState(HALF_DAY_SESSIONS.FIRST_HALF);
   const [start, setStart] = useState(todayISO());
   const [end, setEnd] = useState(todayISO());
   const [reason, setReason] = useState("");
@@ -49,12 +62,17 @@ export function EmployeeLeave({ me }) {
   const [saving, setSaving] = useState(false);
 
   const currentType = editing ? editing.type : type;
+  const currentDurationMode = editing ? editing.durationMode : durationMode;
+  const currentSession = editing ? editing.session : session;
   const currentStart = editing ? editing.start_date : start;
   const currentEnd = editing ? editing.end_date : end;
   const currentReason = editing ? editing.reason : reason;
 
   const balance = me.leave_balance?.[currentType] ?? 0;
-  const leaveDays = calculateLeaveDays(currentStart, currentEnd);
+  const leaveDays =
+    currentDurationMode === "half"
+      ? 0.5
+      : calculateLeaveDays(currentStart, currentEnd);
   const isOverQuota = Number(leaveDays) > balance;
 
   const filteredRequests = useMemo(() => {
@@ -75,27 +93,43 @@ export function EmployeeLeave({ me }) {
   const doSubmit = async () => {
     setErr("");
 
-    if (!start || !end) return setErr("Please select start and end dates.");
-    if (end < start) return setErr("End date cannot be before start date.");
     if (!reason.trim())
       return setErr("Please provide a brief reason for your leave.");
 
-    const editDays = calculateLeaveDays(start, end);
-    if (editDays <= 0) return setErr("Please select valid weekdays (Sun-Fri).");
+    let editDays = 1;
+    let finalEnd = end;
+
+    if (durationMode === "half") {
+      if (!start) return setErr("Please select a date for your half-day leave.");
+      editDays = 0.5;
+      finalEnd = start;
+    } else {
+      if (!start || !end) return setErr("Please select start and end dates.");
+      if (end < start) return setErr("End date cannot be before start date.");
+      editDays = calculateLeaveDays(start, end);
+      if (editDays <= 0) return setErr("Please select valid weekdays (Sun-Fri).");
+    }
+
+    const finalReason =
+      durationMode === "half"
+        ? buildLeaveReason(session, reason)
+        : reason.trim();
 
     try {
       setSaving(true);
       await submit({
         type,
         startDate: start,
-        endDate: end,
+        endDate: finalEnd,
         days: editDays,
-        reason: reason.trim(),
+        reason: finalReason,
       });
 
       setStart(todayISO());
       setEnd(todayISO());
       setReason("");
+      setDurationMode("full");
+      setSession(HALF_DAY_SESSIONS.FIRST_HALF);
       setErr("");
     } catch (e) {
       setErr(e.message || "Failed to submit leave request.");
@@ -106,12 +140,16 @@ export function EmployeeLeave({ me }) {
 
   const openEdit = (request) => {
     setErr("");
+    const isHalf = isHalfDayLeave(request);
+    const sess = getHalfDaySession(request) || HALF_DAY_SESSIONS.FIRST_HALF;
     setEditing({
       id: request.id,
       type: request.type,
+      durationMode: isHalf ? "half" : "full",
+      session: sess,
       start_date: request.start_date,
       end_date: request.end_date,
-      reason: request.reason || "",
+      reason: cleanLeaveReason(request.reason),
       status: request.status,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -121,22 +159,36 @@ export function EmployeeLeave({ me }) {
     if (!editing) return;
     setErr("");
 
-    if (editing.end_date < editing.start_date) {
-      return setErr("End date cannot be before start date.");
+    if (!editing.reason.trim()) return setErr("Please provide a reason.");
+
+    let editDays = 1;
+    let finalEnd = editing.end_date;
+
+    if (editing.durationMode === "half") {
+      if (!editing.start_date) return setErr("Please select a date.");
+      editDays = 0.5;
+      finalEnd = editing.start_date;
+    } else {
+      if (editing.end_date < editing.start_date) {
+        return setErr("End date cannot be before start date.");
+      }
+      editDays = calculateLeaveDays(editing.start_date, editing.end_date);
+      if (editDays <= 0) return setErr("Please select valid weekdays.");
     }
 
-    const editDays = calculateLeaveDays(editing.start_date, editing.end_date);
-    if (editDays <= 0) return setErr("Please select valid weekdays.");
-    if (!editing.reason.trim()) return setErr("Please provide a reason.");
+    const finalReason =
+      editing.durationMode === "half"
+        ? buildLeaveReason(editing.session, editing.reason)
+        : editing.reason.trim();
 
     try {
       setSaving(true);
       await updateRequest(editing.id, {
         type: editing.type,
         startDate: editing.start_date,
-        endDate: editing.end_date,
+        endDate: finalEnd,
         days: editDays,
-        reason: editing.reason.trim(),
+        reason: finalReason,
       });
 
       setEditing(null);
@@ -193,7 +245,7 @@ export function EmployeeLeave({ me }) {
           const max = meta.max;
           const used = Math.max(0, max - val);
           const remaining = Math.max(0, val);
-          const usedPct = Math.round((used / max) * 100);
+          const usedPct = Math.min(100, Math.round((used / max) * 100));
           const Icon = meta.icon;
 
           return (
@@ -230,7 +282,7 @@ export function EmployeeLeave({ me }) {
                     color: meta.color,
                   }}
                 >
-                  {remaining} days left
+                  {formatLeaveBalance(remaining)} days left
                 </span>
               </div>
 
@@ -238,11 +290,11 @@ export function EmployeeLeave({ me }) {
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border-light text-xs">
                 <div className="bg-surface-muted/50 p-2 rounded-xl border border-border-light">
                   <span className="text-[10px] text-text-muted font-medium block">Leave Taken</span>
-                  <span className="text-sm font-bold text-text font-mono">{used} days</span>
+                  <span className="text-sm font-bold text-text font-mono">{formatLeaveBalance(used)} days</span>
                 </div>
                 <div className="bg-surface-muted/50 p-2 rounded-xl border border-border-light">
                   <span className="text-[10px] text-text-muted font-medium block">Remaining Quota</span>
-                  <span className="text-sm font-bold text-text font-mono">{remaining} days</span>
+                  <span className="text-sm font-bold text-text font-mono">{formatLeaveBalance(remaining)} days</span>
                 </div>
               </div>
 
@@ -250,7 +302,7 @@ export function EmployeeLeave({ me }) {
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-[10px] text-text-muted font-medium">
                   <span>Quota Used: {usedPct}%</span>
-                  <span>{used} of {max} days</span>
+                  <span>{formatLeaveBalance(used)} of {max} days</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-surface-muted overflow-hidden">
                   <div
@@ -273,60 +325,195 @@ export function EmployeeLeave({ me }) {
           editing ? "border-primary ring-2 ring-primary/20" : "border-border"
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
-            {editing ? "Edit Leave Request" : "New Leave Request"}
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
+              {editing ? "Edit Leave Request" : "New Leave Request"}
+            </span>
+
+            {/* FULL / HALF DAY TOGGLE */}
+            <div className="flex items-center gap-0.5 p-0.5 bg-surface-muted rounded-xl border border-border-light text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  if (editing) setEditing({ ...editing, durationMode: "full" });
+                  else setDurationMode("full");
+                }}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${
+                  currentDurationMode === "full"
+                    ? "bg-white text-text shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                ☀️ Full Day
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (editing) {
+                    setEditing({
+                      ...editing,
+                      durationMode: "half",
+                      end_date: editing.start_date,
+                    });
+                  } else {
+                    setDurationMode("half");
+                    setEnd(start);
+                  }
+                }}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg transition-all cursor-pointer ${
+                  currentDurationMode === "half"
+                    ? "bg-white text-primary shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                🌗 Half Day (0.5d)
+              </button>
+            </div>
+          </div>
+
           <span
             className={`text-xs font-mono font-bold ${
               isOverQuota ? "text-alert" : "text-primary"
             }`}
           >
-            {leaveDays} working {leaveDays === 1 ? "day" : "days"} (Sun–Fri)
+            {formatLeaveDays(leaveDays)} {currentDurationMode === "full" && "(Sun–Fri)"}
           </span>
         </div>
 
         {/* CONTROLS ROW */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <select
-            value={currentType}
-            onChange={(e) => {
-              if (editing) setEditing({ ...editing, type: e.target.value });
-              else setType(e.target.value);
-            }}
-            className="h-10 bg-white border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary cursor-pointer shadow-2xs"
-          >
-            <option value="Annual">Annual Leave</option>
-            <option value="Sick">Sick Leave</option>
-          </select>
+        {currentDurationMode === "half" ? (
+          <div className="space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <select
+                value={currentType}
+                onChange={(e) => {
+                  if (editing) setEditing({ ...editing, type: e.target.value });
+                  else setType(e.target.value);
+                }}
+                className="h-10 bg-white border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary cursor-pointer shadow-2xs"
+              >
+                <option value="Annual">Annual Leave</option>
+                <option value="Sick">Sick Leave</option>
+              </select>
 
-          <NepaliDatePicker
-            value={currentStart}
-            onChange={(d) => {
-              if (editing) {
-                setEditing({
-                  ...editing,
-                  start_date: d,
-                  end_date: editing.end_date < d ? d : editing.end_date,
-                });
-              } else {
-                setStart(d);
-                if (end < d) setEnd(d);
-              }
-            }}
-            placeholder="Start date"
-          />
+              <NepaliDatePicker
+                value={currentStart}
+                onChange={(d) => {
+                  if (editing) {
+                    setEditing({
+                      ...editing,
+                      start_date: d,
+                      end_date: d,
+                    });
+                  } else {
+                    setStart(d);
+                    setEnd(d);
+                  }
+                }}
+                placeholder="Select date"
+              />
+            </div>
 
-          <NepaliDatePicker
-            value={currentEnd}
-            min={currentStart}
-            onChange={(d) => {
-              if (editing) setEditing({ ...editing, end_date: d });
-              else setEnd(d);
-            }}
-            placeholder="End date"
-          />
-        </div>
+            {/* SESSION SELECTION */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (editing)
+                    setEditing({
+                      ...editing,
+                      session: HALF_DAY_SESSIONS.FIRST_HALF,
+                    });
+                  else setSession(HALF_DAY_SESSIONS.FIRST_HALF);
+                }}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  currentSession === HALF_DAY_SESSIONS.FIRST_HALF
+                    ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/20"
+                    : "border-border-light bg-surface-muted/40 hover:bg-surface-muted text-text"
+                }`}
+              >
+                <div className="text-xs font-bold flex items-center justify-between">
+                  <span>First Half (Morning)</span>
+                  {currentSession === HALF_DAY_SESSIONS.FIRST_HALF && (
+                    <Check size={13} />
+                  )}
+                </div>
+                <div className="text-[11px] text-text-muted mt-0.5">
+                  10:00 AM – 2:00 PM off · Work 2:00 PM – 6:00 PM (4h)
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (editing)
+                    setEditing({
+                      ...editing,
+                      session: HALF_DAY_SESSIONS.SECOND_HALF,
+                    });
+                  else setSession(HALF_DAY_SESSIONS.SECOND_HALF);
+                }}
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  currentSession === HALF_DAY_SESSIONS.SECOND_HALF
+                    ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/20"
+                    : "border-border-light bg-surface-muted/40 hover:bg-surface-muted text-text"
+                }`}
+              >
+                <div className="text-xs font-bold flex items-center justify-between">
+                  <span>Second Half (Afternoon)</span>
+                  {currentSession === HALF_DAY_SESSIONS.SECOND_HALF && (
+                    <Check size={13} />
+                  )}
+                </div>
+                <div className="text-[11px] text-text-muted mt-0.5">
+                  Work 10:00 AM – 2:00 PM (4h) · 2:00 PM – 6:00 PM off
+                </div>
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <select
+              value={currentType}
+              onChange={(e) => {
+                if (editing) setEditing({ ...editing, type: e.target.value });
+                else setType(e.target.value);
+              }}
+              className="h-10 bg-white border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary cursor-pointer shadow-2xs"
+            >
+              <option value="Annual">Annual Leave</option>
+              <option value="Sick">Sick Leave</option>
+            </select>
+
+            <NepaliDatePicker
+              value={currentStart}
+              onChange={(d) => {
+                if (editing) {
+                  setEditing({
+                    ...editing,
+                    start_date: d,
+                    end_date: editing.end_date < d ? d : editing.end_date,
+                  });
+                } else {
+                  setStart(d);
+                  if (end < d) setEnd(d);
+                }
+              }}
+              placeholder="Start date"
+            />
+
+            <NepaliDatePicker
+              value={currentEnd}
+              min={currentStart}
+              onChange={(d) => {
+                if (editing) setEditing({ ...editing, end_date: d });
+                else setEnd(d);
+              }}
+              placeholder="End date"
+            />
+          </div>
+        )}
 
         {/* REASON & SUBMIT ROW */}
         <div className="flex items-center gap-2.5">
@@ -439,28 +626,33 @@ export function EmployeeLeave({ me }) {
                       <Icon size={14} />
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-text">
-                          {r.type} Leave
-                        </span>
-                        <span className="text-[11px] font-mono text-text-muted">
-                          ({r.days} {r.days === 1 ? "day" : "days"})
-                        </span>
-                        <span className="text-text-faint">·</span>
-                        <span className="text-[11px] font-mono text-text-muted">
-                          {fmtDate(r.start_date)}
-                          {r.start_date !== r.end_date &&
-                            ` → ${fmtDate(r.end_date)}`}
-                        </span>
-                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold text-text">
+                            {r.type} Leave
+                          </span>
+                          <span className="text-[11px] font-mono text-text-muted">
+                            ({formatLeaveDays(r.days)})
+                          </span>
+                          {isHalfDayLeave(r) && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                              {SESSION_SHORT_LABELS[getHalfDaySession(r)] || "Half Day"}
+                            </span>
+                          )}
+                          <span className="text-text-faint">·</span>
+                          <span className="text-[11px] font-mono text-text-muted">
+                            {fmtDate(r.start_date)}
+                            {r.start_date !== r.end_date &&
+                              ` → ${fmtDate(r.end_date)}`}
+                          </span>
+                        </div>
 
-                      {r.reason && (
-                        <p className="text-xs text-text-muted mt-0.5 italic truncate max-w-xl">
-                          "{r.reason}"
-                        </p>
-                      )}
-                    </div>
+                        {cleanLeaveReason(r.reason) && (
+                          <p className="text-xs text-text-muted mt-0.5 italic truncate max-w-xl">
+                            "{cleanLeaveReason(r.reason)}"
+                          </p>
+                        )}
+                      </div>
                   </div>
 
                   <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">

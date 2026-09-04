@@ -12,6 +12,13 @@ import {
 import { getEmployeeColor } from "../../constants/colors";
 import { isoToBS, NEPALI_MONTHS } from "../../utils/nepaliCalendar";
 import { fmtDate } from "../../utils/workTime";
+import {
+  isHalfDayLeave,
+  getHalfDaySession,
+  formatLeaveDays,
+  formatLeaveBalance,
+  cleanLeaveReason,
+} from "../../utils/leaveUtils";
 
 export function OverviewLeaveCard({ requests, employees, onDecide, actingId }) {
   const pendingRequests = useMemo(() => {
@@ -58,6 +65,8 @@ export function OverviewLeaveCard({ requests, employees, onDecide, actingId }) {
         <div className="overflow-y-auto space-y-2 max-h-[140px] pr-1 my-0.5">
           {pendingRequests.map((r) => {
             const isProcessing = actingId === r.id;
+            const isHalf = isHalfDayLeave(r);
+            const session = getHalfDaySession(r);
             const bsStart = r.start_date ? isoToBS(r.start_date) : null;
             const bsEnd = r.end_date ? isoToBS(r.end_date) : null;
             const emp = (employees || []).find((e) => e.id === r.employee_id);
@@ -95,16 +104,23 @@ export function OverviewLeaveCard({ requests, employees, onDecide, actingId }) {
                     </div>
                   </div>
 
-                  {/* LEAVE TYPE PILL */}
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
-                      r.type === "Sick"
-                        ? "bg-alert-light text-alert border border-alert/20"
-                        : "bg-primary-light text-primary border border-primary/20"
-                    }`}
-                  >
-                    {r.type}
-                  </span>
+                  {/* LEAVE TYPE PILL & HALF-DAY BADGE */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isHalf && (
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-primary/10 text-primary border border-primary/20">
+                        {session === "second_half" ? "Afternoon" : "Morning"}
+                      </span>
+                    )}
+                    <span
+                      className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 ${
+                        r.type === "Sick"
+                          ? "bg-alert-light text-alert border border-alert/20"
+                          : "bg-primary-light text-primary border border-primary/20"
+                      }`}
+                    >
+                      {r.type}
+                    </span>
+                  </div>
                 </div>
 
                 {/* DATES & DURATION */}
@@ -128,19 +144,19 @@ export function OverviewLeaveCard({ requests, employees, onDecide, actingId }) {
                       )}
                     </span>
                     <span className="text-text-muted font-normal shrink-0">
-                      ({r.days}d)
+                      ({formatLeaveDays(r.days)})
                     </span>
                   </div>
 
                   <span className="text-[9px] font-mono text-text-muted shrink-0">
-                    {remainingDays}d quota left
+                    {formatLeaveBalance(remainingDays)}d quota left
                   </span>
                 </div>
 
                 {/* REASON IF PROVIDED */}
-                {r.reason && (
+                {cleanLeaveReason(r.reason) && (
                   <p className="text-[10px] text-text-muted italic truncate leading-tight">
-                    "{r.reason}"
+                    "{cleanLeaveReason(r.reason)}"
                   </p>
                 )}
 

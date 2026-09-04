@@ -76,7 +76,7 @@ create table if not exists leave_requests (
   type text not null check (type in ('Annual', 'Sick', 'Casual', 'Unpaid')),
   start_date date not null,
   end_date date not null,
-  days int not null,
+  days numeric not null,
   reason text not null,
   status text not null default 'Pending' check (status in ('Pending', 'Approved', 'Rejected')),
   decided_by uuid references profiles(id),

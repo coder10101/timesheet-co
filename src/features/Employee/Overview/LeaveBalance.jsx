@@ -1,6 +1,7 @@
 import { Sun, HeartPulse, Umbrella } from "lucide-react";
 import { Card } from "../../../components/Card";
 import { COLORS } from "../../../constants/colors";
+import { formatLeaveBalance } from "../../../utils/leaveUtils";
 
 const LEAVE_VISUAL = {
   Annual: {
@@ -50,7 +51,7 @@ export function LeaveBalance({ myLeave, me }) {
                   style={{ backgroundColor: stubColor }}
                 >
                   <span className="font-mono text-base font-bold leading-none">
-                    {value}
+                    {formatLeaveBalance(value)}
                   </span>
                   <span className="text-[8px] uppercase tracking-wide text-white/75 mt-0.5">
                     left
@@ -85,7 +86,7 @@ export function LeaveBalance({ myLeave, me }) {
                     </span>
                   </div>
                   <span className="text-[10px] text-text-muted">
-                    {used}/{max} used
+                    {formatLeaveBalance(used)}/{max} used
                   </span>
                 </div>
               </div>

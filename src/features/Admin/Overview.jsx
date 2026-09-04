@@ -24,6 +24,7 @@ import {
   isDateWithinLeave,
   getWeekday,
 } from "../../utils/attendance";
+import { isHalfDayLeave } from "../../utils/leaveUtils";
 import {
   Users,
   Clock,
@@ -113,7 +114,7 @@ export function AdminOverview({ me }) {
       let workedMin = 0;
 
       if (att?.clock_in) {
-        const isLate = isLateClockIn(att.clock_in);
+        const isLate = isLateClockIn(att.clock_in, onLeave);
         status = isLate ? "Late" : "Present";
         time = fmtTime(att.clock_in);
         workedMin = getWorkedMinutes(
@@ -121,8 +122,9 @@ export function AdminOverview({ me }) {
           att.clock_out || new Date().toISOString(),
         );
       } else if (onLeave) {
-        status = "On Leave";
-        time = onLeave.type;
+        const isHalf = isHalfDayLeave(onLeave);
+        status = isHalf ? "Half Day" : "On Leave";
+        time = isHalf ? `${onLeave.type} (½d)` : onLeave.type;
       } else if (isWeekend) {
         status = "Holiday";
         time = "Saturday";

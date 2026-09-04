@@ -114,6 +114,7 @@ export function EmployeeOverview({ me }) {
         <Today
           records={records}
           entries={entries}
+          myLeave={myLeave}
           clockIn={clockIn}
           clockOut={clockOut}
           clockInPending={clockInPending}

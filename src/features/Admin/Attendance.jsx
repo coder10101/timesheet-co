@@ -30,6 +30,7 @@ import {
   getWeekday,
   formatDifference,
 } from "../../utils/attendance";
+import { isHalfDayLeave } from "../../utils/leaveUtils";
 import {
   Search,
   ChevronLeft,
@@ -158,16 +159,24 @@ export function AdminAttendance() {
     return monthRecords;
   }, [monthRecords, filterTab, siteSummaryByDate]);
 
+  const employeeLeaves = useMemo(() => {
+    return (leaveRequests || []).filter(
+      (r) => r.employee_id === effectiveSelectedId && r.status === "Approved",
+    );
+  }, [leaveRequests, effectiveSelectedId]);
+
   // Aggregate monthly stats
   const monthPresentCount = monthRecords.filter((r) => {
+    const leave = employeeLeaves.find((l) => isDateWithinLeave(r.date, l));
     return (
       r.is_site_only ||
-      (r.clock_in && !isLateClockIn(r.clock_in))
+      (r.clock_in && !isLateClockIn(r.clock_in, leave))
     );
   }).length;
 
   const monthLateCount = monthRecords.filter((r) => {
-    return r.clock_in && isLateClockIn(r.clock_in);
+    const leave = employeeLeaves.find((l) => isDateWithinLeave(r.date, l));
+    return r.clock_in && isLateClockIn(r.clock_in, leave);
   }).length;
 
   const totalWorkedMinutes = monthRecords.reduce((acc, r) => {
@@ -507,17 +516,22 @@ export function AdminAttendance() {
                       const isToday = r.date === todayStr;
                       const effOut = getEffectiveClockOut(r, todayStr);
                       const isAutoClockOut = !r.clock_out && !isToday && !!r.clock_in;
+                      const leave = employeeLeaves.find((l) =>
+                        isDateWithinLeave(r.date, l),
+                      );
+                      const isHalf = isHalfDayLeave(leave);
+                      const targetMins = isHalf ? 240 : WORK_DAY_MINUTES;
                       const workedMinutes = r.is_site_only
                         ? Math.round((r.site_hours || 8) * 60)
                         : r.clock_in && effOut
                           ? getWorkedMinutes(r.clock_in, effOut, r.break_minutes || 0)
                           : null;
-                      const isLate = r.clock_in && isLateClockIn(r.clock_in);
+                      const isLate = r.clock_in && isLateClockIn(r.clock_in, leave);
                       const bs = isoToBS(r.date);
                       const weekday = getWeekday(r.date);
                       const diffMinutes =
                         workedMinutes !== null
-                          ? workedMinutes - WORK_DAY_MINUTES
+                          ? workedMinutes - targetMins
                           : 0;
 
                       return (
@@ -544,6 +558,11 @@ export function AdminAttendance() {
                             ) : (
                               <>
                                 {r.clock_in ? fmtTime(r.clock_in) : "—"}
+                                {isHalf && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.2 rounded ml-1">
+                                    ½d Leave
+                                  </span>
+                                )}
                                 {hasSite && (
                                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] px-1.5 py-0.2 rounded ml-1">
                                     <MapPin size={8} /> Site
@@ -606,7 +625,7 @@ export function AdminAttendance() {
                                 </span>
                               ) : (
                                 <span className="text-text-muted">
-                                  8h standard
+                                  {isHalf ? "4h standard" : "8h standard"}
                                 </span>
                               )
                             ) : (
@@ -621,11 +640,11 @@ export function AdminAttendance() {
                               </span>
                             ) : isLate ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">
-                                Late {hasSite && "· Site"}
+                                Late {isHalf && "· ½d"}{hasSite && "· Site"}
                               </span>
                             ) : r.clock_in ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-light text-success border border-success/30 text-[10px] font-semibold">
-                                On-Time {hasSite && "· Site"}
+                                On-Time {isHalf && "· ½d"}{hasSite && "· Site"}
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-md bg-surface-muted text-text-muted border border-border text-[10px] font-semibold">

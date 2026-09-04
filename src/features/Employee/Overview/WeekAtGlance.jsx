@@ -3,6 +3,7 @@ import { Card } from "../../../components/Card";
 import { isoToBS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import { Check, PartyPopper } from "lucide-react";
 import { getWeekDates } from "../../../utils/workTime";
+import { isHalfDayLeave } from "../../../utils/leaveUtils";
 
 export function WeekAtGlance({
   records,
@@ -31,8 +32,8 @@ export function WeekAtGlance({
     return map;
   }, [holidays]);
 
-  const leaveDates = useMemo(() => {
-    const dates = new Set();
+  const leaveMap = useMemo(() => {
+    const map = new Map();
 
     (leaveRequests || [])
       .filter((request) => request.status === "Approved")
@@ -48,12 +49,12 @@ export function WeekAtGlance({
           const y = current.getFullYear();
           const m = String(current.getMonth() + 1).padStart(2, "0");
           const d = String(current.getDate()).padStart(2, "0");
-          dates.add(`${y}-${m}-${d}`);
+          map.set(`${y}-${m}-${d}`, request);
           current.setDate(current.getDate() + 1);
         }
       });
 
-    return dates;
+    return map;
   }, [leaveRequests]);
 
   // Expected working days up to today (excludes Saturdays and Holidays unless they were logged)
@@ -86,7 +87,9 @@ export function WeekAtGlance({
           const isToday = date === today;
           const isFuture = date > today;
           const isLogged = loggedDates.has(date);
-          const isLeave = leaveDates.has(date);
+          const leave = leaveMap.get(date);
+          const isLeave = !!leave;
+          const isHalfDay = isLeave && isHalfDayLeave(leave);
           const holidayName = holidayMap.get(date);
           const isHoliday = !!holidayName;
           const [y, m, dt] = date.split("-").map(Number);
@@ -96,10 +99,10 @@ export function WeekAtGlance({
 
           let status = "future";
 
-          if (isLeave) {
-            status = "leave";
-          } else if (isLogged) {
+          if (isLogged) {
             status = "logged";
+          } else if (isLeave) {
+            status = "leave";
           } else if (isHoliday) {
             status = "holiday";
           } else if (isSaturday) {
@@ -161,20 +164,27 @@ export function WeekAtGlance({
               {/* Status indicator */}
               <div className="mt-1.5 min-h-[22px] flex items-center justify-center">
                 {status === "logged" && (
-                  <div
-                    className="mx-auto w-5 h-5 rounded-full bg-success-light text-success flex items-center justify-center shadow-xs"
-                    title="Attendance logged"
-                  >
-                    <Check size={11} strokeWidth={3} />
+                  <div className="flex flex-col items-center">
+                    <div
+                      className="mx-auto w-5 h-5 rounded-full bg-success-light text-success flex items-center justify-center shadow-xs"
+                      title={isHalfDay ? "Half-day attendance logged" : "Attendance logged"}
+                    >
+                      <Check size={11} strokeWidth={3} />
+                    </div>
+                    {isHalfDay && (
+                      <span className="text-[8px] font-bold text-primary font-mono leading-none mt-0.5">
+                        ½d
+                      </span>
+                    )}
                   </div>
                 )}
 
                 {status === "leave" && (
                   <div
                     className="text-[9px] font-semibold text-primary px-1.5 py-0.5 rounded bg-primary-light border border-primary/20 truncate"
-                    title="Approved leave"
+                    title={isHalfDay ? "Approved half-day leave (0.5d)" : "Approved leave"}
                   >
-                    Leave
+                    {isHalfDay ? "½ Day" : "Leave"}
                   </div>
                 )}
 

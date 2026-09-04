@@ -9,10 +9,17 @@ import {
 } from "../../../utils/workTime";
 import { ClockRing } from "../../../components/ClockRing";
 import { getSiteSummaryForDate } from "../../../utils/workType";
+import {
+  isHalfDayLeave,
+  getHalfDaySession,
+  HALF_DAY_SESSIONS,
+} from "../../../utils/leaveUtils";
+import { isDateWithinLeave } from "../../../utils/attendance";
 
 export function Today({
   records,
   entries = [],
+  myLeave = [],
   clockIn,
   clockOut,
   clockInPending,
@@ -28,6 +35,13 @@ export function Today({
 
   const todayRecord = records.find((record) => record.date === today);
   const siteSummary = getSiteSummaryForDate(entries, today);
+
+  const todayLeave = (myLeave || []).find(
+    (l) => l.status === "Approved" && isDateWithinLeave(today, l),
+  );
+  const isTodayHalfDay = isHalfDayLeave(todayLeave);
+  const halfDaySession = getHalfDaySession(todayLeave);
+  const targetDayMinutes = isTodayHalfDay ? 240 : WORK_DAY_MINUTES;
 
   useEffect(() => {
     if (!todayRecord?.clock_in || todayRecord?.clock_out) return;
@@ -61,7 +75,7 @@ export function Today({
       )
     : 0;
 
-  const differenceMinutes = workedMinutes - WORK_DAY_MINUTES;
+  const differenceMinutes = workedMinutes - targetDayMinutes;
 
   const formatDifference = () => {
     if (differenceMinutes === 0) {
@@ -139,7 +153,7 @@ export function Today({
           <ClockRing
             pct={
               todayRecord?.clock_in
-                ? Math.min((workedMinutes / WORK_DAY_MINUTES) * 100, 100)
+                ? Math.min((workedMinutes / targetDayMinutes) * 100, 100)
                 : 0
             }
             color={
@@ -210,7 +224,11 @@ export function Today({
                 {!todayRecord?.clock_in
                   ? siteSummary.hasSiteVisit
                     ? "Site visit logged today"
-                    : "Not clocked in yet"
+                    : isTodayHalfDay
+                      ? halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF
+                        ? "Half day · Morning shift (10 AM–2 PM)"
+                        : "Half day · Afternoon shift (2 PM–6 PM)"
+                      : "Not clocked in yet"
                   : todayRecord.clock_out
                     ? "Workday completed"
                     : isOnBreak
@@ -220,6 +238,12 @@ export function Today({
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap mt-1">
+              {isTodayHalfDay && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/95 bg-primary/40 border border-white/20 px-2 py-0.5 rounded-full">
+                  🌗 Half Day ({halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF ? "Afternoon Off" : "Morning Off"}) · 4h Target
+                </span>
+              )}
+
               {siteSummary.hasSiteVisit && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/90 bg-[#63537E]/60 border border-white/20 px-2 py-0.5 rounded-full">
                   <MapPin size={10} /> Site ({siteSummary.totalHours}h)
@@ -310,7 +334,11 @@ export function Today({
                   hour: "2-digit",
                   minute: "2-digit",
                 })
-              : "—"}
+              : isTodayHalfDay
+                ? halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF
+                  ? "Expected 10:00 AM"
+                  : "Expected 02:00 PM"
+                : "—"}
           </p>
         </div>
 
@@ -339,7 +367,11 @@ export function Today({
                   hour: "2-digit",
                   minute: "2-digit",
                 })
-              : "—"}
+              : isTodayHalfDay
+                ? halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF
+                  ? "Target 02:00 PM (4h)"
+                  : "Target 06:00 PM (4h)"
+                : "—"}
           </p>
         </div>
       </div>

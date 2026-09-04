@@ -19,6 +19,14 @@ import {
   Users,
 } from "lucide-react";
 import { getEmployeeColor, COLORS } from "../../constants/colors";
+import {
+  isHalfDayLeave,
+  getHalfDaySession,
+  formatLeaveDays,
+  formatLeaveBalance,
+  cleanLeaveReason,
+  SESSION_SHORT_LABELS,
+} from "../../utils/leaveUtils";
 
 export function AdminLeave({ me }) {
   const { requests, decide } = useLeaveRequests(null, "org");
@@ -174,6 +182,8 @@ export function AdminLeave({ me }) {
             <div className="space-y-3">
               {filteredRequests.map((r) => {
                 const isProcessing = actingId === r.id;
+                const isHalf = isHalfDayLeave(r);
+                const session = getHalfDaySession(r);
                 const bsStart = r.start_date ? isoToBS(r.start_date) : null;
                 const bsEnd = r.end_date ? isoToBS(r.end_date) : null;
                 const emp = (employees || []).find((e) => e.id === r.employee_id);
@@ -231,9 +241,16 @@ export function AdminLeave({ me }) {
                     <div className="bg-surface-muted/40 p-3 rounded-xl border border-border-light space-y-2 text-xs">
                       {/* DATE & LEAVE TYPE ROW */}
                       <div className="flex items-center justify-between flex-wrap gap-1">
-                        <span className="font-bold text-text">
-                          {r.type} Leave · {r.days} working {r.days === 1 ? "day" : "days"}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-text">
+                            {r.type} Leave · {formatLeaveDays(r.days)}
+                          </span>
+                          {isHalf && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                              {SESSION_SHORT_LABELS[session] || "Half Day"}
+                            </span>
+                          )}
+                        </div>
                         <span className="font-mono text-xs text-text font-semibold">
                           {bsStart ? `${bsStart.day} ${NEPALI_MONTHS[bsStart.month - 1]}` : fmtDate(r.start_date)}
                           {r.end_date && r.end_date !== r.start_date && (
@@ -246,7 +263,7 @@ export function AdminLeave({ me }) {
                       <div className="pt-1 border-t border-border-light/70 flex items-center justify-between text-[11px]">
                         <span className="text-text-muted">Quota Balance</span>
                         <span className={`font-mono font-bold ${isExceeding ? "text-alert" : "text-text"}`}>
-                          {usedDays} used · {remainingDays} remaining of {maxQuota}d
+                          {formatLeaveBalance(usedDays)} used · {formatLeaveBalance(remainingDays)} remaining of {maxQuota}d
                         </span>
                       </div>
                     </div>
@@ -254,7 +271,11 @@ export function AdminLeave({ me }) {
                     {/* 3. REASON NOTE */}
                     <div className="text-xs text-text-muted">
                       <span className="font-bold text-text">Reason:</span>{" "}
-                      <span className="italic">{r.reason ? `"${r.reason}"` : "No description provided."}</span>
+                      <span className="italic">
+                        {cleanLeaveReason(r.reason)
+                          ? `"${cleanLeaveReason(r.reason)}"`
+                          : "No description provided."}
+                      </span>
                     </div>
 
                     {/* 4. APPROVE / REJECT ACTIONS */}
@@ -312,6 +333,16 @@ export function AdminLeave({ me }) {
                 </div>
                 <p className="text-[11px] text-text-muted leading-tight">
                   For medical recovery and emergencies.
+                </p>
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-surface-muted/50 border border-border-light space-y-1">
+                <div className="flex items-center justify-between font-bold text-text">
+                  <span>Half-Day Leaves</span>
+                  <span className="font-mono text-primary">0.5 Day</span>
+                </div>
+                <p className="text-[11px] text-text-muted leading-tight">
+                  Available in Morning (10 AM–2 PM) or Afternoon (2 PM–6 PM) shifts with a 4-hour target.
                 </p>
               </div>
 
