@@ -284,6 +284,7 @@ export function EmployeeAttendance({ me }) {
           const worked = getWorkedMinutes(
             result.record.clock_in,
             result.record.clock_out,
+            result.record.break_minutes || 0,
           );
 
           totalWorked += worked;
@@ -392,6 +393,7 @@ export function EmployeeAttendance({ me }) {
       bsYear: date.year || selectedMonth.year,
       clockIn,
       clockOut,
+      breakMinutes: record?.break_minutes || 0,
       isNew: !record?.id,
     });
   };
@@ -426,6 +428,8 @@ export function EmployeeAttendance({ me }) {
         clockOut: clockOutVal,
         clock_in: clockInVal,
         clock_out: clockOutVal,
+        breakMinutes: Number(editing.breakMinutes) || 0,
+        break_minutes: Number(editing.breakMinutes) || 0,
       });
 
       setEditing(null);

@@ -19,7 +19,35 @@ export function useAttendance(employeeId) {
         .eq("employee_id", employeeId)
         .order("date", { ascending: false });
       if (error) throw error;
-      return data;
+
+      return (data || []).map((r) => {
+        let break_minutes = r.break_minutes ?? 0;
+        let break_start = r.break_start ?? null;
+        let breaks = r.breaks ?? [];
+        try {
+          const localActive = localStorage.getItem(
+            `break_start_${r.employee_id}_${r.date}`,
+          );
+          if (localActive && !break_start) break_start = localActive;
+          const localData = localStorage.getItem(
+            `break_data_${r.employee_id}_${r.date}`,
+          );
+          if (localData) {
+            const parsed = JSON.parse(localData);
+            if ((parsed.break_minutes || 0) > break_minutes) {
+              break_minutes = parsed.break_minutes;
+              breaks = parsed.breaks || breaks;
+            }
+          }
+        } catch (_) {}
+
+        return {
+          ...r,
+          break_minutes,
+          break_start,
+          breaks,
+        };
+      });
     },
     enabled: !!employeeId,
   });
@@ -40,12 +68,134 @@ export function useAttendance(employeeId) {
 
   const clockOut = useMutation({
     mutationFn: async () => {
+      // If a break was in progress when clocking out, finalize it
+      const today = todayISO();
+      let startISO = null;
+      try {
+        startISO = localStorage.getItem(`break_start_${employeeId}_${today}`);
+        localStorage.removeItem(`break_start_${employeeId}_${today}`);
+      } catch (_) {}
+
+      const currentRecord = (query.data || []).find((r) => r.date === today);
+      const activeStart = currentRecord?.break_start || startISO;
+      let additionalBreakMins = 0;
+      if (activeStart) {
+        const diffMs = new Date().getTime() - new Date(activeStart).getTime();
+        additionalBreakMins = Math.max(1, Math.round(diffMs / 60000));
+      }
+      const totalBreakMinutes = (currentRecord?.break_minutes || 0) + additionalBreakMins;
+
+      const updateData = {
+        clock_out: new Date().toISOString(),
+        break_start: null,
+      };
+      if (additionalBreakMins > 0) {
+        updateData.break_minutes = totalBreakMinutes;
+      }
+
       const { error } = await supabase
         .from("attendance")
-        .update({ clock_out: new Date().toISOString() })
+        .update(updateData)
         .eq("employee_id", employeeId)
-        .eq("date", todayISO());
-      if (error) throw error;
+        .eq("date", today);
+
+      if (error) {
+        if (error.code === "42703" || error.message?.includes("break")) {
+          // Fallback if break columns don't exist yet
+          delete updateData.break_start;
+          delete updateData.break_minutes;
+          const { error: err2 } = await supabase
+            .from("attendance")
+            .update(updateData)
+            .eq("employee_id", employeeId)
+            .eq("date", today);
+          if (err2) throw err2;
+        } else {
+          throw error;
+        }
+      }
+    },
+    onSuccess: invalidate,
+  });
+
+  const startBreak = useMutation({
+    mutationFn: async () => {
+      const nowISO = new Date().toISOString();
+      const today = todayISO();
+
+      try {
+        localStorage.setItem(`break_start_${employeeId}_${today}`, nowISO);
+      } catch (_) {}
+
+      const { error } = await supabase
+        .from("attendance")
+        .update({ break_start: nowISO })
+        .eq("employee_id", employeeId)
+        .eq("date", today);
+
+      if (error && error.code !== "42703" && !error.message?.includes("break_start")) {
+        throw error;
+      }
+    },
+    onSuccess: invalidate,
+  });
+
+  const endBreak = useMutation({
+    mutationFn: async () => {
+      const now = new Date();
+      const nowISO = now.toISOString();
+      const today = todayISO();
+
+      const currentRecord = (query.data || []).find((r) => r.date === today);
+      let startISO = currentRecord?.break_start;
+      if (!startISO) {
+        try {
+          startISO = localStorage.getItem(`break_start_${employeeId}_${today}`);
+        } catch (_) {}
+      }
+
+      let elapsedBreakMins = 0;
+      if (startISO) {
+        const diffMs = now.getTime() - new Date(startISO).getTime();
+        elapsedBreakMins = Math.max(1, Math.round(diffMs / 60000));
+      }
+
+      const existingBreaks = Array.isArray(currentRecord?.breaks)
+        ? currentRecord.breaks
+        : [];
+      const newBreakItem = {
+        start: startISO || nowISO,
+        end: nowISO,
+        duration: elapsedBreakMins,
+      };
+      const updatedBreaks = [...existingBreaks, newBreakItem];
+      const totalBreakMinutes =
+        (currentRecord?.break_minutes || 0) + elapsedBreakMins;
+
+      try {
+        localStorage.removeItem(`break_start_${employeeId}_${today}`);
+        localStorage.setItem(
+          `break_data_${employeeId}_${today}`,
+          JSON.stringify({
+            break_minutes: totalBreakMinutes,
+            breaks: updatedBreaks,
+          }),
+        );
+      } catch (_) {}
+
+      const { error } = await supabase
+        .from("attendance")
+        .update({
+          break_start: null,
+          break_minutes: totalBreakMinutes,
+          breaks: updatedBreaks,
+        })
+        .eq("employee_id", employeeId)
+        .eq("date", today);
+
+      if (error && error.code !== "42703" && !error.message?.includes("break")) {
+        throw error;
+      }
     },
     onSuccess: invalidate,
   });
@@ -57,10 +207,14 @@ export function useAttendance(employeeId) {
       clockOut,
       clock_in,
       clock_out,
+      breakMinutes,
+      break_minutes,
       date,
     }) => {
       const rawIn = clockIn !== undefined ? clockIn : clock_in;
       const rawOut = clockOut !== undefined ? clockOut : clock_out;
+      const rawBreak =
+        breakMinutes !== undefined ? breakMinutes : break_minutes;
 
       const formatField = (val) => {
         if (!val) return null;
@@ -76,28 +230,66 @@ export function useAttendance(employeeId) {
 
       const finalIn = formatField(rawIn);
       const finalOut = formatField(rawOut);
+      const finalBreak =
+        rawBreak !== undefined && rawBreak !== null ? Number(rawBreak) : 0;
+
+      const payload = {
+        clock_in: finalIn,
+        clock_out: finalOut,
+        break_minutes: finalBreak,
+      };
+
+      if (date) {
+        try {
+          localStorage.setItem(
+            `break_data_${employeeId}_${date}`,
+            JSON.stringify({ break_minutes: finalBreak }),
+          );
+        } catch (_) {}
+      }
 
       if (attendanceId) {
-        const { error } = await supabase
+        let { error } = await supabase
           .from("attendance")
-          .update({
-            clock_in: finalIn,
-            clock_out: finalOut,
-          })
+          .update(payload)
           .eq("id", attendanceId)
           .eq("employee_id", employeeId);
-        if (error) throw error;
+
+        if (error && (error.code === "42703" || error.message?.includes("break"))) {
+          delete payload.break_minutes;
+          const { error: err2 } = await supabase
+            .from("attendance")
+            .update(payload)
+            .eq("id", attendanceId)
+            .eq("employee_id", employeeId);
+          if (err2) throw err2;
+        } else if (error) {
+          throw error;
+        }
       } else if (date) {
-        const { error } = await supabase.from("attendance").upsert(
+        let { error } = await supabase.from("attendance").upsert(
           {
             employee_id: employeeId,
             date,
-            clock_in: finalIn,
-            clock_out: finalOut,
+            ...payload,
           },
           { onConflict: "employee_id,date" },
         );
-        if (error) throw error;
+
+        if (error && (error.code === "42703" || error.message?.includes("break"))) {
+          delete payload.break_minutes;
+          const { error: err2 } = await supabase.from("attendance").upsert(
+            {
+              employee_id: employeeId,
+              date,
+              ...payload,
+            },
+            { onConflict: "employee_id,date" },
+          );
+          if (err2) throw err2;
+        } else if (error) {
+          throw error;
+        }
       } else {
         throw new Error("Missing attendance record ID or date.");
       }
@@ -111,6 +303,10 @@ export function useAttendance(employeeId) {
     clockIn: () => clockIn.mutateAsync(),
     clockInPending: clockIn.isPending,
     clockOut: () => clockOut.mutateAsync(),
+    startBreak: () => startBreak.mutateAsync(),
+    startBreakPending: startBreak.isPending,
+    endBreak: () => endBreak.mutateAsync(),
+    endBreakPending: endBreak.isPending,
     updateAttendance: (attendanceIdOrPayload, maybePayload) => {
       if (
         typeof attendanceIdOrPayload === "object" &&

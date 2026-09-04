@@ -17,7 +17,16 @@ import { WeekAtGlance } from "./WeekAtGlance";
 import { Header } from "./Header";
 
 export function EmployeeOverview({ me }) {
-  const { records, clockIn, clockOut, clockInPending } = useAttendance(me.id);
+  const {
+    records,
+    clockIn,
+    clockOut,
+    clockInPending,
+    startBreak,
+    startBreakPending,
+    endBreak,
+    endBreakPending,
+  } = useAttendance(me.id);
 
   const { entries, addEntry, updateEntry, deleteEntry } = useWorkLogs(me.id);
 
@@ -61,6 +70,10 @@ export function EmployeeOverview({ me }) {
           clockIn={clockIn}
           clockOut={clockOut}
           clockInPending={clockInPending}
+          startBreak={startBreak}
+          startBreakPending={startBreakPending}
+          endBreak={endBreak}
+          endBreakPending={endBreakPending}
           setErr={setErr}
           today={today}
         />

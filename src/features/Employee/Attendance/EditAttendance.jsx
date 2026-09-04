@@ -9,6 +9,9 @@ import {
   AlertCircle,
   Sparkles,
   CheckCircle2,
+  Minus,
+  Plus,
+  Coffee,
 } from "lucide-react";
 import { NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import {
@@ -64,8 +67,9 @@ export default function AttendanceEditForm({
       };
     }
 
+    const breakMins = Math.max(0, Number(editing.breakMinutes) || 0);
     const elapsedMins = outTotalMins - inTotalMins;
-    const workedMins = Math.max(0, elapsedMins - LUNCH_MINUTES);
+    const workedMins = Math.max(0, elapsedMins - LUNCH_MINUTES - breakMins);
     const diffMins = workedMins - WORK_DAY_MINUTES;
 
     let statusType = "normal";
@@ -80,11 +84,12 @@ export default function AttendanceEditForm({
       invalid: false,
       punctuality,
       elapsedMins,
+      breakMins,
       workedMins,
       diffMins,
       statusType,
     };
-  }, [editing.clockIn, editing.clockOut]);
+  }, [editing.clockIn, editing.clockOut, editing.breakMinutes]);
 
   const weekday = editing.date ? getWeekday(editing.date) : null;
   const monthName =
@@ -197,6 +202,98 @@ export default function AttendanceEditForm({
         </label>
       </div>
 
+      {/* PERSONAL BREAK INPUT & QUICK PRESETS */}
+      <div className="mb-4 p-3 rounded-xl bg-white border border-border-light shadow-2xs space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-semibold text-text flex items-center gap-1.5">
+            <Coffee size={13} className="text-amber-500" />
+            <span>Personal Break Time</span>
+          </span>
+          <span className="text-[10px] text-text-muted">
+            Deducted from worked hours (e.g. 1h personal outing)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Stepper & Number Box */}
+          <div className="flex items-center bg-surface-muted border border-border rounded-lg p-0.5 shadow-2xs">
+            <button
+              type="button"
+              disabled={(editing.breakMinutes || 0) <= 0}
+              onClick={() => {
+                const current = Math.max(0, (editing.breakMinutes || 0) - 15);
+                setEditing((prev) => ({ ...prev, breakMinutes: current }));
+              }}
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-white text-text-muted hover:text-text disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+              title="Decrease 15 mins"
+            >
+              <Minus size={11} />
+            </button>
+
+            <div className="flex items-center px-1 font-mono text-xs">
+              <input
+                type="number"
+                min="0"
+                max="480"
+                step="15"
+                value={editing.breakMinutes || 0}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setEditing((prev) => ({
+                    ...prev,
+                    breakMinutes: isNaN(val) ? 0 : Math.max(0, val),
+                  }));
+                }}
+                className="w-10 text-center font-bold text-text bg-transparent outline-none"
+              />
+              <span className="text-text-muted text-[10px] pr-0.5">min</span>
+            </div>
+
+            <button
+              type="button"
+              disabled={(editing.breakMinutes || 0) >= 480}
+              onClick={() => {
+                const current = (editing.breakMinutes || 0) + 15;
+                setEditing((prev) => ({ ...prev, breakMinutes: current }));
+              }}
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-white text-text-muted hover:text-text transition-colors cursor-pointer"
+              title="Increase 15 mins"
+            >
+              <Plus size={11} />
+            </button>
+          </div>
+
+          {/* Quick preset chips */}
+          {[
+            { label: "None", mins: 0 },
+            { label: "15m", mins: 15 },
+            { label: "30m", mins: 30 },
+            { label: "45m", mins: 45 },
+            { label: "1h", mins: 60 },
+            { label: "1.5h", mins: 90 },
+            { label: "2h", mins: 120 },
+          ].map((preset) => (
+            <button
+              key={preset.mins}
+              type="button"
+              onClick={() =>
+                setEditing((prev) => ({
+                  ...prev,
+                  breakMinutes: preset.mins,
+                }))
+              }
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                (editing.breakMinutes || 0) === preset.mins
+                  ? "bg-amber-500 text-slate-950 shadow-2xs font-bold"
+                  : "bg-surface-muted text-text-muted hover:text-text border border-border-light shadow-2xs"
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* LIVE SHIFT CALCULATION PREVIEW */}
       {preview && (
         <div className="mb-4 p-3 rounded-xl bg-white border border-border-light shadow-2xs">
@@ -223,16 +320,22 @@ export default function AttendanceEditForm({
 
               <div className="p-2 rounded-lg bg-surface-muted/50 border border-border-light">
                 <span className="text-[10px] text-text-muted block">
-                  Lunch Break
+                  Personal Break
                 </span>
-                <span className="font-mono font-semibold text-text-muted text-[11px]">
-                  Included in 8h
+                <span className="font-mono font-semibold text-xs">
+                  {preview.breakMins > 0 ? (
+                    <span className="text-amber-600 font-bold">
+                      -{formatDuration(preview.breakMins)}
+                    </span>
+                  ) : (
+                    <span className="text-text-muted">0m (none)</span>
+                  )}
                 </span>
               </div>
 
               <div className="p-2 rounded-lg bg-surface-muted/50 border border-border-light">
                 <span className="text-[10px] text-text-muted block">
-                  Worked Hours
+                  Net Worked Hours
                 </span>
                 <span className="font-mono font-bold text-text">
                   {formatDuration(preview.workedMins)}

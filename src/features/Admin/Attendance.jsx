@@ -173,7 +173,7 @@ export function AdminAttendance() {
       return acc + Math.round((r.site_hours || 8) * 60);
     }
     if (r.clock_in && r.clock_out) {
-      return acc + getWorkedMinutes(r.clock_in, r.clock_out);
+      return acc + getWorkedMinutes(r.clock_in, r.clock_out, r.break_minutes || 0);
     }
     return acc;
   }, 0);
@@ -184,7 +184,7 @@ export function AdminAttendance() {
       return acc + (worked - WORK_DAY_MINUTES);
     }
     if (r.clock_in && r.clock_out) {
-      const worked = getWorkedMinutes(r.clock_in, r.clock_out);
+      const worked = getWorkedMinutes(r.clock_in, r.clock_out, r.break_minutes || 0);
       return acc + (worked - WORK_DAY_MINUTES);
     }
     return acc;
@@ -503,7 +503,7 @@ export function AdminAttendance() {
                       const workedMinutes = r.is_site_only
                         ? Math.round((r.site_hours || 8) * 60)
                         : r.clock_in && r.clock_out
-                          ? getWorkedMinutes(r.clock_in, r.clock_out)
+                          ? getWorkedMinutes(r.clock_in, r.clock_out, r.break_minutes || 0)
                           : null;
                       const isLate = r.clock_in && isLateClockIn(r.clock_in);
                       const bs = isoToBS(r.date);
@@ -563,9 +563,18 @@ export function AdminAttendance() {
                           </td>
 
                           <td className="px-3 py-3 font-mono text-xs font-semibold text-text">
-                            {workedMinutes !== null && workedMinutes > 0
-                              ? formatDuration(workedMinutes)
-                              : "—"}
+                            {workedMinutes !== null && workedMinutes > 0 ? (
+                              <div>
+                                <div>{formatDuration(workedMinutes)}</div>
+                                {r.break_minutes > 0 && (
+                                  <div className="text-[10px] text-amber-600 font-sans font-medium">
+                                    ☕ {r.break_minutes}m break
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
                           </td>
 
                           <td className="px-3 py-3 font-mono text-[11px]">

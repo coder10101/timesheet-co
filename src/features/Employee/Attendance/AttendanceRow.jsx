@@ -123,7 +123,11 @@ export default function AttendanceRow({
 }
 
 function AttendanceRecord({ date, record, result, onStartEdit }) {
-  const worked = getWorkedMinutes(record.clock_in, record.clock_out);
+  const worked = getWorkedMinutes(
+    record.clock_in,
+    record.clock_out,
+    record.break_minutes || 0,
+  );
 
   const workStatus = record.clock_out
     ? getWorkStatus(worked)
@@ -251,16 +255,31 @@ function MobileCell({ label, children }) {
 
 function HoursCell({ record, worked, date }) {
   const isToday = date?.isoDate === todayISO();
+  const breakMins = record?.break_minutes || 0;
 
   return (
     <div>
       <div className="font-mono text-xs font-semibold text-text">
         {record.clock_out ? (
-          <span>{formatDuration(worked)}</span>
+          <div>
+            <span>{formatDuration(worked)}</span>
+            {breakMins > 0 && (
+              <div className="text-[10px] text-amber-600 font-sans font-medium">
+                ☕ {breakMins}m break
+              </div>
+            )}
+          </div>
         ) : isToday ? (
-          <span className="text-xs font-normal text-text-muted italic">
-            In progress
-          </span>
+          <div>
+            <span className="text-xs font-normal text-text-muted italic">
+              In progress
+            </span>
+            {breakMins > 0 && (
+              <div className="text-[10px] text-amber-600 font-sans font-medium">
+                ☕ {breakMins}m break
+              </div>
+            )}
+          </div>
         ) : (
           <span className="text-xs font-normal text-alert italic font-sans">
             Incomplete

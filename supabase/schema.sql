@@ -53,6 +53,9 @@ create table if not exists attendance (
   date date not null,
   clock_in timestamptz,
   clock_out timestamptz,
+  break_minutes int default 0,
+  break_start timestamptz,
+  breaks jsonb default '[]',
   created_at timestamptz default now(),
   unique (employee_id, date)
 );

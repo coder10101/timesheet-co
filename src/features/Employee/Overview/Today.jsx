@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock, LogIn, LogOut, Check, MapPin } from "lucide-react";
+import { Clock, LogIn, LogOut, Check, MapPin, Coffee, Play } from "lucide-react";
 
 import {
   formatDuration,
@@ -16,6 +16,10 @@ export function Today({
   clockIn,
   clockOut,
   clockInPending,
+  startBreak,
+  startBreakPending,
+  endBreak,
+  endBreakPending,
   setErr,
   today,
 }) {
@@ -35,10 +39,25 @@ export function Today({
     return () => clearInterval(interval);
   }, [todayRecord?.clock_in, todayRecord?.clock_out]);
 
+  const isOnBreak = !!todayRecord?.break_start && !todayRecord?.clock_out;
+  const activeBreakMinutes = isOnBreak
+    ? Math.max(
+        0,
+        Math.round(
+          (currentTime.getTime() -
+            new Date(todayRecord.break_start).getTime()) /
+            60000,
+        ),
+      )
+    : 0;
+
+  const totalBreaks = (todayRecord?.break_minutes || 0) + activeBreakMinutes;
+
   const workedMinutes = todayRecord?.clock_in
     ? getWorkedMinutes(
         todayRecord.clock_in,
         todayRecord.clock_out || currentTime.toISOString(),
+        totalBreaks,
       )
     : 0;
 
@@ -76,6 +95,24 @@ export function Today({
     }
   };
 
+  const doStartBreak = async () => {
+    setErr("");
+    try {
+      await startBreak();
+    } catch (error) {
+      setErr(error.message);
+    }
+  };
+
+  const doEndBreak = async () => {
+    setErr("");
+    try {
+      await endBreak();
+    } catch (error) {
+      setErr(error.message);
+    }
+  };
+
   return (
     <section className="relative bg-gradient-to-br from-[#011E26] via-[#012A30] to-[#02353D] text-white rounded-2xl p-5 sm:p-6 overflow-hidden">
       <style>{`
@@ -108,17 +145,25 @@ export function Today({
             color={
               !todayRecord?.clock_in
                 ? "rgba(255,255,255,0.3)"
-                : differenceMinutes >= 0
-                  ? "#F2B463"
-                  : "#8FBB95"
+                : isOnBreak
+                  ? "#F59E0B"
+                  : differenceMinutes >= 0
+                    ? "#F2B463"
+                    : "#8FBB95"
             }
           >
             <div
               className={`relative w-9 h-9 rounded-full flex items-center justify-center ${
-                todayRecord?.clock_in ? "bg-success" : "bg-white/10"
+                !todayRecord?.clock_in
+                  ? "bg-white/10"
+                  : isOnBreak
+                    ? "bg-amber-500"
+                    : "bg-success"
               }`}
             >
-              {todayRecord?.clock_in ? (
+              {isOnBreak ? (
+                <Coffee size={15} />
+              ) : todayRecord?.clock_in ? (
                 <Clock size={15} />
               ) : (
                 <LogIn size={15} />
@@ -149,8 +194,16 @@ export function Today({
             <div className="flex items-center gap-1.5 mt-0.5">
               {todayRecord?.clock_in && !todayRecord?.clock_out && (
                 <span className="relative flex h-1.5 w-1.5 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8FBB95] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#8FBB95]" />
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      isOnBreak ? "bg-amber-400" : "bg-[#8FBB95]"
+                    }`}
+                  />
+                  <span
+                    className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                      isOnBreak ? "bg-amber-400" : "bg-[#8FBB95]"
+                    }`}
+                  />
                 </span>
               )}
               <p className="text-sm font-medium truncate">
@@ -160,17 +213,25 @@ export function Today({
                     : "Not clocked in yet"
                   : todayRecord.clock_out
                     ? "Workday completed"
-                    : "Currently working"}
+                    : isOnBreak
+                      ? `On Break (${formatDuration(activeBreakMinutes)})`
+                      : "Currently working"}
               </p>
             </div>
 
-            {siteSummary.hasSiteVisit && (
-              <div className="mt-1">
+            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+              {siteSummary.hasSiteVisit && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/90 bg-[#63537E]/60 border border-white/20 px-2 py-0.5 rounded-full">
                   <MapPin size={10} /> Site ({siteSummary.totalHours}h)
                 </span>
-              </div>
-            )}
+              )}
+
+              {totalBreaks > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-200 bg-amber-500/20 border border-amber-400/30 px-2 py-0.5 rounded-full">
+                  <Coffee size={9} /> {totalBreaks}m break today
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -196,19 +257,41 @@ export function Today({
           <button
             onClick={doClockIn}
             disabled={!!todayRecord || clockInPending}
-            className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:active:scale-100"
+            className="w-full py-2.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:active:scale-100 cursor-pointer"
           >
             <LogIn size={15} />
             Clock in
           </button>
         ) : !todayRecord.clock_out ? (
-          <button
-            onClick={doClockOut}
-            className="w-full py-2.5 rounded-xl bg-alert hover:bg-alert-dark active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all"
-          >
-            <LogOut size={15} />
-            Clock out
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {isOnBreak ? (
+              <button
+                onClick={doEndBreak}
+                disabled={endBreakPending}
+                className="py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-[0.97] text-slate-950 text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+              >
+                <Play size={15} fill="currentColor" />
+                Resume Work
+              </button>
+            ) : (
+              <button
+                onClick={doStartBreak}
+                disabled={startBreakPending}
+                className="py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Coffee size={15} />
+                Take Break
+              </button>
+            )}
+
+            <button
+              onClick={doClockOut}
+              className="py-2.5 rounded-xl bg-alert hover:bg-alert-dark active:scale-[0.97] text-white text-sm font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <LogOut size={15} />
+              Clock out
+            </button>
+          </div>
         ) : (
           <div className="text-center text-xs text-white/40 py-1">
             Completed for today
@@ -216,7 +299,7 @@ export function Today({
         )}
       </div>
 
-      <div className="hidden md:grid grid-cols-2 gap-2 mt-4 relative  ">
+      <div className="hidden md:grid grid-cols-3 gap-2 mt-4 relative">
         <div className="bg-white/5 rounded-lg px-3 py-2.5">
           <p className="text-[9px] uppercase tracking-wider text-white/30">
             Clock in
@@ -228,6 +311,21 @@ export function Today({
                   minute: "2-digit",
                 })
               : "—"}
+          </p>
+        </div>
+
+        <div className="bg-white/5 rounded-lg px-3 py-2.5">
+          <p className="text-[9px] uppercase tracking-wider text-white/30">
+            Break Time
+          </p>
+          <p className="font-mono text-xs mt-1">
+            {isOnBreak ? (
+              <span className="text-amber-300 font-semibold">On Break</span>
+            ) : totalBreaks > 0 ? (
+              `${totalBreaks} mins`
+            ) : (
+              "—"
+            )}
           </p>
         </div>
 

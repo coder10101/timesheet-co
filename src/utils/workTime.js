@@ -26,7 +26,7 @@ export const todayISO = () => {
  * = 8 hours elapsed (lunch included)
  * = 8 hours worked
  */
-export const getWorkedMinutes = (clockIn, clockOut) => {
+export const getWorkedMinutes = (clockIn, clockOut, breakMinutes = 0) => {
   if (!clockIn || !clockOut) {
     return 0;
   }
@@ -45,16 +45,18 @@ export const getWorkedMinutes = (clockIn, clockOut) => {
     return 0;
   }
 
-  // Work hour is 8 hours including lunch
-  return Math.max(0, totalMinutes - LUNCH_MINUTES);
+  const breakMins = Math.max(0, Number(breakMinutes) || 0);
+
+  // Work hour is 8 hours including lunch, minus any personal break time
+  return Math.max(0, totalMinutes - LUNCH_MINUTES - breakMins);
 };
 
-export const getWorkDifference = (clockIn, clockOut) => {
+export const getWorkDifference = (clockIn, clockOut, breakMinutes = 0) => {
   if (!clockIn || !clockOut) {
     return 0;
   }
 
-  const workedMinutes = getWorkedMinutes(clockIn, clockOut);
+  const workedMinutes = getWorkedMinutes(clockIn, clockOut, breakMinutes);
 
   return workedMinutes - WORK_DAY_MINUTES;
 };
