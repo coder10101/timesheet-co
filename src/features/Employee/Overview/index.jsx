@@ -16,6 +16,8 @@ import { Today } from "./Today";
 import { WeekAtGlance } from "./WeekAtGlance";
 import { Header } from "./Header";
 import { MissedClockOutModal } from "./MissedClockOutModal";
+import { MissingAttendanceBanner } from "./MissingAttendanceBanner";
+import { QuickLogAttendanceModal } from "./QuickLogAttendanceModal";
 
 export function EmployeeOverview({ me }) {
   const {
@@ -41,6 +43,30 @@ export function EmployeeOverview({ me }) {
   const { events } = useEvents();
 
   const [err, setErr] = useState("");
+  const [quickLogDate, setQuickLogDate] = useState(null);
+  const [quickLogSaving, setQuickLogSaving] = useState(false);
+  const [quickLogError, setQuickLogError] = useState("");
+
+  const handleSaveQuickLog = async ({ date, clockIn, clockOut, breakMinutes }) => {
+    setQuickLogSaving(true);
+    setQuickLogError("");
+    try {
+      await updateAttendance({
+        date,
+        clockIn: `${date}T${clockIn}`,
+        clockOut: clockOut ? `${date}T${clockOut}` : null,
+        breakMinutes: Number(breakMinutes) || 0,
+      });
+      try {
+        localStorage.removeItem(`dismissed_missing_attendance_${me?.id}_${date}`);
+      } catch (_) {}
+      setQuickLogDate(null);
+    } catch (error) {
+      setQuickLogError(error.message || "Failed to save attendance.");
+    } finally {
+      setQuickLogSaving(false);
+    }
+  };
 
   if (
     records === null ||
@@ -63,6 +89,19 @@ export function EmployeeOverview({ me }) {
         updateAttendance={updateAttendance}
       />
       <Header holidays={holidays} records={records} me={me} today={today} />
+
+      {/* MISSING ATTENDANCE DAYS BANNER */}
+      <MissingAttendanceBanner
+        records={records}
+        leaveRequests={myLeave}
+        holidays={holidays}
+        today={today}
+        me={me}
+        onLogDate={(date) => {
+          setQuickLogError("");
+          setQuickLogDate(date);
+        }}
+      />
 
       {err && (
         <div className="mb-4 px-3 py-2.5 rounded-lg bg-alert-light text-alert text-xs flex items-center gap-2">
@@ -90,6 +129,10 @@ export function EmployeeOverview({ me }) {
           leaveRequests={myLeave}
           holidays={holidays}
           today={today}
+          onLogAttendance={(date) => {
+            setQuickLogError("");
+            setQuickLogDate(date);
+          }}
         />
       </div>
 
@@ -108,6 +151,17 @@ export function EmployeeOverview({ me }) {
           <UpcomingEvents events={events} holidays={holidays} today={today} />
         </div>
       </div>
+
+      {quickLogDate && (
+        <QuickLogAttendanceModal
+          date={quickLogDate}
+          onClose={() => setQuickLogDate(null)}
+          onSave={handleSaveQuickLog}
+          saving={quickLogSaving}
+          error={quickLogError}
+          setError={setQuickLogError}
+        />
+      )}
     </div>
   );
 }

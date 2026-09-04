@@ -4,7 +4,13 @@ import { isoToBS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import { Check, PartyPopper } from "lucide-react";
 import { getWeekDates } from "../../../utils/workTime";
 
-export function WeekAtGlance({ records, leaveRequests, holidays, today }) {
+export function WeekAtGlance({
+  records,
+  leaveRequests,
+  holidays,
+  today,
+  onLogAttendance,
+}) {
   const weekDates = useMemo(() => {
     return getWeekDates(today);
   }, [today]);
@@ -106,9 +112,13 @@ export function WeekAtGlance({ records, leaveRequests, holidays, today }) {
             status = "missing";
           }
 
+          const isMissing = !isToday && status === "missing";
+
           return (
             <div
               key={date}
+              onClick={isMissing && onLogAttendance ? () => onLogAttendance(date) : undefined}
+              title={isMissing ? "Missing attendance — click to log" : undefined}
               className={`
                 min-w-0 rounded-xl p-2 text-center border transition-all
                 ${
@@ -116,7 +126,9 @@ export function WeekAtGlance({ records, leaveRequests, holidays, today }) {
                     ? "border-primary bg-primary-light/40 ring-1 ring-primary/20 shadow-xs"
                     : isSaturday || isHoliday
                       ? "border-border-light bg-surface-muted/40"
-                      : "border-border bg-white"
+                      : isMissing
+                        ? "border-alert/30 bg-alert-light/15 hover:bg-alert-light/35 hover:border-alert cursor-pointer shadow-2xs group"
+                        : "border-border bg-white"
                 }
               `}
             >
