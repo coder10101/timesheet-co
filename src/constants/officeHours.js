@@ -82,10 +82,14 @@ export function computeOfficeSchedule(rawConfig) {
     graceMinutes,
     graceMinutesTotal,
     graceTimeAmPm,
+    graceCutoffMinutes: graceMinutesTotal,
+    graceCutoffAmPm: graceTimeAmPm,
+    graceCutoffTime: `${String(graceH).padStart(2, "0")}:${String(graceM).padStart(2, "0")}`,
     endTime,
     endH,
     endM,
     endMinutesTotal,
+    endTimeMinutes: endMinutesTotal,
     endTimeAmPm,
     halfDayMidTime,
     halfDayMidMinutes: midMinutesTotal,
@@ -106,6 +110,8 @@ export const OFFICE_START_TIME_AMPM = DEFAULT_SCHEDULE.startTimeAmPm;
 export const OFFICE_END_TIME = DEFAULT_SCHEDULE.endTime;
 export const OFFICE_END_TIME_AMPM = DEFAULT_SCHEDULE.endTimeAmPm;
 export const OFFICE_GRACE_TIME_AMPM = DEFAULT_SCHEDULE.graceTimeAmPm;
+export const OFFICE_GRACE_CUTOFF_AMPM = DEFAULT_SCHEDULE.graceCutoffAmPm;
+export const OFFICE_GRACE_CUTOFF_MINUTES = DEFAULT_SCHEDULE.graceCutoffMinutes;
 export const HALF_DAY_MID_TIME = DEFAULT_SCHEDULE.halfDayMidTime;
 export const HALF_DAY_MID_TIME_AMPM = DEFAULT_SCHEDULE.halfDayMidTimeAmPm;
 

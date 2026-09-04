@@ -22,8 +22,18 @@ export function CheckInDistributionChart({ todayAttendance }) {
     let grace = 0;
     let late = 0;
 
+    const startTimeMinutes = officeHours.startTimeMinutes ?? 600;
+    const startTimeAmPm = officeHours.startTimeAmPm || "10:00 AM";
+    const graceCutoffMinutes =
+      officeHours.graceCutoffMinutes ??
+      officeHours.graceMinutesTotal ??
+      (startTimeMinutes + (officeHours.graceMinutes || 30));
+    const graceCutoffAmPm =
+      officeHours.graceCutoffAmPm ||
+      officeHours.graceTimeAmPm ||
+      "10:30 AM";
     const earlyWindow = Math.min(30, officeHours.graceMinutes || 30);
-    const earlyLimit = officeHours.startTimeMinutes - earlyWindow;
+    const earlyLimit = startTimeMinutes - earlyWindow;
     const earlyLimitLabel = minutesToAmPm(earlyLimit);
 
     (todayAttendance || []).forEach((att) => {
@@ -34,8 +44,8 @@ export function CheckInDistributionChart({ todayAttendance }) {
       const totalMinutes = hours * 60 + minutes;
 
       if (totalMinutes < earlyLimit) early += 1;
-      else if (totalMinutes <= officeHours.startTimeMinutes) onTime += 1;
-      else if (totalMinutes <= officeHours.graceCutoffMinutes) grace += 1;
+      else if (totalMinutes <= startTimeMinutes) onTime += 1;
+      else if (totalMinutes <= graceCutoffMinutes) grace += 1;
       else late += 1;
     });
 
@@ -51,19 +61,19 @@ export function CheckInDistributionChart({ todayAttendance }) {
         dotColor: "bg-success",
       },
       {
-        label: `Standard (${earlyLimitLabel} - ${officeHours.startTimeAmPm})`,
+        label: `Standard (${earlyLimitLabel} - ${startTimeAmPm})`,
         count: onTime,
         color: COLORS.primary,
         dotColor: "bg-primary",
       },
       {
-        label: `Grace (${officeHours.startTimeAmPm} - ${officeHours.graceCutoffAmPm})`,
+        label: `Grace (${startTimeAmPm} - ${graceCutoffAmPm})`,
         count: grace,
         color: COLORS.warning,
         dotColor: "bg-warning",
       },
       {
-        label: `Late (> ${officeHours.graceCutoffAmPm})`,
+        label: `Late (> ${graceCutoffAmPm})`,
         count: late,
         color: COLORS.alert,
         dotColor: "bg-alert",

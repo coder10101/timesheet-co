@@ -34,6 +34,22 @@ export function PunctualityRhythmChart({
     const dayCounts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
     const dayOnTime = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
 
+    const startTimeMinutes = officeHours.startTimeMinutes ?? 600;
+    const graceCutoffMinutes =
+      officeHours.graceCutoffMinutes ??
+      officeHours.graceMinutesTotal ??
+      (startTimeMinutes + (officeHours.graceMinutes || 30));
+    const graceCutoffAmPm =
+      officeHours.graceCutoffAmPm ||
+      officeHours.graceTimeAmPm ||
+      "10:30 AM";
+    const startTimeAmPm = officeHours.startTimeAmPm || "10:00 AM";
+    const endTimeAmPm = officeHours.endTimeAmPm || "05:00 PM";
+    const endTimeMinutes =
+      officeHours.endTimeMinutes ??
+      officeHours.endMinutesTotal ??
+      1020;
+
     const validRecords = (records || [])
       .filter((r) => r.clock_in)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -49,10 +65,10 @@ export function PunctualityRhythmChart({
       const wd = getWeekday(r.date);
       dayCounts[wd] = (dayCounts[wd] || 0) + 1;
 
-      if (inMins < officeHours.startTimeMinutes) {
+      if (inMins < startTimeMinutes) {
         earlyCount += 1;
         dayOnTime[wd] = (dayOnTime[wd] || 0) + 1;
-      } else if (inMins <= officeHours.graceCutoffMinutes) {
+      } else if (inMins <= graceCutoffMinutes) {
         onTimeCount += 1;
         dayOnTime[wd] = (dayOnTime[wd] || 0) + 1;
       } else {
@@ -79,7 +95,7 @@ export function PunctualityRhythmChart({
     const avgInMins =
       totalDays > 0
         ? Math.round(totalInMinutes / totalDays)
-        : officeHours.startTimeMinutes;
+        : startTimeMinutes;
     const avgInH = Math.floor(avgInMins / 60);
     const avgInM = avgInMins % 60;
     const avgInStr = `${avgInH % 12 || 12}:${String(avgInM).padStart(2, "0")} ${avgInH >= 12 ? "PM" : "AM"}`;
@@ -87,7 +103,7 @@ export function PunctualityRhythmChart({
     const avgOutMins =
       clockedOutCount > 0
         ? Math.round(totalOutMinutes / clockedOutCount)
-        : officeHours.endTimeMinutes;
+        : endTimeMinutes;
     const avgOutH = Math.floor(avgOutMins / 60);
     const avgOutM = avgOutMins % 60;
     const avgOutStr =
@@ -120,7 +136,7 @@ export function PunctualityRhythmChart({
       if (!timeStr) break;
       const [h, m] = timeStr.split(":").map(Number);
       const mins = h * 60 + m;
-      if (mins <= officeHours.graceCutoffMinutes) {
+      if (mins <= graceCutoffMinutes) {
         streak += 1;
       } else {
         break;
@@ -130,21 +146,21 @@ export function PunctualityRhythmChart({
     // Donut Segments
     const rawSegments = [
       {
-        label: `On Time (${officeHours.startTimeAmPm} – ${officeHours.graceCutoffAmPm})`,
+        label: `On Time (${startTimeAmPm} – ${graceCutoffAmPm})`,
         count: onTimeCount,
         color: COLORS.primary,
         bgClass: "bg-primary",
         icon: Clock10,
       },
       {
-        label: `Early (< ${officeHours.startTimeAmPm})`,
+        label: `Early (< ${startTimeAmPm})`,
         count: earlyCount,
         color: "#2E6B56",
         bgClass: "bg-[#2E6B56]",
         icon: Clock9,
       },
       {
-        label: `Late (> ${officeHours.graceCutoffAmPm})`,
+        label: `Late (> ${graceCutoffAmPm})`,
         count: lateCount,
         color: COLORS.warning,
         bgClass: "bg-warning",
