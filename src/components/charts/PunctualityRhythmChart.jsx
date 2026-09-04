@@ -17,7 +17,11 @@ import { WEEKDAY_LABELS } from "../../utils/nepaliCalendar";
 import { getEffectiveClockOut } from "../../utils/workTime";
 import { useOfficeHours } from "../../constants/officeHours";
 
-export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate }) {
+export function PunctualityRhythmChart({
+  records,
+  monthDates,
+  siteSummaryByDate,
+}) {
   const officeHours = useOfficeHours();
   const stats = useMemo(() => {
     let earlyCount = 0;
@@ -184,13 +188,16 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-light">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-text">Punctuality & Check-In Rhythm</h3>
+            <h3 className="text-base font-bold text-text">
+              Punctuality & Check-In Rhythm
+            </h3>
             <span className="text-[11px] font-mono text-primary bg-primary-light px-2 py-0.5 rounded font-semibold border border-primary/20">
-              Shift: {officeHours.shiftLabel}
+              {officeHours.shiftLabel}
             </span>
           </div>
           <p className="text-xs text-text-muted mt-0.5">
-            Arrival consistency, check-in distribution, and timing habits for this month.
+            Arrival consistency, check-in distribution, and timing habits for
+            this month.
           </p>
         </div>
 
@@ -210,7 +217,10 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
         <div className="lg:col-span-5 flex flex-col sm:flex-row items-center gap-5 p-3 rounded-xl bg-surface-muted/40 border border-border-light">
           {/* SVG DONUT */}
           <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
-            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90 transform">
+            <svg
+              viewBox="0 0 100 100"
+              className="w-full h-full -rotate-90 transform"
+            >
               <circle
                 cx="50"
                 cy="50"
@@ -256,12 +266,20 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
                 className="flex items-center justify-between text-xs p-1.5 px-2 rounded-lg bg-white border border-border-light shadow-2xs"
               >
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${s.bgClass}`} />
-                  <span className="text-[11px] text-text-muted truncate">{s.label}</span>
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${s.bgClass}`}
+                  />
+                  <span className="text-[11px] text-text-muted truncate">
+                    {s.label}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1 font-mono shrink-0">
-                  <span className="font-bold text-text text-xs">{s.count}d</span>
-                  <span className="text-[10px] text-text-muted">({s.pct}%)</span>
+                  <span className="font-bold text-text text-xs">
+                    {s.count}d
+                  </span>
+                  <span className="text-[10px] text-text-muted">
+                    ({s.pct}%)
+                  </span>
                 </div>
               </div>
             ))}
@@ -273,31 +291,41 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
           {/* AVG CLOCK IN */}
           <div className="p-3 rounded-xl bg-white border border-border shadow-2xs space-y-1">
             <div className="flex items-center justify-between text-text-muted">
-              <span className="text-[10px] uppercase font-bold tracking-wider">Avg Check-In</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider">
+                Avg Check-In
+              </span>
               <Clock size={12} className="text-primary" />
             </div>
             <p className="text-base font-bold font-mono text-text">
               {stats.totalDays > 0 ? stats.avgInStr : "—"}
             </p>
-            <p className="text-[10px] text-text-muted">Standard: {officeHours.startTimeAmPm}</p>
+            <p className="text-[10px] text-text-muted">
+              Standard: {officeHours.startTimeAmPm}
+            </p>
           </div>
 
           {/* AVG CLOCK OUT */}
           <div className="p-3 rounded-xl bg-white border border-border shadow-2xs space-y-1">
             <div className="flex items-center justify-between text-text-muted">
-              <span className="text-[10px] uppercase font-bold tracking-wider">Avg Check-Out</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider">
+                Avg Check-Out
+              </span>
               <Clock size={12} className="text-primary" />
             </div>
             <p className="text-base font-bold font-mono text-text">
               {stats.avgOutStr}
             </p>
-            <p className="text-[10px] text-text-muted">Standard: {officeHours.endTimeAmPm}</p>
+            <p className="text-[10px] text-text-muted">
+              Standard: {officeHours.endTimeAmPm}
+            </p>
           </div>
 
           {/* BEST DAY */}
           <div className="p-3 rounded-xl bg-white border border-border shadow-2xs space-y-1">
             <div className="flex items-center justify-between text-text-muted">
-              <span className="text-[10px] uppercase font-bold tracking-wider">Best Day</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider">
+                Best Day
+              </span>
               <CalendarCheck size={12} className="text-[#2E6B56]" />
             </div>
             <p className="text-xs font-bold text-text truncate">
@@ -309,7 +337,9 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
           {/* ON TIME STREAK */}
           <div className="p-3 rounded-xl bg-white border border-border shadow-2xs space-y-1">
             <div className="flex items-center justify-between text-text-muted">
-              <span className="text-[10px] uppercase font-bold tracking-wider">Current Streak</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider">
+                Current Streak
+              </span>
               <Flame size={12} className="text-warning fill-warning/20" />
             </div>
             <p className="text-base font-bold font-mono text-text flex items-center gap-1">
