@@ -15,6 +15,7 @@ import { TodaysWork } from "./TodaysWork";
 import { Today } from "./Today";
 import { WeekAtGlance } from "./WeekAtGlance";
 import { Header } from "./Header";
+import { MissedClockOutModal } from "./MissedClockOutModal";
 
 export function EmployeeOverview({ me }) {
   const {
@@ -26,6 +27,7 @@ export function EmployeeOverview({ me }) {
     startBreakPending,
     endBreak,
     endBreakPending,
+    updateAttendance,
   } = useAttendance(me.id);
 
   const { entries, addEntry, updateEntry, deleteEntry } = useWorkLogs(me.id);
@@ -54,6 +56,12 @@ export function EmployeeOverview({ me }) {
 
   return (
     <div className="w-full max-w-7xl mx-auto">
+      <MissedClockOutModal
+        records={records}
+        today={today}
+        me={me}
+        updateAttendance={updateAttendance}
+      />
       <Header holidays={holidays} records={records} me={me} today={today} />
 
       {err && (
