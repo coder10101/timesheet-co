@@ -9,42 +9,96 @@ import { supabase } from "./supabaseClient";
 
 const AuthContext = createContext(null);
 
+const getCachedProfile = (userId) => {
+  if (!userId || typeof window === "undefined") return null;
+  try {
+    const cached = localStorage.getItem(`auth_profile_${userId}`);
+    const parsed = cached ? JSON.parse(cached) : null;
+    if (parsed && parsed.is_active === false) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+};
+
+const setCachedProfile = (userId, profileData) => {
+  if (!userId || typeof window === "undefined") return;
+  try {
+    if (profileData) {
+      localStorage.setItem(`auth_profile_${userId}`, JSON.stringify(profileData));
+    } else {
+      localStorage.removeItem(`auth_profile_${userId}`);
+    }
+  } catch (_) {}
+};
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined); // undefined = loading, null = signed out
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [revokedNotice, setRevokedNotice] = useState(false);
 
   const fetchProfile = useCallback(async (userId) => {
+    if (!userId) return;
+
+    // Immediately restore cached profile to eliminate blank/loading screen
+    setProfile((prev) => {
+      if (!prev) {
+        const cached = getCachedProfile(userId);
+        if (cached) return cached;
+      }
+      return prev;
+    });
+
     setProfileLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-    if (error) console.error("fetchProfile error:", error);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
 
-    if (data && !data.is_active) {
-      await supabase.auth.signOut();
-      setProfile(null);
-      setRevokedNotice(true);
+      if (error) {
+        console.warn("fetchProfile network/auth notice (retaining existing session):", error);
+        // Do not wipe out valid profile state on momentary network blips or wakeups
+        return;
+      }
+
+      if (data && data.is_active === false) {
+        await supabase.auth.signOut();
+        setCachedProfile(userId, null);
+        setProfile(null);
+        setSession(null);
+        setRevokedNotice(true);
+        return;
+      }
+
+      if (data) {
+        setCachedProfile(userId, data);
+        setProfile(data);
+      }
+    } catch (err) {
+      console.warn("fetchProfile error (retaining existing profile):", err);
+    } finally {
       setProfileLoading(false);
-      return;
     }
-
-    setProfile(data || null);
-    setProfileLoading(false);
   }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user) fetchProfile(session.user.id);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session?.user) fetchProfile(session.user.id);
-      else setProfile(null);
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
+      setSession(newSession);
+      if (newSession?.user) {
+        fetchProfile(newSession.user.id);
+      } else if (event === "SIGNED_OUT") {
+        setProfile(null);
+      }
     });
 
     return () => sub.subscription.unsubscribe();
@@ -83,8 +137,12 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
+    if (session?.user?.id) {
+      setCachedProfile(session.user.id, null);
+    }
     await supabase.auth.signOut();
     setProfile(null);
+    setSession(null);
   };
 
   const refreshProfile = () => session?.user && fetchProfile(session.user.id);
@@ -96,6 +154,7 @@ export function AuthProvider({ children }) {
         user: session?.user ?? null,
         profile,
         profileLoading,
+        revokedNotice,
         isAuthLoading: session === undefined,
         sendOtp,
         verifyOtp,

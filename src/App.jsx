@@ -40,17 +40,18 @@ function Root() {
       </div>
     );
   }
+  if (revokedNotice || (profile && profile.is_active === false)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#101820] text-[#EDE7DA] text-sm flex-col gap-2">
+        <p>
+          Your access has been revoked. Contact your admin if this seems
+          wrong.
+        </p>
+      </div>
+    );
+  }
+
   if (!user) {
-    if (revokedNotice) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-[#101820] text-[#EDE7DA] text-sm flex-col gap-2">
-          <p>
-            Your access has been revoked. Contact your admin if this seems
-            wrong.
-          </p>
-        </div>
-      );
-    }
     return <Login />;
   }
   if (!profile) {
