@@ -134,6 +134,7 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
     record.break_minutes || 0,
   );
 
+  const hasCheckout = !!record.clock_out || isAutoClockOut;
   const targetMinutes = result?.targetMinutes || 480;
 
   const workStatus = hasCheckout
