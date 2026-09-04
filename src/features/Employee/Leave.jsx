@@ -250,62 +250,58 @@ export function EmployeeLeave({ me }) {
           const usedPct = Math.min(100, Math.round((used / max) * 100));
           const Icon = meta.icon;
 
+          const pendingDaysForType = (requests || [])
+            .filter((r) => r.status === "Pending" && r.type === leaveKey)
+            .reduce((acc, r) => acc + (Number(r.days) || 1), 0);
+
           return (
             <div
               key={leaveKey}
-              className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-3"
+              className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3.5"
             >
+              {/* HEADER: ICON, NAME, ALLOWANCE & HERO AVAILABLE BALANCE */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-3">
                   <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
                     style={{
                       backgroundColor: `${meta.color}15`,
                       color: meta.color,
                     }}
                   >
-                    <Icon size={18} />
+                    <Icon size={20} />
                   </div>
                   <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-text">
+                    <h4 className="text-sm font-bold text-text">
                       {meta.label}
                     </h4>
-                    <p className="text-[11px] text-text-muted">
+                    <p className="text-xs text-text-muted">
                       Annual Allowance: {max} days
                     </p>
                   </div>
                 </div>
 
-                <span
-                  className="text-xs font-mono font-bold px-2 py-0.5 rounded-lg border"
-                  style={{
-                    backgroundColor: `${meta.color}10`,
-                    borderColor: `${meta.color}30`,
-                    color: meta.color,
-                  }}
-                >
-                  {formatLeaveBalance(remaining)} days left
-                </span>
-              </div>
-
-              {/* TAKEN VS REMAINING METRICS ROW */}
-              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border-light text-xs">
-                <div className="bg-surface-muted/50 p-2 rounded-xl border border-border-light">
-                  <span className="text-[10px] text-text-muted font-medium block">Leave Taken</span>
-                  <span className="text-sm font-bold text-text font-mono">{formatLeaveBalance(used)} days</span>
-                </div>
-                <div className="bg-surface-muted/50 p-2 rounded-xl border border-border-light">
-                  <span className="text-[10px] text-text-muted font-medium block">Remaining Quota</span>
-                  <span className="text-sm font-bold text-text font-mono">{formatLeaveBalance(remaining)} days</span>
+                {/* HERO AVAILABLE DAYS */}
+                <div className="text-right">
+                  <div className="flex items-baseline justify-end gap-1">
+                    <span
+                      className="text-2xl font-mono font-bold leading-none tracking-tight"
+                      style={{ color: remaining <= 0 ? COLORS.alert : meta.color }}
+                    >
+                      {formatLeaveBalance(remaining)}
+                    </span>
+                    <span className="text-xs font-semibold text-text-muted">
+                      / {max}
+                    </span>
+                  </div>
+                  <div className="text-[10px] font-medium text-text-muted uppercase tracking-wider mt-0.5">
+                    days available
+                  </div>
                 </div>
               </div>
 
-              {/* VISUAL USAGE PROGRESS METER */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-text-muted font-medium">
-                  <span>Quota Used: {usedPct}%</span>
-                  <span>{formatLeaveBalance(used)} of {max} days</span>
-                </div>
+              {/* PROGRESS BAR & SUMMARY */}
+              <div className="space-y-1.5 pt-1">
                 <div className="w-full h-2 rounded-full bg-surface-muted overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500"
@@ -314,6 +310,29 @@ export function EmployeeLeave({ me }) {
                       backgroundColor: meta.color,
                     }}
                   />
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-text-muted">
+                  <span>
+                    <strong className="text-text font-semibold font-mono">
+                      {formatLeaveBalance(used)}
+                    </strong>{" "}
+                    days taken
+                  </span>
+                  <span>
+                    {pendingDaysForType > 0 ? (
+                      <span className="text-warning font-medium">
+                        {formatLeaveDays(pendingDaysForType)} pending review
+                      </span>
+                    ) : (
+                      <span>
+                        <strong className="text-text font-semibold font-mono">
+                          {usedPct}%
+                        </strong>{" "}
+                        quota used
+                      </span>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -379,7 +398,7 @@ export function EmployeeLeave({ me }) {
               isOverQuota ? "text-alert" : "text-primary"
             }`}
           >
-            {formatLeaveDays(leaveDays)} {currentDurationMode === "full" && "(Sun–Fri)"}
+            {formatLeaveDays(leaveDays)}
           </span>
         </div>
 
@@ -568,7 +587,7 @@ export function EmployeeLeave({ me }) {
             <AlertCircle size={13} />
             <span>
               Quota Warning: Exceeds your remaining {currentType.toLowerCase()}{" "}
-              balance by {leaveDays - balance} day(s).
+              balance by {formatLeaveBalance(leaveDays - balance)} day(s).
             </span>
           </div>
         )}
