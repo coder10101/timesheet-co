@@ -10,6 +10,7 @@ import {
   fmtTime,
   formatDuration,
   getWorkedMinutes,
+  getEffectiveClockOut,
   todayISO,
 } from "../../utils/workTime";
 
@@ -670,9 +671,12 @@ export function EmployeeWorklog({ me }) {
             const dayEntries = filteredEntries.filter((e) => e.date === date);
             const isOpen = openDates.has(date);
             const attendance = records?.find((r) => r.date === date);
+            const isToday = date === todayISO();
+            const effOut = getEffectiveClockOut(attendance, todayISO());
+            const isAutoClockOut = !attendance?.clock_out && !isToday && !!attendance?.clock_in;
             const worked =
-              attendance?.clock_in && attendance?.clock_out
-                ? getWorkedMinutes(attendance.clock_in, attendance.clock_out)
+              attendance?.clock_in && effOut
+                ? getWorkedMinutes(attendance.clock_in, effOut, attendance?.break_minutes || 0)
                 : 0;
 
             const bs = isoToBS(date);
@@ -719,7 +723,9 @@ export function EmployeeWorklog({ me }) {
                         {fmtTime(attendance.clock_in)} →{" "}
                         {attendance.clock_out
                           ? fmtTime(attendance.clock_out)
-                          : "Working"}
+                          : isToday
+                            ? "Working"
+                            : "06:00 PM (Auto)"}
                       </span>
                       {worked > 0 && (
                         <span className="font-semibold text-text ml-0.5">

@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import {
   formatDuration,
   getWorkedMinutes,
+  getEffectiveClockOut,
+  todayISO,
   WORK_DAY_MINUTES,
   fmtTime,
   LUNCH_MINUTES,
@@ -43,11 +45,15 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
       const weekday = getWeekday(d.isoDate);
       const isSat = weekday === 6;
 
+      const isToday = d.isoDate === todayISO();
+      const effOut = getEffectiveClockOut(rec);
+      const isAutoClockOut = !rec?.clock_out && !isToday && !!rec?.clock_in;
+
       const workedMinutes =
-        rec?.clock_in && rec?.clock_out
-          ? getWorkedMinutes(rec.clock_in, rec.clock_out)
-          : rec?.clock_in
-            ? getWorkedMinutes(rec.clock_in, new Date().toISOString())
+        rec?.clock_in && effOut
+          ? getWorkedMinutes(rec.clock_in, effOut, rec?.break_minutes || 0)
+          : rec?.clock_in && isToday
+            ? getWorkedMinutes(rec.clock_in, new Date().toISOString(), rec?.break_minutes || 0)
             : 0;
 
       const workedHours = +(workedMinutes / 60).toFixed(1);
@@ -56,18 +62,19 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
 
       // Tolerance of +- 15 mins for standard shift
       const isOvertime = diffMinutes > 15;
-      const isUndertime = rec?.clock_out && diffMinutes < -15;
+      const hasCheckout = !!effOut;
+      const isUndertime = hasCheckout && diffMinutes < -15;
       const isStandard =
-        workedMinutes > 0 && Math.abs(diffMinutes) <= 15 && rec?.clock_out;
+        workedMinutes > 0 && Math.abs(diffMinutes) <= 15 && hasCheckout;
 
       const isLate = rec?.clock_in ? isLateClockIn(rec.clock_in) : false;
       const isEarly = rec?.clock_in ? isEarlyClockIn(rec.clock_in) : false;
 
-      // Elapsed gross minutes before 1h lunch deduction
+      // Elapsed gross minutes before lunch/break deduction
       const elapsedMinutes =
-        rec?.clock_in && rec?.clock_out
+        rec?.clock_in && effOut
           ? Math.round(
-              (new Date(rec.clock_out).getTime() -
+              (new Date(effOut).getTime() -
                 new Date(rec.clock_in).getTime()) /
                 60000,
             )
@@ -94,8 +101,12 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
         isLate,
         isEarly,
         clockInTime: rec?.clock_in ? fmtTime(rec.clock_in) : null,
-        clockOutTime: rec?.clock_out ? fmtTime(rec.clock_out) : null,
-        inProgress: rec?.clock_in && !rec?.clock_out,
+        clockOutTime: rec?.clock_out
+          ? fmtTime(rec.clock_out)
+          : isAutoClockOut
+            ? "06:00 PM (Auto)"
+            : null,
+        inProgress: rec?.clock_in && !rec?.clock_out && isToday,
       };
     });
   }, [monthDates, records]);

@@ -1,5 +1,11 @@
 import { useState, useMemo } from "react";
-import { formatDuration, getWorkedMinutes, WORK_DAY_MINUTES, fmtTime } from "../../utils/workTime";
+import {
+  formatDuration,
+  getWorkedMinutes,
+  getEffectiveClockOut,
+  WORK_DAY_MINUTES,
+  fmtTime,
+} from "../../utils/workTime";
 import { isoToBS, NEPALI_MONTHS, WEEKDAY_LABELS } from "../../utils/nepaliCalendar";
 import { isLateClockIn, isDateWithinLeave, getWeekday, formatDifference } from "../../utils/attendance";
 import { Clock, TrendingUp, CheckCircle2, Calendar, ShieldCheck } from "lucide-react";
@@ -48,10 +54,15 @@ export function AttendanceRhythmStrip({
       let workedMin = 0;
       let diffMin = 0;
 
+      const effOut = getEffectiveClockOut(rec, todayISO);
+      const isAutoClockOut = !rec?.clock_out && !isToday && !!rec?.clock_in;
+
       if (rec?.clock_in) {
-        workedMin = rec.clock_out
-          ? getWorkedMinutes(rec.clock_in, rec.clock_out)
-          : getWorkedMinutes(rec.clock_in, new Date().toISOString());
+        workedMin = effOut
+          ? getWorkedMinutes(rec.clock_in, effOut, rec?.break_minutes || 0)
+          : isToday
+            ? getWorkedMinutes(rec.clock_in, new Date().toISOString(), rec?.break_minutes || 0)
+            : 0;
         diffMin = workedMin - WORK_DAY_MINUTES;
 
         const isLate = isLateClockIn(rec.clock_in);
@@ -90,7 +101,11 @@ export function AttendanceRhythmStrip({
         workedMin,
         diffMin,
         clockInTime: rec?.clock_in ? fmtTime(rec.clock_in) : null,
-        clockOutTime: rec?.clock_out ? fmtTime(rec.clock_out) : null,
+        clockOutTime: rec?.clock_out
+          ? fmtTime(rec.clock_out)
+          : isAutoClockOut
+            ? "06:00 PM (Auto)"
+            : null,
       };
     });
   }, [monthDates, records, leaveRequests, holidays, employeeId, todayISO]);

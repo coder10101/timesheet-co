@@ -14,6 +14,7 @@ import { COLORS } from "../../constants/colors";
 import { toNepalTimeString } from "../../utils/timezone";
 import { getWeekday } from "../../utils/attendance";
 import { WEEKDAY_LABELS } from "../../utils/nepaliCalendar";
+import { getEffectiveClockOut } from "../../utils/workTime";
 
 export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate }) {
   const stats = useMemo(() => {
@@ -53,8 +54,9 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
         lateCount += 1;
       }
 
-      if (r.clock_out) {
-        const outStr = toNepalTimeString(r.clock_out);
+      const effOut = getEffectiveClockOut(r);
+      if (effOut) {
+        const outStr = toNepalTimeString(effOut);
         if (outStr) {
           const [outH, outM] = outStr.split(":").map(Number);
           totalOutMinutes += outH * 60 + outM;

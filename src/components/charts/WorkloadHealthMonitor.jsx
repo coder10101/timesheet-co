@@ -1,5 +1,10 @@
 import { useMemo } from "react";
-import { getWorkedMinutes, formatDuration, WORK_DAY_MINUTES } from "../../utils/workTime";
+import {
+  getWorkedMinutes,
+  getEffectiveClockOut,
+  formatDuration,
+  WORK_DAY_MINUTES,
+} from "../../utils/workTime";
 import { isoToBS } from "../../utils/nepaliCalendar";
 import { getEmployeeColor } from "../../constants/colors";
 import { Clock, AlertTriangle, ShieldCheck, TrendingUp } from "lucide-react";
@@ -20,14 +25,15 @@ export function WorkloadHealthMonitor({ employees, allAttendance, currentBSMonth
     });
 
     allAttendance.forEach((rec) => {
-      if (!rec.clock_in || !rec.clock_out) return;
+      const effOut = getEffectiveClockOut(rec);
+      if (!rec.clock_in || !effOut) return;
       const stat = empMap.get(rec.employee_id);
       if (!stat) return;
 
       const bs = isoToBS(rec.date);
       if (!bs || bs.month !== currentBSMonth || bs.year !== currentBSYear) return;
 
-      const worked = getWorkedMinutes(rec.clock_in, rec.clock_out);
+      const worked = getWorkedMinutes(rec.clock_in, effOut, rec.break_minutes || 0);
       stat.totalWorkedMinutes += worked;
       stat.loggedDays += 1;
 

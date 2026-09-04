@@ -7,7 +7,11 @@ import {
   useWorkLogs,
 } from "../../../hooks/useOrgData";
 
-import { getWorkedMinutes, todayISO } from "../../../utils/workTime";
+import {
+  getWorkedMinutes,
+  getEffectiveClockOut,
+  todayISO,
+} from "../../../utils/workTime";
 import { toNepalTimeString } from "../../../utils/timezone";
 import { getSiteSummaryForDate } from "../../../utils/workType";
 
@@ -255,6 +259,7 @@ export function EmployeeAttendance({ me }) {
     let totalWorked = 0;
     let grossOvertimeMinutes = 0;
     let grossUndertimeMinutes = 0;
+    const today = todayISO();
 
     monthDates.forEach((date) => {
       const result = getDateStatus(date);
@@ -280,23 +285,26 @@ export function EmployeeAttendance({ me }) {
           if (workStatus.type === "undertime") {
             grossUndertimeMinutes += workStatus.minutes;
           }
-        } else if (result.record?.clock_in && result.record?.clock_out) {
-          const worked = getWorkedMinutes(
-            result.record.clock_in,
-            result.record.clock_out,
-            result.record.break_minutes || 0,
-          );
+        } else if (result.record?.clock_in) {
+          const effectiveClockOut = getEffectiveClockOut(result.record, today);
+          if (effectiveClockOut) {
+            const worked = getWorkedMinutes(
+              result.record.clock_in,
+              effectiveClockOut,
+              result.record.break_minutes || 0,
+            );
 
-          totalWorked += worked;
+            totalWorked += worked;
 
-          const workStatus = getWorkStatus(worked);
+            const workStatus = getWorkStatus(worked);
 
-          if (workStatus.type === "overtime") {
-            grossOvertimeMinutes += workStatus.minutes;
-          }
+            if (workStatus.type === "overtime") {
+              grossOvertimeMinutes += workStatus.minutes;
+            }
 
-          if (workStatus.type === "undertime") {
-            grossUndertimeMinutes += workStatus.minutes;
+            if (workStatus.type === "undertime") {
+              grossUndertimeMinutes += workStatus.minutes;
+            }
           }
         }
 

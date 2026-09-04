@@ -14,6 +14,7 @@ import {
   fmtTime,
   formatDuration,
   getWorkedMinutes,
+  getEffectiveClockOut,
   todayISO,
 } from "../../../utils/workTime";
 import {
@@ -123,13 +124,19 @@ export default function AttendanceRow({
 }
 
 function AttendanceRecord({ date, record, result, onStartEdit }) {
+  const isToday = date.isoDate === todayISO();
+  const effectiveClockOut = getEffectiveClockOut(record, todayISO());
+  const isAutoClockOut = !record.clock_out && !isToday && !!record.clock_in;
+
   const worked = getWorkedMinutes(
     record.clock_in,
-    record.clock_out,
+    effectiveClockOut,
     record.break_minutes || 0,
   );
 
-  const workStatus = record.clock_out
+  const hasCheckout = !!record.clock_out || isAutoClockOut;
+
+  const workStatus = hasCheckout
     ? getWorkStatus(worked)
     : {
         type: "none",
@@ -181,14 +188,22 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
           <span className="font-mono text-xs font-semibold text-text">
             {record.clock_out ? (
               fmtTime(record.clock_out)
-            ) : date.isoDate === todayISO() ? (
+            ) : isToday ? (
               <span className="text-primary italic font-sans text-xs font-medium">
                 Working...
               </span>
+            ) : isAutoClockOut ? (
+              <div className="flex items-center gap-1">
+                <span>06:00 PM</span>
+                <span
+                  className="text-[9px] font-semibold text-text-muted bg-surface-muted border border-border-light px-1 py-0.2 rounded"
+                  title="Auto-closed at standard 6:00 PM"
+                >
+                  Auto
+                </span>
+              </div>
             ) : (
-              <span className="inline-flex items-center text-[10px] font-semibold text-alert bg-alert-light px-2 py-0.5 rounded font-sans">
-                Missed check-out
-              </span>
+              <span className="text-xs text-text-faint font-mono">—</span>
             )}
           </span>
         </MobileCell>
@@ -199,12 +214,18 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
             record={record}
             worked={worked}
             date={date}
+            hasCheckout={hasCheckout}
           />
         </MobileCell>
 
         {/* SHIFT STATUS / VARIANCE */}
         <MobileCell label="Shift Status">
-          <TimeStatus record={record} workStatus={workStatus} date={date} />
+          <TimeStatus
+            record={record}
+            workStatus={workStatus}
+            date={date}
+            hasCheckout={hasCheckout}
+          />
         </MobileCell>
 
         {/* ACTION */}
@@ -253,14 +274,14 @@ function MobileCell({ label, children }) {
   );
 }
 
-function HoursCell({ record, worked, date }) {
+function HoursCell({ record, worked, date, hasCheckout }) {
   const isToday = date?.isoDate === todayISO();
   const breakMins = record?.break_minutes || 0;
 
   return (
     <div>
       <div className="font-mono text-xs font-semibold text-text">
-        {record.clock_out ? (
+        {hasCheckout ? (
           <div>
             <span>{formatDuration(worked)}</span>
             {breakMins > 0 && (
@@ -290,12 +311,12 @@ function HoursCell({ record, worked, date }) {
   );
 }
 
-function TimeStatus({ record, workStatus, date }) {
+function TimeStatus({ record, workStatus, date, hasCheckout }) {
   const isToday = date?.isoDate === todayISO();
 
   return (
     <div>
-      {record.clock_out ? (
+      {hasCheckout ? (
         <>
           {/* OVERTIME */}
           {workStatus.type === "overtime" && (

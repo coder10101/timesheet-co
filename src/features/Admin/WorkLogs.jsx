@@ -11,6 +11,8 @@ import {
   fmtTime,
   formatDuration,
   getWorkedMinutes,
+  getEffectiveClockOut,
+  todayISO,
 } from "../../utils/workTime";
 import {
   getTodayBS,
@@ -460,9 +462,11 @@ export function AdminWorklogs() {
                 .sort(([a], [b]) => b.localeCompare(a))
                 .map(([date, items]) => {
                   const attendance = attendanceByDate[date];
-                  const worked = attendance?.clock_out
-                    ? getWorkedMinutes(attendance.clock_in, attendance.clock_out)
-                    : null;
+                  const effOut = getEffectiveClockOut(attendance, todayISO());
+                  const worked =
+                    attendance?.clock_in && effOut
+                      ? getWorkedMinutes(attendance.clock_in, effOut, attendance?.break_minutes || 0)
+                      : null;
                   const bs = isoToBS(date);
                   const weekday = new Date(`${date}T00:00:00`).getDay();
 

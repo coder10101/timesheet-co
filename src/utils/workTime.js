@@ -26,6 +26,23 @@ export const todayISO = () => {
  * = 8 hours elapsed (lunch included)
  * = 8 hours worked
  */
+/**
+ * Returns the effective clock-out timestamp.
+ * If clock_out is missing on a past day, defaults to standard 6:00 PM (18:00) in Nepal time.
+ * If it's today and unclosed, returns null (still in progress).
+ */
+export const getEffectiveClockOut = (record, today = todayISO()) => {
+  if (!record || !record.clock_in) return null;
+  if (record.clock_out) return record.clock_out;
+
+  // If past date and no clock_out, auto-default to standard 6:00 PM
+  if (record.date && record.date < today) {
+    return `${record.date}T18:00:00+05:45`;
+  }
+
+  return null;
+};
+
 export const getWorkedMinutes = (clockIn, clockOut, breakMinutes = 0) => {
   if (!clockIn || !clockOut) {
     return 0;

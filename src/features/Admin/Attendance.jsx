@@ -12,6 +12,7 @@ import {
   todayISO,
   formatDuration,
   getWorkedMinutes,
+  getEffectiveClockOut,
   WORK_DAY_MINUTES,
 } from "../../utils/workTime";
 import {
@@ -46,7 +47,8 @@ import { getSiteSummaryForDate } from "../../utils/workType";
 
 export function AdminAttendance() {
   const { employees } = useRoster();
-  const today = todayISO();
+  const todayStr = todayISO();
+  const today = todayStr;
   const todayBS = getTodayBS();
 
   const [selected, setSelectedId] = useState(null);
@@ -172,8 +174,9 @@ export function AdminAttendance() {
     if (r.is_site_only) {
       return acc + Math.round((r.site_hours || 8) * 60);
     }
-    if (r.clock_in && r.clock_out) {
-      return acc + getWorkedMinutes(r.clock_in, r.clock_out, r.break_minutes || 0);
+    const effOut = getEffectiveClockOut(r, todayStr);
+    if (r.clock_in && effOut) {
+      return acc + getWorkedMinutes(r.clock_in, effOut, r.break_minutes || 0);
     }
     return acc;
   }, 0);
@@ -183,8 +186,9 @@ export function AdminAttendance() {
       const worked = Math.round((r.site_hours || 8) * 60);
       return acc + (worked - WORK_DAY_MINUTES);
     }
-    if (r.clock_in && r.clock_out) {
-      const worked = getWorkedMinutes(r.clock_in, r.clock_out, r.break_minutes || 0);
+    const effOut = getEffectiveClockOut(r, todayStr);
+    if (r.clock_in && effOut) {
+      const worked = getWorkedMinutes(r.clock_in, effOut, r.break_minutes || 0);
       return acc + (worked - WORK_DAY_MINUTES);
     }
     return acc;
@@ -500,10 +504,13 @@ export function AdminAttendance() {
                     {displayedRecords.map((r) => {
                       const siteInfo = siteSummaryByDate.get(r.date);
                       const hasSite = !!siteInfo?.hasSiteVisit;
+                      const isToday = r.date === todayStr;
+                      const effOut = getEffectiveClockOut(r, todayStr);
+                      const isAutoClockOut = !r.clock_out && !isToday && !!r.clock_in;
                       const workedMinutes = r.is_site_only
                         ? Math.round((r.site_hours || 8) * 60)
-                        : r.clock_in && r.clock_out
-                          ? getWorkedMinutes(r.clock_in, r.clock_out, r.break_minutes || 0)
+                        : r.clock_in && effOut
+                          ? getWorkedMinutes(r.clock_in, effOut, r.break_minutes || 0)
                           : null;
                       const isLate = r.clock_in && isLateClockIn(r.clock_in);
                       const bs = isoToBS(r.date);
@@ -553,10 +560,20 @@ export function AdminAttendance() {
                               </span>
                             ) : r.clock_out ? (
                               fmtTime(r.clock_out)
-                            ) : r.clock_in ? (
+                            ) : isToday && r.clock_in ? (
                               <span className="text-primary italic font-sans text-[11px]">
                                 Working
                               </span>
+                            ) : isAutoClockOut ? (
+                              <div className="flex items-center gap-1">
+                                <span>06:00 PM</span>
+                                <span
+                                  className="text-[9px] font-semibold text-text-muted bg-surface-muted border border-border-light px-1 py-0.2 rounded"
+                                  title="Auto-closed at standard 6:00 PM"
+                                >
+                                  Auto
+                                </span>
+                              </div>
                             ) : (
                               "—"
                             )}
