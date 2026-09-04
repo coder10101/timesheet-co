@@ -4,10 +4,10 @@ import {
   getWorkedMinutes,
   getEffectiveClockOut,
   todayISO,
-  WORK_DAY_MINUTES,
   fmtTime,
   LUNCH_MINUTES,
 } from "../../utils/workTime";
+import { useOfficeHours } from "../../constants/officeHours";
 import {
   isoToBS,
   NEPALI_MONTHS,
@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 
 export function WorkHoursChart({ monthDates, records, employeeName }) {
+  const officeHours = useOfficeHours();
   const [hoveredDate, setHoveredDate] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
 
@@ -46,7 +47,7 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
       const isSat = weekday === 6;
 
       const isToday = d.isoDate === todayISO();
-      const effOut = getEffectiveClockOut(rec);
+      const effOut = getEffectiveClockOut(rec, undefined, officeHours.endTime);
       const isAutoClockOut = !rec?.clock_out && !isToday && !!rec?.clock_in;
 
       const workedMinutes =
@@ -58,7 +59,7 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
 
       const workedHours = +(workedMinutes / 60).toFixed(1);
       const diffMinutes =
-        workedMinutes > 0 ? workedMinutes - WORK_DAY_MINUTES : 0;
+        workedMinutes > 0 ? workedMinutes - officeHours.workDayMinutes : 0;
 
       // Tolerance of +- 15 mins for standard shift
       const isOvertime = diffMinutes > 15;
@@ -67,8 +68,8 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
       const isStandard =
         workedMinutes > 0 && Math.abs(diffMinutes) <= 15 && hasCheckout;
 
-      const isLate = rec?.clock_in ? isLateClockIn(rec.clock_in) : false;
-      const isEarly = rec?.clock_in ? isEarlyClockIn(rec.clock_in) : false;
+      const isLate = rec?.clock_in ? isLateClockIn(rec.clock_in, null, officeHours) : false;
+      const isEarly = rec?.clock_in ? isEarlyClockIn(rec.clock_in, null, officeHours) : false;
 
       // Elapsed gross minutes before lunch/break deduction
       const elapsedMinutes =
@@ -79,7 +80,7 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
                 60000,
             )
           : workedMinutes > 0
-            ? workedMinutes + LUNCH_MINUTES
+            ? workedMinutes + (officeHours.includeLunch ? 0 : officeHours.lunchMinutes)
             : 0;
 
       return {
@@ -104,12 +105,12 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
         clockOutTime: rec?.clock_out
           ? fmtTime(rec.clock_out)
           : isAutoClockOut
-            ? "06:00 PM (Auto)"
+            ? `${officeHours.endTimeAmPm} (Auto)`
             : null,
         inProgress: rec?.clock_in && !rec?.clock_out && isToday,
       };
     });
-  }, [monthDates, records]);
+  }, [monthDates, records, officeHours]);
 
   // Determine active day to display in detail panel (hovered > clicked > latest worked day > today)
   const activeDay = useMemo(() => {
@@ -150,7 +151,7 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
 
   const maxHours = Math.max(
     12,
-    Math.ceil(Math.max(...dailyLogs.map((d) => d.workedHours), 8) + 1),
+    Math.ceil(Math.max(...dailyLogs.map((d) => d.workedHours), officeHours.workDayHours) + 1),
   );
 
   return (
@@ -161,11 +162,11 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-text">Daily Shift Hours</h3>
             <span className="text-[11px] font-mono text-text-muted bg-surface-muted px-2 py-0.5 rounded border border-border-light">
-              Standard Shift: 8.0h
+              Standard Shift: {officeHours.workDayHours}.0h
             </span>
           </div>
           <p className="text-xs text-text-muted mt-0.5">
-            Standard shift: 8 hours (including lunch). Click or hover on any day to inspect detailed shift hours.
+            Standard shift: {officeHours.workDayHours} hours (including lunch). Click or hover on any day to inspect detailed shift hours.
           </p>
         </div>
 
@@ -214,26 +215,26 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
             </span>
           </div>
 
-          {/* 8h Target Standard Shift Line */}
+          {/* Target Standard Shift Line */}
           <div
             className="absolute left-0 right-0 border-b-2 border-dashed border-primary/50 pointer-events-none flex items-center justify-between z-10"
-            style={{ bottom: `${(8 / maxHours) * 100}%` }}
+            style={{ bottom: `${(officeHours.workDayHours / maxHours) * 100}%` }}
           >
             <span className="text-[10px] font-mono font-bold text-primary w-8 sm:w-10 text-right pr-2 bg-white">
-              8h
+              {officeHours.workDayHours}h
             </span>
             <span className="text-[10px] font-semibold font-mono text-primary bg-primary-light/80 px-2 py-0.5 rounded-full border border-primary/30 mr-2 shadow-2xs">
-              8.0h Shift Target
+              {officeHours.workDayHours}.0h Shift Target
             </span>
           </div>
 
-          {/* 4h Line */}
+          {/* Half-Day Shift Target Line */}
           <div
             className="absolute left-0 right-0 border-b border-dashed border-border-light pointer-events-none flex items-center"
-            style={{ bottom: `${(4 / maxHours) * 100}%` }}
+            style={{ bottom: `${(officeHours.halfDayHours / maxHours) * 100}%` }}
           >
             <span className="text-[10px] font-mono text-text-muted w-8 sm:w-10 text-right pr-2">
-              4h
+              {officeHours.halfDayHours}h
             </span>
           </div>
 
@@ -420,7 +421,7 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
             {activeDay.isStandard && (
               <span className="inline-flex items-center gap-1 font-mono text-xs font-bold text-primary bg-primary-light px-2.5 py-1.5 rounded-lg border border-primary/20">
                 <CheckCircle2 size={13} />
-                Standard 8h
+                Standard {officeHours.workDayHours}h
               </span>
             )}
           </div>
@@ -432,15 +433,15 @@ export function WorkHoursChart({ monthDates, records, employeeName }) {
         <div className="flex items-center gap-4 flex-wrap">
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-success" />
-            <span>Overtime Shift (&gt;8h)</span>
+            <span>Overtime Shift (&gt;{officeHours.workDayHours}h)</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-primary" />
-            <span>Standard Shift (~8h)</span>
+            <span>Standard Shift (~{officeHours.workDayHours}h)</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-warning" />
-            <span>Short Shift (&lt;8h)</span>
+            <span>Short Shift (&lt;{officeHours.workDayHours}h)</span>
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-surface-muted border border-border" />

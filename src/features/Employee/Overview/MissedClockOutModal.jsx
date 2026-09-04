@@ -2,10 +2,12 @@ import { useState, useMemo } from "react";
 import { X, Clock, AlertCircle } from "lucide-react";
 import { fmtTime } from "../../../utils/workTime";
 import { isoToBS, NEPALI_MONTHS } from "../../../utils/nepaliCalendar";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 export function MissedClockOutModal({ records, today, me, updateAttendance }) {
+  const officeHours = useOfficeHours();
   const [closedDate, setClosedDate] = useState(null);
-  const [time, setTime] = useState("18:00");
+  const [time, setTime] = useState(officeHours.endTime);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -73,7 +75,7 @@ export function MissedClockOutModal({ records, today, me, updateAttendance }) {
     setSaving(true);
     setError("");
     try {
-      const defaultClockOut = `${unclosedRecord.date}T18:00`;
+      const defaultClockOut = `${unclosedRecord.date}T${officeHours.endTime}`;
       if (updateAttendance) {
         await updateAttendance({
           attendanceId: unclosedRecord.id,
@@ -190,7 +192,7 @@ export function MissedClockOutModal({ records, today, me, updateAttendance }) {
             disabled={saving}
             className="px-3.5 py-2 rounded-xl border border-border bg-white hover:bg-surface text-text-muted hover:text-text text-xs font-semibold cursor-pointer shadow-2xs transition-all disabled:opacity-50"
           >
-            Keep 06:00 PM (Default)
+            Keep {officeHours.endTimeAmPm} (Default)
           </button>
 
           <button

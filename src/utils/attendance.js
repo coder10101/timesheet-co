@@ -1,7 +1,8 @@
 import { WORK_DAY_MINUTES } from "./workTime";
 import { isHalfDayLeave, getHalfDaySession, HALF_DAY_SESSIONS } from "./leaveUtils";
+import { DEFAULT_SCHEDULE } from "../constants/officeHours";
 
-export const OFFICE_START_HOUR = 10;
+export const OFFICE_START_HOUR = DEFAULT_SCHEDULE.startH;
 
 export function pad(value) {
   return String(value).padStart(2, "0");
@@ -119,29 +120,32 @@ export function getClockInMinutes(dateTime) {
   return hour * 60 + minute;
 }
 
-export function isEarlyClockIn(dateTime, leave = null) {
+export function isEarlyClockIn(dateTime, leave = null, schedule = DEFAULT_SCHEDULE) {
   const mins = getClockInMinutes(dateTime);
   if (mins === null) return false;
   if (leave && isHalfDayLeave(leave) && getHalfDaySession(leave) === HALF_DAY_SESSIONS.FIRST_HALF) {
-    return mins < 14 * 60; // Before 2:00 PM for afternoon shift
+    return mins < schedule.halfDayMidMinutes; // Before mid-shift for afternoon shift
   }
-  return mins < 10 * 60; // Before 10:00 AM
+  return mins < schedule.startTimeMinutes; // Before standard start time
 }
 
-export function isLateClockIn(dateTime, leave = null) {
+export function isLateClockIn(dateTime, leave = null, schedule = DEFAULT_SCHEDULE) {
   const mins = getClockInMinutes(dateTime);
   if (mins === null) return false;
   if (leave && isHalfDayLeave(leave) && getHalfDaySession(leave) === HALF_DAY_SESSIONS.FIRST_HALF) {
-    return mins > 14 * 60 + 30; // After 2:30 PM for afternoon shift
+    return mins > schedule.halfDayMidMinutes + schedule.graceMinutes; // After mid-shift + grace
   }
-  return mins > 10 * 60 + 30; // After 10:30 AM
+  return mins > schedule.graceMinutesTotal; // After start time + grace
 }
 
-export function isOnTimeClockIn(dateTime, leave = null) {
+export function isOnTimeClockIn(dateTime, leave = null, schedule = DEFAULT_SCHEDULE) {
   const mins = getClockInMinutes(dateTime);
   if (mins === null) return false;
   if (leave && isHalfDayLeave(leave) && getHalfDaySession(leave) === HALF_DAY_SESSIONS.FIRST_HALF) {
-    return mins >= 14 * 60 && mins <= 14 * 60 + 30;
+    return (
+      mins >= schedule.halfDayMidMinutes &&
+      mins <= schedule.halfDayMidMinutes + schedule.graceMinutes
+    );
   }
-  return mins >= 10 * 60 && mins <= 10 * 60 + 30;
+  return mins >= schedule.startTimeMinutes && mins <= schedule.graceMinutesTotal;
 }

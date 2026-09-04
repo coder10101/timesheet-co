@@ -34,14 +34,18 @@ import {
   Clock3,
   CalendarDays,
   UserCheck,
+  Settings,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { getEmployeeColor, COLORS } from "../../constants/colors";
 import { WeeklyTurnoutBarChart } from "../../components/charts/WeeklyTurnoutBarChart";
 import { PunctualityRadar } from "../../components/charts/PunctualityRadar";
 import { OverviewLeaveCard } from "./OverviewLeaveCard";
+import { useOfficeHours } from "../../constants/officeHours";
+import { EditOfficeHoursModal } from "./EditOfficeHoursModal";
 
 export function AdminOverview({ me }) {
+  const officeHours = useOfficeHours();
   const { employees } = useRoster();
   const { requests: allLeave, decide: decideLeave } = useLeaveRequests(
     null,
@@ -55,6 +59,7 @@ export function AdminOverview({ me }) {
   const [leftTab, setLeftTab] = useState("live"); // "live" | "schedule"
   const [teamSearch, setTeamSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "Present" | "Late" | "On Leave" | "Absent"
+  const [showHoursModal, setShowHoursModal] = useState(false);
 
   const today = todayISO();
   const todayBS = getTodayBS();
@@ -114,7 +119,7 @@ export function AdminOverview({ me }) {
       let workedMin = 0;
 
       if (att?.clock_in) {
-        const isLate = isLateClockIn(att.clock_in, onLeave);
+        const isLate = isLateClockIn(att.clock_in, onLeave, officeHours);
         status = isLate ? "Late" : "Present";
         time = fmtTime(att.clock_in);
         workedMin = getWorkedMinutes(
@@ -268,12 +273,22 @@ export function AdminOverview({ me }) {
       {/* 1. TOP HEADER & ATTENDANCE STATUS BAR (ONE-LINER) */}
       <div className="bg-white border border-border rounded-2xl px-4 py-2.5 shadow-2xs flex flex-wrap lg:flex-nowrap items-center justify-between gap-3">
         {/* LEFT SIDE: OVERVIEW & DATE WITH FULL DAY NAME */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
           <h1 className="text-base sm:text-lg font-bold text-text">Overview</h1>
           <span className="text-xs font-bold text-primary bg-primary-light px-2.5 py-0.5 rounded-lg border border-primary/20">
             {new Date().toLocaleDateString("en-US", { weekday: "long" })},{" "}
             {isoToBSLabel(today)}
           </span>
+          <button
+            type="button"
+            onClick={() => setShowHoursModal(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-text-muted hover:text-text bg-surface-muted/70 hover:bg-surface-muted border border-border-light px-2 py-0.5 rounded-lg transition-all cursor-pointer"
+            title="Configure Organization Office Hours"
+          >
+            <Clock size={12} className="text-primary shrink-0" />
+            <span>{officeHours.shiftLabel}</span>
+            <Settings size={11} className="text-text-muted hover:text-text shrink-0" />
+          </button>
         </div>
 
         {/* RIGHT SIDE: STATUS COUNTS & PERCENTAGE WITH MINI BAR */}
@@ -592,6 +607,12 @@ export function AdminOverview({ me }) {
           )}
         </div>
       </div>
+
+      <EditOfficeHoursModal
+        isOpen={showHoursModal}
+        onClose={() => setShowHoursModal(false)}
+        orgId={me?.org_id}
+      />
     </div>
   );
 }

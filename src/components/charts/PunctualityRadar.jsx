@@ -3,6 +3,7 @@ import { isLateClockIn } from "../../utils/attendance";
 import { isoToBS } from "../../utils/nepaliCalendar";
 import { getEmployeeColor } from "../../constants/colors";
 import { Award, Clock, Star, CheckCircle2 } from "lucide-react";
+import { useOfficeHours } from "../../constants/officeHours";
 
 export function PunctualityRadar({
   employees,
@@ -10,6 +11,7 @@ export function PunctualityRadar({
   currentBSMonth,
   currentBSYear,
 }) {
+  const officeHours = useOfficeHours();
   const punctualityStats = useMemo(() => {
     if (!employees || !allAttendance) return { stars: [], repeatLate: [] };
 
@@ -34,7 +36,7 @@ export function PunctualityRadar({
         return;
 
       stat.loggedDays += 1;
-      const isLate = isLateClockIn(rec.clock_in);
+      const isLate = isLateClockIn(rec.clock_in, null, officeHours);
       if (isLate) {
         stat.lateDays += 1;
       } else {
@@ -76,7 +78,7 @@ export function PunctualityRadar({
       .slice(0, 3);
 
     return { stars, repeatLate };
-  }, [employees, allAttendance, currentBSMonth, currentBSYear]);
+  }, [employees, allAttendance, currentBSMonth, currentBSYear, officeHours]);
 
   return (
     <div className="w-full bg-white border border-border rounded-2xl p-3 sm:px-3.5 sm:py-2.5 shadow-2xs space-y-2 overflow-hidden">

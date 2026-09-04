@@ -8,6 +8,7 @@ create extension if not exists "uuid-ossp";
 create table if not exists organizations (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
+  office_hours jsonb default '{"workDayHours": 7, "includeLunch": true, "lunchMinutes": 0, "startTime": "10:00", "graceMinutes": 30}'::jsonb,
   created_at timestamptz default now()
 );
 

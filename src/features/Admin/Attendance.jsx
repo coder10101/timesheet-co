@@ -13,8 +13,8 @@ import {
   formatDuration,
   getWorkedMinutes,
   getEffectiveClockOut,
-  WORK_DAY_MINUTES,
 } from "../../utils/workTime";
+import { useOfficeHours } from "../../constants/officeHours";
 import {
   isoToBS,
   getTodayBS,
@@ -47,6 +47,7 @@ import { WorkHoursChart } from "../../components/charts/WorkHoursChart";
 import { getSiteSummaryForDate } from "../../utils/workType";
 
 export function AdminAttendance() {
+  const officeHours = useOfficeHours();
   const { employees } = useRoster();
   const todayStr = todayISO();
   const today = todayStr;
@@ -104,13 +105,13 @@ export function AdminAttendance() {
     const map = new Map();
     if (!workLogs || !workLogs.length) return map;
     monthDates.forEach((d) => {
-      const summary = getSiteSummaryForDate(workLogs, d.isoDate);
+      const summary = getSiteSummaryForDate(workLogs, d.isoDate, officeHours.workDayHours);
       if (summary.hasSiteVisit) {
         map.set(d.isoDate, summary);
       }
     });
     return map;
-  }, [monthDates, workLogs]);
+  }, [monthDates, workLogs, officeHours]);
 
   const monthRecords = useMemo(() => {
     if (monthDates.length === 0) return [];
@@ -170,20 +171,20 @@ export function AdminAttendance() {
     const leave = employeeLeaves.find((l) => isDateWithinLeave(r.date, l));
     return (
       r.is_site_only ||
-      (r.clock_in && !isLateClockIn(r.clock_in, leave))
+      (r.clock_in && !isLateClockIn(r.clock_in, leave, officeHours))
     );
   }).length;
 
   const monthLateCount = monthRecords.filter((r) => {
     const leave = employeeLeaves.find((l) => isDateWithinLeave(r.date, l));
-    return r.clock_in && isLateClockIn(r.clock_in, leave);
+    return r.clock_in && isLateClockIn(r.clock_in, leave, officeHours);
   }).length;
 
   const totalWorkedMinutes = monthRecords.reduce((acc, r) => {
     if (r.is_site_only) {
-      return acc + Math.round((r.site_hours || 8) * 60);
+      return acc + Math.round((r.site_hours || officeHours.workDayHours) * 60);
     }
-    const effOut = getEffectiveClockOut(r, todayStr);
+    const effOut = getEffectiveClockOut(r, todayStr, officeHours.endTime);
     if (r.clock_in && effOut) {
       return acc + getWorkedMinutes(r.clock_in, effOut, r.break_minutes || 0);
     }
@@ -192,13 +193,13 @@ export function AdminAttendance() {
 
   const netOvertimeMinutes = monthRecords.reduce((acc, r) => {
     if (r.is_site_only) {
-      const worked = Math.round((r.site_hours || 8) * 60);
-      return acc + (worked - WORK_DAY_MINUTES);
+      const worked = Math.round((r.site_hours || officeHours.workDayHours) * 60);
+      return acc + (worked - officeHours.workDayMinutes);
     }
-    const effOut = getEffectiveClockOut(r, todayStr);
+    const effOut = getEffectiveClockOut(r, todayStr, officeHours.endTime);
     if (r.clock_in && effOut) {
       const worked = getWorkedMinutes(r.clock_in, effOut, r.break_minutes || 0);
-      return acc + (worked - WORK_DAY_MINUTES);
+      return acc + (worked - officeHours.workDayMinutes);
     }
     return acc;
   }, 0);
@@ -514,19 +515,19 @@ export function AdminAttendance() {
                       const siteInfo = siteSummaryByDate.get(r.date);
                       const hasSite = !!siteInfo?.hasSiteVisit;
                       const isToday = r.date === todayStr;
-                      const effOut = getEffectiveClockOut(r, todayStr);
+                      const effOut = getEffectiveClockOut(r, todayStr, officeHours.endTime);
                       const isAutoClockOut = !r.clock_out && !isToday && !!r.clock_in;
                       const leave = employeeLeaves.find((l) =>
                         isDateWithinLeave(r.date, l),
                       );
                       const isHalf = isHalfDayLeave(leave);
-                      const targetMins = isHalf ? 240 : WORK_DAY_MINUTES;
+                      const targetMins = isHalf ? officeHours.halfDayMinutes : officeHours.workDayMinutes;
                       const workedMinutes = r.is_site_only
-                        ? Math.round((r.site_hours || 8) * 60)
+                        ? Math.round((r.site_hours || officeHours.workDayHours) * 60)
                         : r.clock_in && effOut
                           ? getWorkedMinutes(r.clock_in, effOut, r.break_minutes || 0)
                           : null;
-                      const isLate = r.clock_in && isLateClockIn(r.clock_in, leave);
+                      const isLate = r.clock_in && isLateClockIn(r.clock_in, leave, officeHours);
                       const bs = isoToBS(r.date);
                       const weekday = getWeekday(r.date);
                       const diffMinutes =
@@ -585,10 +586,10 @@ export function AdminAttendance() {
                               </span>
                             ) : isAutoClockOut ? (
                               <div className="flex items-center gap-1">
-                                <span>06:00 PM</span>
+                                <span>{officeHours.endTimeAmPm}</span>
                                 <span
                                   className="text-[9px] font-semibold text-text-muted bg-surface-muted border border-border-light px-1 py-0.2 rounded"
-                                  title="Auto-closed at standard 6:00 PM"
+                                  title={`Auto-closed at standard ${officeHours.endTimeAmPm}`}
                                 >
                                   Auto
                                 </span>
@@ -625,7 +626,9 @@ export function AdminAttendance() {
                                 </span>
                               ) : (
                                 <span className="text-text-muted">
-                                  {isHalf ? "4h standard" : "8h standard"}
+                                  {isHalf
+                                    ? `${officeHours.halfDayMinutes / 60}h standard`
+                                    : `${officeHours.workDayHours}h standard`}
                                 </span>
                               )
                             ) : (

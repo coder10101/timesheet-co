@@ -17,9 +17,9 @@ import { NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import {
   formatDuration,
   LUNCH_MINUTES,
-  WORK_DAY_MINUTES,
 } from "../../../utils/workTime";
 import { formatDifference, getWeekday } from "../../../utils/attendance";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 export default function AttendanceEditForm({
   editing,
@@ -29,6 +29,8 @@ export default function AttendanceEditForm({
   onSave,
   onCancel,
 }) {
+  const officeHours = useOfficeHours();
+
   if (!editing) {
     return null;
   }
@@ -43,9 +45,9 @@ export default function AttendanceEditForm({
     const inTotalMins = inH * 60 + inM;
 
     let punctuality = "on_time";
-    if (inTotalMins < 10 * 60) {
+    if (inTotalMins < officeHours.startTimeMinutes) {
       punctuality = "early";
-    } else if (inTotalMins > 10 * 60 + 30) {
+    } else if (inTotalMins > officeHours.graceMinutesTotal) {
       punctuality = "late";
     }
 
@@ -69,8 +71,8 @@ export default function AttendanceEditForm({
 
     const breakMins = Math.max(0, Number(editing.breakMinutes) || 0);
     const elapsedMins = outTotalMins - inTotalMins;
-    const workedMins = Math.max(0, elapsedMins - LUNCH_MINUTES - breakMins);
-    const diffMins = workedMins - WORK_DAY_MINUTES;
+    const workedMins = Math.max(0, elapsedMins - officeHours.lunchMinutes - breakMins);
+    const diffMins = workedMins - officeHours.workDayMinutes;
 
     let statusType = "normal";
     if (diffMins > 15) {
@@ -145,13 +147,13 @@ export default function AttendanceEditForm({
             <button
               type="button"
               onClick={() =>
-                handleApplyPreset(editing.clockIn || "10:00", "18:00")
+                handleApplyPreset(editing.clockIn || officeHours.startTime, officeHours.endTime)
               }
               className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-white border border-border hover:border-primary/50 text-text-muted hover:text-primary transition-all shadow-2xs"
-              title="Set standard shift 10:00 AM to 6:00 PM (8h shift including lunch)"
+              title={`Set standard shift ${officeHours.shiftLabel}`}
             >
               <Sparkles size={11} className="text-primary" />
-              Standard Shift (10–18)
+              Standard Shift ({officeHours.startH}–{officeHours.endH})
             </button>
           )}
         </div>
@@ -163,7 +165,7 @@ export default function AttendanceEditForm({
           <span className="text-xs font-semibold text-text flex items-center justify-between">
             <span>Clock In Time</span>
             <span className="text-[10px] font-normal text-text-muted">
-              (Standard ~10:00 AM)
+              (Standard ~{officeHours.startTimeAmPm})
             </span>
           </span>
           <input
@@ -185,7 +187,7 @@ export default function AttendanceEditForm({
             <span className="text-[10px] font-normal text-text-muted">
               {!editing.clockOut
                 ? "(Optional — leave empty if still on shift)"
-                : "(Standard ~06:00 PM)"}
+                : `(Standard ~${officeHours.endTimeAmPm})`}
             </span>
           </span>
           <input
@@ -234,7 +236,7 @@ export default function AttendanceEditForm({
               <input
                 type="number"
                 min="0"
-                max="480"
+                max={officeHours.workDayMinutes}
                 step="15"
                 value={editing.breakMinutes || 0}
                 onChange={(e) => {
@@ -251,7 +253,7 @@ export default function AttendanceEditForm({
 
             <button
               type="button"
-              disabled={(editing.breakMinutes || 0) >= 480}
+              disabled={(editing.breakMinutes || 0) >= officeHours.workDayMinutes}
               onClick={() => {
                 const current = (editing.breakMinutes || 0) + 15;
                 setEditing((prev) => ({ ...prev, breakMinutes: current }));
@@ -361,7 +363,7 @@ export default function AttendanceEditForm({
                 {preview.statusType === "normal" && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold text-primary">
                     <CheckCircle2 size={12} />
-                    Standard 8h
+                    Standard {officeHours.workDayHours}h
                   </span>
                 )}
               </div>
@@ -379,17 +381,17 @@ export default function AttendanceEditForm({
               <span className="text-text-muted text-[11px]">Punctuality:</span>
               {preview.punctuality === "on_time" && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success-light px-2 py-0.5 rounded">
-                  <Clock10 size={11} /> On time (10:00 – 10:30 AM)
+                  <Clock10 size={11} /> On time ({officeHours.startTimeAmPm} – {officeHours.graceTimeAmPm})
                 </span>
               )}
               {preview.punctuality === "late" && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning-light px-2 py-0.5 rounded">
-                  <Clock12 size={11} /> Late (After 10:30 AM)
+                  <Clock12 size={11} /> Late (After {officeHours.graceTimeAmPm})
                 </span>
               )}
               {preview.punctuality === "early" && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary-light px-2 py-0.5 rounded">
-                  <Clock9 size={11} /> Early (Before 10:00 AM)
+                  <Clock9 size={11} /> Early (Before {officeHours.startTimeAmPm})
                 </span>
               )}
             </div>

@@ -1,5 +1,6 @@
 import Table from "../../../components/Table";
 import AttendanceRow from "./AttendanceRow";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 const columns = [
   {
@@ -47,6 +48,7 @@ export default function AttendanceTable({
   onSaveEdit,
   onCancelEdit,
 }) {
+  const officeHours = useOfficeHours();
   const visibleDates = [...monthDates]
     .filter((date) => date.isoDate <= today)
     .reverse();
@@ -58,7 +60,7 @@ export default function AttendanceTable({
         <div>
           <h3 className="font-semibold text-sm text-text">Daily Shift Log</h3>
           <p className="text-[11px] text-text-muted mt-0.5">
-            Shift check-in/out records, worked hours (8h shift incl. lunch), and variance.
+            Shift check-in/out records, worked hours ({officeHours.workDayHours}h shift {officeHours.includeLunch ? "incl." : "excl."} lunch), and variance.
           </p>
         </div>
 

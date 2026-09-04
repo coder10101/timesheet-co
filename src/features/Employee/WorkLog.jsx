@@ -41,8 +41,10 @@ import {
   parseWorkLogEntry,
   formatWorkLogEntryText,
 } from "../../utils/workType";
+import { useOfficeHours } from "../../constants/officeHours";
 
 export function EmployeeWorklog({ me }) {
+  const officeHours = useOfficeHours();
   const { records } = useAttendance(me.id);
   const { entries, addEntry, updateEntry, deleteEntry } = useWorkLogs(me.id);
   const { projects } = useProjects();
@@ -203,7 +205,7 @@ export function EmployeeWorklog({ me }) {
     if (parsed.workType === "site") {
       if (parsed.duration?.toLowerCase().includes("full")) {
         setIsFullDay(true);
-        setSiteHours(8);
+        setSiteHours(officeHours.workDayHours);
       } else {
         setIsFullDay(false);
         const match = parsed.duration?.match(/(\d+(?:\.\d+)?)/);
@@ -423,7 +425,7 @@ export function EmployeeWorklog({ me }) {
                     max="12"
                     step="0.5"
                     disabled={isFullDay}
-                    value={isFullDay ? 8 : siteHours}
+                    value={isFullDay ? officeHours.workDayHours : siteHours}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value);
                       if (!isNaN(val) && val > 0) {
@@ -466,7 +468,7 @@ export function EmployeeWorklog({ me }) {
                 </button>
               ))}
 
-              {/* Full Day (8h) Toggle */}
+              {/* Full Day Toggle */}
               <button
                 type="button"
                 onClick={() => {
@@ -474,7 +476,7 @@ export function EmployeeWorklog({ me }) {
                     setIsFullDay(false);
                   } else {
                     setIsFullDay(true);
-                    setSiteHours(8);
+                    setSiteHours(officeHours.workDayHours);
                   }
                 }}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
@@ -483,7 +485,7 @@ export function EmployeeWorklog({ me }) {
                     : "bg-surface-muted/60 text-text-muted hover:text-text border border-border-light"
                 }`}
               >
-                Full Day (8h)
+                Full Day ({officeHours.workDayHours}h)
               </button>
             </div>
           )}
@@ -725,7 +727,7 @@ export function EmployeeWorklog({ me }) {
                           ? fmtTime(attendance.clock_out)
                           : isToday
                             ? "Working"
-                            : "06:00 PM (Auto)"}
+                            : `${officeHours.endTimeAmPm} (Auto)`}
                       </span>
                       {worked > 0 && (
                         <span className="font-semibold text-text ml-0.5">

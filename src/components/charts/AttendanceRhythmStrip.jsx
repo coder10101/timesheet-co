@@ -3,9 +3,9 @@ import {
   formatDuration,
   getWorkedMinutes,
   getEffectiveClockOut,
-  WORK_DAY_MINUTES,
   fmtTime,
 } from "../../utils/workTime";
+import { useOfficeHours } from "../../constants/officeHours";
 import { isoToBS, NEPALI_MONTHS, WEEKDAY_LABELS } from "../../utils/nepaliCalendar";
 import { isLateClockIn, isDateWithinLeave, getWeekday, formatDifference } from "../../utils/attendance";
 import { Clock, TrendingUp, CheckCircle2, Calendar, ShieldCheck } from "lucide-react";
@@ -22,6 +22,7 @@ export function AttendanceRhythmStrip({
   selectedBSYear,
   todayISO,
 }) {
+  const officeHours = useOfficeHours();
   const [hoveredDay, setHoveredDay] = useState(null);
 
   const parsedDays = useMemo(() => {
@@ -54,7 +55,7 @@ export function AttendanceRhythmStrip({
       let workedMin = 0;
       let diffMin = 0;
 
-      const effOut = getEffectiveClockOut(rec, todayISO);
+      const effOut = getEffectiveClockOut(rec, todayISO, officeHours.endTime);
       const isAutoClockOut = !rec?.clock_out && !isToday && !!rec?.clock_in;
 
       if (rec?.clock_in) {
@@ -63,9 +64,9 @@ export function AttendanceRhythmStrip({
           : isToday
             ? getWorkedMinutes(rec.clock_in, new Date().toISOString(), rec?.break_minutes || 0)
             : 0;
-        diffMin = workedMin - WORK_DAY_MINUTES;
+        diffMin = workedMin - officeHours.workDayMinutes;
 
-        const isLate = isLateClockIn(rec.clock_in);
+        const isLate = isLateClockIn(rec.clock_in, onLeave, officeHours);
         status = isLate ? "late" : "present";
         label = isLate ? "Late Arrival" : "On-Time";
       } else if (onLeave) {
@@ -104,11 +105,11 @@ export function AttendanceRhythmStrip({
         clockOutTime: rec?.clock_out
           ? fmtTime(rec.clock_out)
           : isAutoClockOut
-            ? "06:00 PM (Auto)"
+            ? `${officeHours.endTimeAmPm} (Auto)`
             : null,
       };
     });
-  }, [monthDates, records, leaveRequests, holidays, employeeId, todayISO]);
+  }, [monthDates, records, leaveRequests, holidays, employeeId, todayISO, officeHours]);
 
   // Aggregate monthly performance
   const workedDays = parsedDays.filter((d) => d.status === "present" || d.status === "late");

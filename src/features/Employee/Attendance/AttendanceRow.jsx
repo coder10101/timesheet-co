@@ -26,6 +26,7 @@ import {
 } from "../../../utils/attendance";
 
 import AttendanceEditForm from "./EditAttendance";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 export default function AttendanceRow({
   date,
@@ -124,17 +125,20 @@ export default function AttendanceRow({
 }
 
 function AttendanceRecord({ date, record, result, onStartEdit }) {
+  const officeHours = useOfficeHours();
   const isToday = date.isoDate === todayISO();
-  const effectiveClockOut = getEffectiveClockOut(record, todayISO());
+  const effectiveClockOut = getEffectiveClockOut(record, todayISO(), officeHours.endTime);
   const isAutoClockOut = !record.clock_out && !isToday && !!record.clock_in;
 
   const worked = getWorkedMinutes(
     record.clock_in,
     effectiveClockOut,
     record.break_minutes || 0,
+    officeHours.lunchMinutes,
   );
 
-  const targetMinutes = result?.targetMinutes || 480;
+  const hasCheckout = !!record.clock_out || isAutoClockOut;
+  const targetMinutes = result?.targetMinutes || officeHours.workDayMinutes;
 
   const workStatus = hasCheckout
     ? getWorkStatus(worked, targetMinutes)
@@ -143,8 +147,8 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
         minutes: 0,
       };
 
-  const isLate = isLateClockIn(record.clock_in, result?.leave);
-  const isEarly = isEarlyClockIn(record.clock_in, result?.leave);
+  const isLate = isLateClockIn(record.clock_in, result?.leave, officeHours);
+  const isEarly = isEarlyClockIn(record.clock_in, result?.leave, officeHours);
 
   const workedOnHoliday = result.isSaturday || !!result.holiday;
 
@@ -199,10 +203,10 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
               </span>
             ) : isAutoClockOut ? (
               <div className="flex items-center gap-1">
-                <span>06:00 PM</span>
+                <span>{officeHours.endTimeAmPm}</span>
                 <span
                   className="text-[9px] font-semibold text-text-muted bg-surface-muted border border-border-light px-1 py-0.2 rounded"
-                  title="Auto-closed at standard 6:00 PM"
+                  title={`Auto-closed at standard ${officeHours.endTimeAmPm}`}
                 >
                   Auto
                 </span>
@@ -318,8 +322,9 @@ function HoursCell({ record, worked, date, hasCheckout }) {
 }
 
 function TimeStatus({ record, workStatus, date, hasCheckout, result }) {
+  const officeHours = useOfficeHours();
   const isToday = date?.isoDate === todayISO();
-  const targetHours = (result?.targetMinutes || 480) / 60;
+  const targetHours = (result?.targetMinutes || officeHours.workDayMinutes) / 60;
 
   return (
     <div>
@@ -393,7 +398,8 @@ function StatusCell({ result }) {
 }
 
 function FullSiteVisitRecord({ date, result, onStartEdit }) {
-  const siteHours = result.siteInfo?.totalHours || 8;
+  const officeHours = useOfficeHours();
+  const siteHours = result.siteInfo?.totalHours || officeHours.workDayHours;
 
   return (
     <div className="border-b border-border-light last:border-0 hover:bg-surface-muted/40 transition-colors bg-[#FAF8FC]">

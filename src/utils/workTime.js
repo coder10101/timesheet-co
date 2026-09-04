@@ -1,7 +1,29 @@
 import { isoToBSLabel } from "./nepaliCalendar";
+import {
+  WORK_DAY_HOURS,
+  WORK_DAY_MINUTES,
+  LUNCH_MINUTES,
+  HALF_DAY_HOURS,
+  HALF_DAY_MINUTES,
+  OFFICE_START_TIME,
+  OFFICE_START_TIME_AMPM,
+  OFFICE_END_TIME,
+  OFFICE_END_TIME_AMPM,
+  DEFAULT_OFFICE_CONFIG,
+} from "../constants/officeHours";
 
-export const WORK_DAY_MINUTES = 8 * 60;
-export const LUNCH_MINUTES = 0; // Work hours is 8 hours including lunch
+export {
+  WORK_DAY_HOURS,
+  WORK_DAY_MINUTES,
+  LUNCH_MINUTES,
+  HALF_DAY_HOURS,
+  HALF_DAY_MINUTES,
+  OFFICE_START_TIME,
+  OFFICE_START_TIME_AMPM,
+  OFFICE_END_TIME,
+  OFFICE_END_TIME_AMPM,
+  DEFAULT_OFFICE_CONFIG,
+};
 
 /**
  * Returns today's date in YYYY-MM-DD in the Nepal timezone (Asia/Kathmandu).
@@ -19,25 +41,22 @@ export const todayISO = () => {
 };
 
 /**
- * Calculates actual working time (8-hour work day including lunch).
- *
- * Example:
- * 10:00 AM -> 6:00 PM
- * = 8 hours elapsed (lunch included)
- * = 8 hours worked
- */
-/**
  * Returns the effective clock-out timestamp.
- * If clock_out is missing on a past day, defaults to standard 6:00 PM (18:00) in Nepal time.
+ * If clock_out is missing on a past day, defaults to standard office end time (e.g. 5:00 PM / 17:00) in Nepal time.
  * If it's today and unclosed, returns null (still in progress).
  */
-export const getEffectiveClockOut = (record, today = todayISO()) => {
+export const getEffectiveClockOut = (
+  record,
+  today = todayISO(),
+  endTimeStr = OFFICE_END_TIME,
+) => {
   if (!record || !record.clock_in) return null;
   if (record.clock_out) return record.clock_out;
 
-  // If past date and no clock_out, auto-default to standard 6:00 PM
+  // If past date and no clock_out, auto-default to standard office end time
   if (record.date && record.date < today) {
-    return `${record.date}T18:00:00+05:45`;
+    const endFormatted = endTimeStr.length === 5 ? `${endTimeStr}:00` : endTimeStr;
+    return `${record.date}T${endFormatted}+05:45`;
   }
 
   return null;
@@ -64,18 +83,23 @@ export const getWorkedMinutes = (clockIn, clockOut, breakMinutes = 0) => {
 
   const breakMins = Math.max(0, Number(breakMinutes) || 0);
 
-  // Work hour is 8 hours including lunch, minus any personal break time
+  // Work hour calculation minus lunch deduction (if any) and personal break time
   return Math.max(0, totalMinutes - LUNCH_MINUTES - breakMins);
 };
 
-export const getWorkDifference = (clockIn, clockOut, breakMinutes = 0) => {
+export const getWorkDifference = (
+  clockIn,
+  clockOut,
+  breakMinutes = 0,
+  targetMinutes = WORK_DAY_MINUTES,
+) => {
   if (!clockIn || !clockOut) {
     return 0;
   }
 
   const workedMinutes = getWorkedMinutes(clockIn, clockOut, breakMinutes);
 
-  return workedMinutes - WORK_DAY_MINUTES;
+  return workedMinutes - targetMinutes;
 };
 
 export const formatDuration = (minutes) => {

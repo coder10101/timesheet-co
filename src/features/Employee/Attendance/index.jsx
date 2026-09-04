@@ -40,8 +40,11 @@ import {
 } from "../../../utils/nepaliCalendar";
 import AttendanceOverview from "./MonthlyOverview";
 import { PunctualityRhythmChart } from "../../../components/charts/PunctualityRhythmChart";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 export function EmployeeAttendance({ me }) {
+  const officeHours = useOfficeHours();
+  const { workDayMinutes, halfDayMinutes, workDayHours, startTime, endTime } = officeHours;
   const { records, updateAttendance } = useAttendance(me.id);
   const { entries: workLogs } = useWorkLogs(me.id);
   const { requests: leaveRequests } = useLeaveRequests(me.id);
@@ -141,13 +144,13 @@ export function EmployeeAttendance({ me }) {
     const map = new Map();
     if (!workLogs || !workLogs.length) return map;
     monthDates.forEach((d) => {
-      const summary = getSiteSummaryForDate(workLogs, d.isoDate);
+      const summary = getSiteSummaryForDate(workLogs, d.isoDate, workDayHours);
       if (summary.hasSiteVisit) {
         map.set(d.isoDate, summary);
       }
     });
     return map;
-  }, [monthDates, workLogs]);
+  }, [monthDates, workLogs, workDayHours]);
 
   // GET DATE STATUS
 
@@ -240,7 +243,7 @@ export function EmployeeAttendance({ me }) {
           leave,
           record: null,
           siteInfo: null,
-          targetMinutes: 240,
+          targetMinutes: halfDayMinutes,
         };
       }
 
@@ -270,7 +273,7 @@ export function EmployeeAttendance({ me }) {
       };
     }
 
-    const isLate = isLateClockIn(record.clock_in, leave);
+    const isLate = isLateClockIn(record.clock_in, leave, officeHours);
 
     return {
       status: isLate ? "late" : "present",
@@ -283,7 +286,7 @@ export function EmployeeAttendance({ me }) {
       record,
       siteInfo,
       isSiteHybrid: hasSite,
-      targetMinutes: isHalfDay ? 240 : 480,
+      targetMinutes: isHalfDay ? halfDayMinutes : workDayMinutes,
     };
   };
 
@@ -312,10 +315,10 @@ export function EmployeeAttendance({ me }) {
 
         if (result.status === "site_full") {
           const creditedMins = Math.round(
-            (result.siteInfo?.totalHours || 8) * 60,
+            (result.siteInfo?.totalHours || workDayHours) * 60,
           );
           totalWorked += creditedMins;
-          const workStatus = getWorkStatus(creditedMins);
+          const workStatus = getWorkStatus(creditedMins, workDayMinutes);
           if (workStatus.type === "overtime") {
             grossOvertimeMinutes += workStatus.minutes;
           }
@@ -323,7 +326,7 @@ export function EmployeeAttendance({ me }) {
             grossUndertimeMinutes += workStatus.minutes;
           }
         } else if (result.record?.clock_in) {
-          const effectiveClockOut = getEffectiveClockOut(result.record, today);
+          const effectiveClockOut = getEffectiveClockOut(result.record, today, endTime);
           if (effectiveClockOut) {
             const worked = getWorkedMinutes(
               result.record.clock_in,
@@ -333,7 +336,7 @@ export function EmployeeAttendance({ me }) {
 
             totalWorked += worked;
 
-            const targetMinutes = result.targetMinutes || 480;
+            const targetMinutes = result.targetMinutes || workDayMinutes;
             const workStatus = getWorkStatus(worked, targetMinutes);
 
             if (workStatus.type === "overtime") {
@@ -422,14 +425,14 @@ export function EmployeeAttendance({ me }) {
 
     const clockIn = record?.clock_in
       ? toNepalTimeString(record.clock_in)
-      : "10:00";
+      : startTime;
 
     // If it's today and no clock_out has been recorded, leave clockOut empty so employee is not prematurely clocked out
     const clockOut = record?.clock_out
       ? toNepalTimeString(record.clock_out)
       : isToday
         ? ""
-        : "18:00";
+        : endTime;
 
     setEditing({
       id: record?.id || null,

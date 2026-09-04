@@ -1,36 +1,73 @@
 import { useMemo } from "react";
 import { Clock, CheckCircle2, AlertTriangle, Sunrise } from "lucide-react";
 import { COLORS } from "../../constants/colors";
+import { useOfficeHours } from "../../constants/officeHours";
+import { toNepalTimeString } from "../../utils/timezone";
+
+function minutesToAmPm(mins) {
+  const norm = ((mins % 1440) + 1440) % 1440;
+  const h = Math.floor(norm / 60);
+  const m = norm % 60;
+  const period = h >= 12 ? "PM" : "AM";
+  const displayH = h % 12 || 12;
+  return `${displayH}:${String(m).padStart(2, "0")} ${period}`;
+}
 
 export function CheckInDistributionChart({ todayAttendance }) {
+  const officeHours = useOfficeHours();
+
   const { segments, totalPunches, onTimeRate } = useMemo(() => {
     let early = 0;
     let onTime = 0;
     let grace = 0;
     let late = 0;
 
+    const earlyWindow = Math.min(30, officeHours.graceMinutes || 30);
+    const earlyLimit = officeHours.startTimeMinutes - earlyWindow;
+    const earlyLimitLabel = minutesToAmPm(earlyLimit);
+
     (todayAttendance || []).forEach((att) => {
       if (!att.clock_in) return;
-      const d = new Date(att.clock_in);
-      const hours = d.getHours();
-      const minutes = d.getMinutes();
+      const timeStr = toNepalTimeString(att.clock_in);
+      if (!timeStr) return;
+      const [hours, minutes] = timeStr.split(":").map(Number);
       const totalMinutes = hours * 60 + minutes;
 
-      if (totalMinutes < 570) early += 1;
-      else if (totalMinutes <= 600) onTime += 1;
-      else if (totalMinutes <= 630) grace += 1;
+      if (totalMinutes < earlyLimit) early += 1;
+      else if (totalMinutes <= officeHours.startTimeMinutes) onTime += 1;
+      else if (totalMinutes <= officeHours.graceCutoffMinutes) grace += 1;
       else late += 1;
     });
 
     const total = early + onTime + grace + late || 0;
-    const punctualCount = early + onTime;
+    const punctualCount = early + onTime + grace;
     const rate = total > 0 ? Math.round((punctualCount / total) * 100) : 100;
 
     const rawSegments = [
-      { label: "Early (< 9:30 AM)", count: early, color: COLORS.success, dotColor: "bg-success" },
-      { label: "Standard (9:30 - 10:00 AM)", count: onTime, color: COLORS.primary, dotColor: "bg-primary" },
-      { label: "Grace (10:00 - 10:30 AM)", count: grace, color: COLORS.warning, dotColor: "bg-warning" },
-      { label: "Late (> 10:30 AM)", count: late, color: COLORS.alert, dotColor: "bg-alert" },
+      {
+        label: `Early (< ${earlyLimitLabel})`,
+        count: early,
+        color: COLORS.success,
+        dotColor: "bg-success",
+      },
+      {
+        label: `Standard (${earlyLimitLabel} - ${officeHours.startTimeAmPm})`,
+        count: onTime,
+        color: COLORS.primary,
+        dotColor: "bg-primary",
+      },
+      {
+        label: `Grace (${officeHours.startTimeAmPm} - ${officeHours.graceCutoffAmPm})`,
+        count: grace,
+        color: COLORS.warning,
+        dotColor: "bg-warning",
+      },
+      {
+        label: `Late (> ${officeHours.graceCutoffAmPm})`,
+        count: late,
+        color: COLORS.alert,
+        dotColor: "bg-alert",
+      },
     ];
 
     // Compute SVG stroke-dasharray & stroke-dashoffset for donut radius 36 (circumference ~ 226.19)
@@ -40,7 +77,6 @@ export function CheckInDistributionChart({ todayAttendance }) {
     const computed = rawSegments.map((s) => {
       const pct = total > 0 ? s.count / total : 0;
       const strokeLength = pct * circumference;
-      const offset = circumference - strokeLength;
       const strokeDashoffset = -accumulated;
       accumulated += strokeLength;
 
@@ -58,7 +94,7 @@ export function CheckInDistributionChart({ todayAttendance }) {
       totalPunches: total,
       onTimeRate: rate,
     };
-  }, [todayAttendance]);
+  }, [todayAttendance, officeHours]);
 
   return (
     <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3">

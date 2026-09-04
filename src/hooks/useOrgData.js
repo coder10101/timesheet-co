@@ -1230,3 +1230,57 @@ export function useEvents() {
     deleteEvent: (id) => deleteEvent.mutateAsync(id),
   };
 }
+
+/* ---------------- Organization & Office Hours ---------------- */
+export function useOrganization(orgId) {
+  const qc = useQueryClient();
+  const key = ["organization", orgId];
+
+  const query = useQuery({
+    queryKey: key,
+    queryFn: async () => {
+      if (!orgId) return null;
+      try {
+        const { data, error } = await supabase
+          .from("organizations")
+          .select("*")
+          .eq("id", orgId)
+          .single();
+
+        if (error) {
+          console.warn("Notice querying organization (using default office hours):", error.message);
+          return null;
+        }
+        return data;
+      } catch (err) {
+        console.warn("Failed to fetch organization details:", err);
+        return null;
+      }
+    },
+    enabled: !!orgId,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const updateOfficeHours = useMutation({
+    mutationFn: async (newOfficeHours) => {
+      if (!orgId) throw new Error("Organization ID is required.");
+      const { error } = await supabase
+        .from("organizations")
+        .update({ office_hours: newOfficeHours })
+        .eq("id", orgId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: key });
+      qc.invalidateQueries({ queryKey: ["attendance"] });
+      qc.invalidateQueries({ queryKey: ["work-hours"] });
+    },
+  });
+
+  return {
+    organization: query.data,
+    isLoading: query.isLoading,
+    updateOfficeHours: (payload) => updateOfficeHours.mutateAsync(payload),
+  };
+}

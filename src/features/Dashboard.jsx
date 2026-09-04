@@ -15,6 +15,7 @@ import {
 
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { getEmployeeColor } from "../constants/colors";
+import { OfficeHoursProvider } from "../constants/officeHours";
 
 export function Dashboard({ me, onLogout }) {
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
@@ -138,7 +139,8 @@ export function Dashboard({ me, onLogout }) {
   const desktopTabs = isAdmin ? adminDesktopTabs : employeeTabs;
 
   return (
-    <div className="min-h-screen bg-surface text-text">
+    <OfficeHoursProvider orgId={me?.org_id}>
+      <div className="min-h-screen bg-surface text-text">
       <div className="flex min-h-screen">
         {/* DESKTOP SIDEBAR */}
         <aside className="hidden md:flex flex-col w-56 lg:w-60 shrink-0 bg-[#011E26] text-white sticky top-0 h-screen border-r border-white/5">
@@ -447,7 +449,8 @@ export function Dashboard({ me, onLogout }) {
             </div>
           </>
         )}
+        </div>
       </div>
-    </div>
+    </OfficeHoursProvider>
   );
 }

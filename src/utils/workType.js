@@ -1,3 +1,5 @@
+import { WORK_DAY_HOURS } from "./workTime";
+
 /**
  * Utility for detecting, parsing, and formatting Work Log categories:
  * - Desk Work ('desk')
@@ -35,7 +37,7 @@ export function formatWorkLogEntryText(text, workType, duration) {
 /**
  * Summarize site visits for a specific date from an array of work logs.
  */
-export function getSiteSummaryForDate(entries, dateISO) {
+export function getSiteSummaryForDate(entries, dateISO, targetWorkDayHours = WORK_DAY_HOURS) {
   if (!entries || !entries.length) {
     return {
       hasSiteVisit: false,
@@ -45,6 +47,7 @@ export function getSiteSummaryForDate(entries, dateISO) {
     };
   }
 
+  const workDayHours = Number(targetWorkDayHours) || WORK_DAY_HOURS;
   const dateEntries = entries.filter((e) => e.date === dateISO);
   const siteEntries = [];
   let totalHours = 0;
@@ -58,17 +61,19 @@ export function getSiteSummaryForDate(entries, dateISO) {
         const dLower = parsed.duration.toLowerCase();
         if (
           dLower.includes("full") ||
-          dLower.includes("8h") ||
-          dLower.includes("8 h")
+          dLower.includes(`${workDayHours}h`) ||
+          dLower.includes(`${workDayHours} h`) ||
+          dLower.includes("7h") ||
+          dLower.includes("8h")
         ) {
           isFullDay = true;
-          totalHours += 8;
+          totalHours += workDayHours;
         } else {
           const numMatch = parsed.duration.match(/(\d+(?:\.\d+)?)/);
           if (numMatch) {
             const h = parseFloat(numMatch[1]);
             totalHours += h;
-            if (h >= 7) isFullDay = true;
+            if (h >= workDayHours) isFullDay = true;
           } else {
             totalHours += 2;
           }
@@ -81,7 +86,7 @@ export function getSiteSummaryForDate(entries, dateISO) {
 
   return {
     hasSiteVisit: siteEntries.length > 0,
-    isFullDay: isFullDay || totalHours >= 7,
+    isFullDay: isFullDay || totalHours >= workDayHours,
     totalHours,
     entries: siteEntries,
   };

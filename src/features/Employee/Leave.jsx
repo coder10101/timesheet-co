@@ -26,6 +26,7 @@ import {
   SESSION_LABELS,
   SESSION_SHORT_LABELS,
 } from "../../utils/leaveUtils";
+import { useOfficeHours } from "../../constants/officeHours";
 
 const LEAVE_TYPES = {
   Annual: {
@@ -43,6 +44,7 @@ const LEAVE_TYPES = {
 };
 
 export function EmployeeLeave({ me }) {
+  const officeHours = useOfficeHours();
   const { requests, submit, updateRequest, deleteRequest } = useLeaveRequests(
     me.id,
     "mine",
@@ -440,7 +442,7 @@ export function EmployeeLeave({ me }) {
                   )}
                 </div>
                 <div className="text-[11px] text-text-muted mt-0.5">
-                  10:00 AM – 2:00 PM off · Work 2:00 PM – 6:00 PM (4h)
+                  {officeHours.startTimeAmPm} – {officeHours.halfDayMidTimeAmPm} off · Work {officeHours.halfDayMidTimeAmPm} – {officeHours.endTimeAmPm} ({officeHours.halfDayHours}h)
                 </div>
               </button>
 
@@ -467,7 +469,7 @@ export function EmployeeLeave({ me }) {
                   )}
                 </div>
                 <div className="text-[11px] text-text-muted mt-0.5">
-                  Work 10:00 AM – 2:00 PM (4h) · 2:00 PM – 6:00 PM off
+                  Work {officeHours.startTimeAmPm} – {officeHours.halfDayMidTimeAmPm} ({officeHours.halfDayHours}h) · {officeHours.halfDayMidTimeAmPm} – {officeHours.endTimeAmPm} off
                 </div>
               </button>
             </div>

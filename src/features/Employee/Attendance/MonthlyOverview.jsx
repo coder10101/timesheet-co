@@ -1,4 +1,5 @@
 import AttendanceLegend from "./AttendanceLegend";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 function getBlockClass(status) {
   switch (status) {
@@ -28,9 +29,9 @@ function getBlockClass(status) {
   }
 }
 
-function getTooltip(result) {
+function getTooltip(result, workDayHours = 7) {
   if (result.status === "site_full") {
-    return `Site Visit (${result.siteInfo?.totalHours || 8}h)`;
+    return `Site Visit (${result.siteInfo?.totalHours || workDayHours}h)`;
   }
 
   if (result.status === "holiday") {
@@ -49,6 +50,8 @@ function getTooltip(result) {
 }
 
 export default function AttendanceOverview({ monthDates, getDateStatus }) {
+  const officeHours = useOfficeHours();
+
   return (
     <div className="bg-white rounded-xl p-4 border border-border mb-5">
       <div className="flex items-center justify-between gap-3 mb-4">
@@ -67,7 +70,7 @@ export default function AttendanceOverview({ monthDates, getDateStatus }) {
             <div
               key={date.isoDate}
               className="flex-1 min-w-[20px] text-center"
-              title={getTooltip(result)}
+              title={getTooltip(result, officeHours.workDayHours)}
             >
               <div className="text-xs leading-none text-text-subtle">
                 {date.day}

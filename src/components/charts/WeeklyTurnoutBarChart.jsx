@@ -11,6 +11,7 @@ import {
 } from "../../utils/nepaliCalendar";
 import { getWeekDates } from "../../utils/workTime";
 import { Users, Clock, CheckCircle2, TrendingUp } from "lucide-react";
+import { useOfficeHours } from "../../constants/officeHours";
 
 export function WeeklyTurnoutBarChart({
   employees,
@@ -19,6 +20,7 @@ export function WeeklyTurnoutBarChart({
   holidays,
   todayISO,
 }) {
+  const officeHours = useOfficeHours();
   const [hoveredDate, setHoveredDate] = useState(null);
 
   const weekDates = useMemo(() => {
@@ -60,7 +62,7 @@ export function WeeklyTurnoutBarChart({
       let lateCount = 0;
 
       dateRecords.forEach((r) => {
-        if (isLateClockIn(r.clock_in)) {
+        if (isLateClockIn(r.clock_in, null, officeHours)) {
           lateCount++;
         } else {
           onTimeCount++;
@@ -95,7 +97,7 @@ export function WeeklyTurnoutBarChart({
         turnoutPct,
       };
     });
-  }, [weekDates, employees, allAttendance, leaveRequests, holidays, todayISO]);
+  }, [weekDates, employees, allAttendance, leaveRequests, holidays, todayISO, officeHours]);
 
   // Weekly stats
   const activeDays = dailyTurnout.filter(

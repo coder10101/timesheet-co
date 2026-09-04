@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Clock, Calendar, AlertCircle } from "lucide-react";
 import { isoToBS, NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import { getWeekday } from "../../../utils/attendance";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 export function QuickLogAttendanceModal({
   date,
@@ -11,8 +12,9 @@ export function QuickLogAttendanceModal({
   error,
   setError,
 }) {
-  const [clockIn, setClockIn] = useState("10:00");
-  const [clockOut, setClockOut] = useState("18:00");
+  const officeHours = useOfficeHours();
+  const [clockIn, setClockIn] = useState(officeHours.startTime);
+  const [clockOut, setClockOut] = useState(officeHours.endTime);
   const [breakMinutes, setBreakMinutes] = useState(0);
 
   if (!date) return null;
@@ -80,7 +82,7 @@ export function QuickLogAttendanceModal({
               <span className="font-semibold text-text">
                 {weekdayLabel}, {dateLabel}
               </span>
-              . Standard 8-hour workday (10:00 AM – 6:00 PM) is pre-filled.
+              . Standard {officeHours.workDayHours}-hour workday ({officeHours.startTimeAmPm} – {officeHours.endTimeAmPm}) is pre-filled.
             </p>
 
             {error && (

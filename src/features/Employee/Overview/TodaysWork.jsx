@@ -16,6 +16,7 @@ import {
   parseWorkLogEntry,
   formatWorkLogEntryText,
 } from "../../../utils/workType";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 export function TodaysWork({
   entries,
@@ -26,6 +27,7 @@ export function TodaysWork({
   setErr,
   today,
 }) {
+  const officeHours = useOfficeHours();
   const [workText, setWorkText] = useState("");
   const [workProjectId, setWorkProjectId] = useState("");
   const [workType, setWorkType] = useState("desk"); // 'desk' | 'site'
@@ -94,7 +96,7 @@ export function TodaysWork({
     if (parsed.workType === "site") {
       if (parsed.duration?.toLowerCase().includes("full")) {
         setIsFullDay(true);
-        setSiteHours(8);
+        setSiteHours(officeHours.workDayHours);
       } else {
         setIsFullDay(false);
         const match = parsed.duration?.match(/(\d+(?:\.\d+)?)/);
@@ -188,7 +190,7 @@ export function TodaysWork({
                   max="12"
                   step="0.5"
                   disabled={isFullDay}
-                  value={isFullDay ? 8 : siteHours}
+                  value={isFullDay ? officeHours.workDayHours : siteHours}
                   onChange={(e) => {
                     const val = parseFloat(e.target.value);
                     if (!isNaN(val) && val > 0) {
@@ -239,7 +241,7 @@ export function TodaysWork({
                   setIsFullDay(false);
                 } else {
                   setIsFullDay(true);
-                  setSiteHours(8);
+                  setSiteHours(officeHours.workDayHours);
                 }
               }}
               className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
@@ -248,7 +250,7 @@ export function TodaysWork({
                   : "bg-surface-muted/60 text-text-muted hover:text-text"
               }`}
             >
-              Full Day (8h)
+              Full Day ({officeHours.workDayHours}h)
             </button>
           </div>
         )}

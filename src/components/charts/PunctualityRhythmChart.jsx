@@ -15,8 +15,10 @@ import { toNepalTimeString } from "../../utils/timezone";
 import { getWeekday } from "../../utils/attendance";
 import { WEEKDAY_LABELS } from "../../utils/nepaliCalendar";
 import { getEffectiveClockOut } from "../../utils/workTime";
+import { useOfficeHours } from "../../constants/officeHours";
 
 export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate }) {
+  const officeHours = useOfficeHours();
   const stats = useMemo(() => {
     let earlyCount = 0;
     let onTimeCount = 0;
@@ -43,18 +45,17 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
       const wd = getWeekday(r.date);
       dayCounts[wd] = (dayCounts[wd] || 0) + 1;
 
-      // 10:00 AM = 600 min, 10:30 AM = 630 min
-      if (inMins < 600) {
+      if (inMins < officeHours.startTimeMinutes) {
         earlyCount += 1;
         dayOnTime[wd] = (dayOnTime[wd] || 0) + 1;
-      } else if (inMins <= 630) {
+      } else if (inMins <= officeHours.graceCutoffMinutes) {
         onTimeCount += 1;
         dayOnTime[wd] = (dayOnTime[wd] || 0) + 1;
       } else {
         lateCount += 1;
       }
 
-      const effOut = getEffectiveClockOut(r);
+      const effOut = getEffectiveClockOut(r, undefined, officeHours.endTime);
       if (effOut) {
         const outStr = toNepalTimeString(effOut);
         if (outStr) {
@@ -71,13 +72,18 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
       totalDays > 0 ? Math.round((punctualDays / totalDays) * 100) : 100;
 
     // Averages
-    const avgInMins = totalDays > 0 ? Math.round(totalInMinutes / totalDays) : 600;
+    const avgInMins =
+      totalDays > 0
+        ? Math.round(totalInMinutes / totalDays)
+        : officeHours.startTimeMinutes;
     const avgInH = Math.floor(avgInMins / 60);
     const avgInM = avgInMins % 60;
     const avgInStr = `${avgInH % 12 || 12}:${String(avgInM).padStart(2, "0")} ${avgInH >= 12 ? "PM" : "AM"}`;
 
     const avgOutMins =
-      clockedOutCount > 0 ? Math.round(totalOutMinutes / clockedOutCount) : 1080;
+      clockedOutCount > 0
+        ? Math.round(totalOutMinutes / clockedOutCount)
+        : officeHours.endTimeMinutes;
     const avgOutH = Math.floor(avgOutMins / 60);
     const avgOutM = avgOutMins % 60;
     const avgOutStr =
@@ -110,7 +116,7 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
       if (!timeStr) break;
       const [h, m] = timeStr.split(":").map(Number);
       const mins = h * 60 + m;
-      if (mins <= 630) {
+      if (mins <= officeHours.graceCutoffMinutes) {
         streak += 1;
       } else {
         break;
@@ -120,21 +126,21 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
     // Donut Segments
     const rawSegments = [
       {
-        label: "On Time (10:00 – 10:30 AM)",
+        label: `On Time (${officeHours.startTimeAmPm} – ${officeHours.graceCutoffAmPm})`,
         count: onTimeCount,
         color: COLORS.primary,
         bgClass: "bg-primary",
         icon: Clock10,
       },
       {
-        label: "Early (< 10:00 AM)",
+        label: `Early (< ${officeHours.startTimeAmPm})`,
         count: earlyCount,
         color: "#2E6B56",
         bgClass: "bg-[#2E6B56]",
         icon: Clock9,
       },
       {
-        label: "Late (> 10:30 AM)",
+        label: `Late (> ${officeHours.graceCutoffAmPm})`,
         count: lateCount,
         color: COLORS.warning,
         bgClass: "bg-warning",
@@ -170,7 +176,7 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
       segments,
       circumference,
     };
-  }, [records, siteSummaryByDate]);
+  }, [records, siteSummaryByDate, officeHours]);
 
   return (
     <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4">
@@ -180,7 +186,7 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
           <div className="flex items-center gap-2">
             <h3 className="text-base font-bold text-text">Punctuality & Check-In Rhythm</h3>
             <span className="text-[11px] font-mono text-primary bg-primary-light px-2 py-0.5 rounded font-semibold border border-primary/20">
-              Shift: 10:00 AM – 6:00 PM (8h incl. lunch)
+              Shift: {officeHours.shiftLabel}
             </span>
           </div>
           <p className="text-xs text-text-muted mt-0.5">
@@ -273,7 +279,7 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
             <p className="text-base font-bold font-mono text-text">
               {stats.totalDays > 0 ? stats.avgInStr : "—"}
             </p>
-            <p className="text-[10px] text-text-muted">Standard: 10:00 AM</p>
+            <p className="text-[10px] text-text-muted">Standard: {officeHours.startTimeAmPm}</p>
           </div>
 
           {/* AVG CLOCK OUT */}
@@ -285,7 +291,7 @@ export function PunctualityRhythmChart({ records, monthDates, siteSummaryByDate 
             <p className="text-base font-bold font-mono text-text">
               {stats.avgOutStr}
             </p>
-            <p className="text-[10px] text-text-muted">Standard: 06:00 PM</p>
+            <p className="text-[10px] text-text-muted">Standard: {officeHours.endTimeAmPm}</p>
           </div>
 
           {/* BEST DAY */}

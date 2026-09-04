@@ -5,7 +5,6 @@ import {
   formatDuration,
   getWorkedMinutes,
   todayISO,
-  WORK_DAY_MINUTES,
 } from "../../../utils/workTime";
 import { ClockRing } from "../../../components/ClockRing";
 import { getSiteSummaryForDate } from "../../../utils/workType";
@@ -15,6 +14,7 @@ import {
   HALF_DAY_SESSIONS,
 } from "../../../utils/leaveUtils";
 import { isDateWithinLeave } from "../../../utils/attendance";
+import { useOfficeHours } from "../../../constants/officeHours";
 
 export function Today({
   records,
@@ -33,15 +33,16 @@ export function Today({
   const [justClocked, setJustClocked] = useState(null); // 'in' | 'out' | null
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  const officeHours = useOfficeHours();
   const todayRecord = records.find((record) => record.date === today);
-  const siteSummary = getSiteSummaryForDate(entries, today);
+  const siteSummary = getSiteSummaryForDate(entries, today, officeHours.workDayHours);
 
   const todayLeave = (myLeave || []).find(
     (l) => l.status === "Approved" && isDateWithinLeave(today, l),
   );
   const isTodayHalfDay = isHalfDayLeave(todayLeave);
   const halfDaySession = getHalfDaySession(todayLeave);
-  const targetDayMinutes = isTodayHalfDay ? 240 : WORK_DAY_MINUTES;
+  const targetDayMinutes = isTodayHalfDay ? officeHours.halfDayMinutes : officeHours.workDayMinutes;
 
   useEffect(() => {
     if (!todayRecord?.clock_in || todayRecord?.clock_out) return;
@@ -226,8 +227,8 @@ export function Today({
                     ? "Site visit logged today"
                     : isTodayHalfDay
                       ? halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF
-                        ? "Half day · Morning shift (10 AM–2 PM)"
-                        : "Half day · Afternoon shift (2 PM–6 PM)"
+                        ? `Half day · Morning shift (${officeHours.startTimeAmPm}–${officeHours.halfDayMidTimeAmPm})`
+                        : `Half day · Afternoon shift (${officeHours.halfDayMidTimeAmPm}–${officeHours.endTimeAmPm})`
                       : "Not clocked in yet"
                   : todayRecord.clock_out
                     ? "Workday completed"
@@ -240,7 +241,7 @@ export function Today({
             <div className="flex items-center gap-1.5 flex-wrap mt-1">
               {isTodayHalfDay && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/95 bg-primary/40 border border-white/20 px-2 py-0.5 rounded-full">
-                  🌗 Half Day ({halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF ? "Afternoon Off" : "Morning Off"}) · 4h Target
+                  🌗 Half Day ({halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF ? "Afternoon Off" : "Morning Off"}) · {officeHours.halfDayHours}h Target
                 </span>
               )}
 
@@ -336,8 +337,8 @@ export function Today({
                 })
               : isTodayHalfDay
                 ? halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF
-                  ? "Expected 10:00 AM"
-                  : "Expected 02:00 PM"
+                  ? `Expected ${officeHours.startTimeAmPm}`
+                  : `Expected ${officeHours.halfDayMidTimeAmPm}`
                 : "—"}
           </p>
         </div>
@@ -369,8 +370,8 @@ export function Today({
                 })
               : isTodayHalfDay
                 ? halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF
-                  ? "Target 02:00 PM (4h)"
-                  : "Target 06:00 PM (4h)"
+                  ? `Target ${officeHours.halfDayMidTimeAmPm} (${officeHours.halfDayHours}h)`
+                  : `Target ${officeHours.endTimeAmPm} (${officeHours.halfDayHours}h)`
                 : "—"}
           </p>
         </div>

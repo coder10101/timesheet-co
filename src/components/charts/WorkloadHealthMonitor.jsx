@@ -3,13 +3,14 @@ import {
   getWorkedMinutes,
   getEffectiveClockOut,
   formatDuration,
-  WORK_DAY_MINUTES,
 } from "../../utils/workTime";
+import { useOfficeHours } from "../../constants/officeHours";
 import { isoToBS } from "../../utils/nepaliCalendar";
 import { getEmployeeColor } from "../../constants/colors";
 import { Clock, AlertTriangle, ShieldCheck, TrendingUp } from "lucide-react";
 
 export function WorkloadHealthMonitor({ employees, allAttendance, currentBSMonth, currentBSYear }) {
+  const officeHours = useOfficeHours();
   const workloadStats = useMemo(() => {
     if (!employees || !allAttendance) return { overtimeLeaders: [], deficitMembers: [], balancedCount: 0 };
 
@@ -25,7 +26,7 @@ export function WorkloadHealthMonitor({ employees, allAttendance, currentBSMonth
     });
 
     allAttendance.forEach((rec) => {
-      const effOut = getEffectiveClockOut(rec);
+      const effOut = getEffectiveClockOut(rec, undefined, officeHours.endTime);
       if (!rec.clock_in || !effOut) return;
       const stat = empMap.get(rec.employee_id);
       if (!stat) return;
@@ -37,7 +38,7 @@ export function WorkloadHealthMonitor({ employees, allAttendance, currentBSMonth
       stat.totalWorkedMinutes += worked;
       stat.loggedDays += 1;
 
-      const diff = worked - WORK_DAY_MINUTES;
+      const diff = worked - officeHours.workDayMinutes;
       if (diff > 0) stat.overtimeMinutes += diff;
       else if (diff < 0) stat.undertimeMinutes += Math.abs(diff);
     });
@@ -66,7 +67,7 @@ export function WorkloadHealthMonitor({ employees, allAttendance, currentBSMonth
     const balancedCount = list.length - overtimeLeaders.length - deficitMembers.length;
 
     return { overtimeLeaders, deficitMembers, balancedCount };
-  }, [employees, allAttendance, currentBSMonth, currentBSYear]);
+  }, [employees, allAttendance, currentBSMonth, currentBSYear, officeHours]);
 
   return (
     <div className="w-full bg-white border border-border rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3 overflow-hidden">
@@ -137,7 +138,7 @@ export function WorkloadHealthMonitor({ employees, allAttendance, currentBSMonth
         <div className="space-y-1.5 min-w-0">
           <div className="flex items-center gap-1 text-[11px] font-bold text-text">
             <AlertTriangle size={12} className="text-alert shrink-0" />
-            <span>Short Hours (Below 8h)</span>
+            <span>Short Hours (Below {officeHours.workDayHours}h)</span>
           </div>
 
           {workloadStats.deficitMembers.length === 0 ? (
