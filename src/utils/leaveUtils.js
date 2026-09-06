@@ -1,5 +1,3 @@
-import { DEFAULT_SCHEDULE } from "../constants/officeHours";
-
 export const HALF_DAY_SESSIONS = {
   FIRST_HALF: "first_half",
   SECOND_HALF: "second_half",
@@ -9,22 +7,22 @@ export const HALF_DAY_SESSIONS = {
  * Returns dynamic session labels based on office schedule.
  * e.g. "First Half (Morning: 10:00 AM – 01:30 PM)"
  */
-export function getSessionLabels(schedule = DEFAULT_SCHEDULE) {
-  const start = schedule?.startTimeAmPm || DEFAULT_SCHEDULE.startTimeAmPm;
-  const mid = schedule?.halfDayMidTimeAmPm || DEFAULT_SCHEDULE.halfDayMidTimeAmPm;
-  const end = schedule?.endTimeAmPm || DEFAULT_SCHEDULE.endTimeAmPm;
+export function getSessionLabels(schedule) {
+  const start = schedule?.startTimeAmPm || "10:00 AM";
+  const mid = schedule?.halfDayMidTimeAmPm || "01:30 PM";
+  const end = schedule?.endTimeAmPm || "05:00 PM";
   return {
     first_half: `First Half (Morning: ${start} – ${mid})`,
     second_half: `Second Half (Afternoon: ${mid} – ${end})`,
   };
 }
 
-export function formatSessionLabel(session, schedule = DEFAULT_SCHEDULE) {
+export function formatSessionLabel(session, schedule) {
   const labels = getSessionLabels(schedule);
   return labels[session] || "Half Day";
 }
 
-export const SESSION_LABELS = getSessionLabels(DEFAULT_SCHEDULE);
+export const SESSION_LABELS = getSessionLabels();
 
 export const SESSION_SHORT_LABELS = {
   first_half: "First Half · Morning",

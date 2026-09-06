@@ -11,8 +11,10 @@ import {
   Calendar,
   Clock,
   Check,
+  Info,
 } from "lucide-react";
 import { StatusPill } from "../../components/StatusPill";
+import { LeavePolicyCard } from "../../components/LeavePolicyCard";
 import { COLORS } from "../../constants/colors";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
 import {
@@ -341,12 +343,16 @@ export function EmployeeLeave({ me }) {
         })}
       </div>
 
-      {/* CLEAN INLINE LEAVE REQUEST COMPOSER */}
-      <div
-        className={`bg-white border rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3 transition-all ${
-          editing ? "border-primary ring-2 ring-primary/20" : "border-border"
-        }`}
-      >
+      {/* 2-COLUMN SECTION: COMPOSER & HISTORY (LEFT) + POLICY & GUIDELINES (RIGHT) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* LEFT COLUMN (8 COLS): COMPOSER & HISTORY */}
+        <div className="lg:col-span-8 space-y-4">
+          {/* CLEAN INLINE LEAVE REQUEST COMPOSER */}
+          <div
+            className={`bg-white border rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3 transition-all ${
+              editing ? "border-primary ring-2 ring-primary/20" : "border-border"
+            }`}
+          >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
@@ -709,5 +715,25 @@ export function EmployeeLeave({ me }) {
         )}
       </div>
     </div>
-  );
+
+      {/* RIGHT COLUMN (4 COLS): LEAVE POLICY & GUIDELINES */}
+      <div className="lg:col-span-4 space-y-3.5">
+        <LeavePolicyCard />
+
+        {/* REQUEST GUIDELINES CARD */}
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-2 text-xs">
+          <div className="flex items-center gap-2 pb-1.5 border-b border-border-light">
+            <Info size={15} className="text-primary" />
+            <h4 className="font-bold text-text">Request Guidelines</h4>
+          </div>
+          <ul className="space-y-1.5 text-[11px] text-text-muted list-disc list-inside">
+            <li>Submit planned leaves in advance for quick manager approval.</li>
+            <li>Half-day leaves deduct 0.5 days from your quota.</li>
+            <li>Pending requests can be edited or cancelled anytime.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 }
