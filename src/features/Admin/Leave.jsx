@@ -29,10 +29,13 @@ import {
   formatLeaveBalance,
   cleanLeaveReason,
   SESSION_SHORT_LABELS,
+  getSessionLabels,
 } from "../../utils/leaveUtils";
+import { useOfficeHours } from "../../constants/officeHours";
 import { StatusPill } from "../../components/StatusPill";
 
 export function AdminLeave({ me }) {
+  const officeHours = useOfficeHours();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get("tab");
   const urlEmpId = searchParams.get("empId");
@@ -469,7 +472,10 @@ export function AdminLeave({ me }) {
                                 {r.type} Leave · {formatLeaveDays(r.days)}
                               </span>
                               {isHalf && (
-                                <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                                <span
+                                  className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20"
+                                  title={session ? getSessionLabels(officeHours)[session] : undefined}
+                                >
                                   {SESSION_SHORT_LABELS[session] || "Half Day"}
                                 </span>
                               )}
@@ -565,7 +571,7 @@ export function AdminLeave({ me }) {
                       <span className="font-mono text-primary">0.5 Day</span>
                     </div>
                     <p className="text-[11px] text-text-muted leading-tight">
-                      Available in Morning (10 AM–2 PM) or Afternoon (2 PM–6 PM) shifts with a 4-hour target.
+                      Available in Morning ({officeHours.startTimeAmPm}–{officeHours.halfDayMidTimeAmPm}) or Afternoon ({officeHours.halfDayMidTimeAmPm}–{officeHours.endTimeAmPm}) shifts with a {officeHours.halfDayHours}-hour target.
                     </p>
                   </div>
 
@@ -924,7 +930,10 @@ export function AdminLeave({ me }) {
                                   ({formatLeaveDays(r.days)})
                                 </span>
                                 {isHalf && (
-                                  <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                                  <span
+                                    className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20"
+                                    title={session ? getSessionLabels(officeHours)[session] : undefined}
+                                  >
                                     {SESSION_SHORT_LABELS[session] || "Half Day"}
                                   </span>
                                 )}

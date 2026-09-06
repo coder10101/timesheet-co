@@ -25,6 +25,7 @@ import {
   HALF_DAY_SESSIONS,
   SESSION_LABELS,
   SESSION_SHORT_LABELS,
+  getSessionLabels,
 } from "../../utils/leaveUtils";
 import { useOfficeHours } from "../../constants/officeHours";
 
@@ -656,7 +657,10 @@ export function EmployeeLeave({ me }) {
                             ({formatLeaveDays(r.days)})
                           </span>
                           {isHalfDayLeave(r) && (
-                            <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                            <span
+                              className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20"
+                              title={getSessionLabels(officeHours)[getHalfDaySession(r)]}
+                            >
                               {SESSION_SHORT_LABELS[getHalfDaySession(r)] || "Half Day"}
                             </span>
                           )}
