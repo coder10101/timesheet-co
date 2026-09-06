@@ -498,7 +498,7 @@ export function EmployeeAttendance({ me }) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto fade-in space-y-4 pb-8">
+    <div className="w-full max-w-7xl mx-auto fade-in space-y-4 pb-8">
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>

@@ -233,7 +233,7 @@ export function EmployeeCalendar({ me }) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5 fade-in">
+    <div className="w-full max-w-7xl mx-auto space-y-5 fade-in">
       {/* PAGE HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
@@ -257,9 +257,9 @@ export function EmployeeCalendar({ me }) {
         </div>
       </div>
 
-      {/* MAIN TWO-COLUMN LAYOUT */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-5 items-start">
-        {/* LEFT COLUMN: INTERACTIVE NEPALI CALENDAR */}
+      {/* MAIN TWO-COLUMN LAYOUT: 60% CALENDAR, 40% SIDEBAR */}
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-5 items-start">
+        {/* LEFT COLUMN: INTERACTIVE NEPALI CALENDAR (60%) */}
         <div className="bg-white border border-border rounded-2xl p-3 sm:p-5 shadow-xs space-y-3 sm:space-y-4 w-full max-w-full overflow-hidden">
           {/* MONTH NAVIGATION BAR */}
           <div className="flex items-center justify-between">
@@ -348,7 +348,7 @@ export function EmployeeCalendar({ me }) {
                   key={cell.isoDate}
                   onClick={() => setSelectedDate(cell.isoDate)}
                   className={`
-                    relative min-h-[64px] sm:min-h-[82px] rounded-lg sm:rounded-xl p-1 sm:p-1.5 overflow-hidden
+                    relative min-h-[56px] sm:min-h-[82px] rounded-lg sm:rounded-xl p-1 sm:p-1.5 overflow-hidden
                     flex flex-col justify-between items-start
                     border text-left transition-all
                     ${
@@ -389,8 +389,8 @@ export function EmployeeCalendar({ me }) {
                     </span>
                   </div>
 
-                  {/* EVENT CHIPS / LABELS IN CELL */}
-                  <div className="w-full space-y-1 my-1">
+                  {/* EVENT CHIPS / LABELS IN CELL (Desktop / Tablet) */}
+                  <div className="hidden sm:block w-full space-y-1 my-1">
                     {/* DEADLINE CHIP */}
                     {hasDeadline && (
                       <div
@@ -513,8 +513,8 @@ export function EmployeeCalendar({ me }) {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: SELECTED DATE BREAKDOWN & UPCOMING FEED */}
-        <div className="space-y-4">
+        {/* RIGHT COLUMN: SELECTED DATE BREAKDOWN & UPCOMING FEED (40%) */}
+        <div className="min-w-0 space-y-4">
           <Card
             title={
               selectedDate ? (
@@ -723,7 +723,7 @@ export function EmployeeCalendar({ me }) {
             title="Upcoming Schedule"
             subtitle="Meetings, deadlines, holidays, and leaves from today onwards."
             right={
-              <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-xl border border-border-light text-[10px]">
+              <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-xl border border-border-light text-[10px] overflow-x-auto max-w-full touch-pan-x">
                 <button
                   onClick={() => setFeedFilter("all")}
                   className={`px-2 py-0.5 rounded-lg font-semibold transition-colors ${

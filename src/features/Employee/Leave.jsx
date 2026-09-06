@@ -218,7 +218,7 @@ export function EmployeeLeave({ me }) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 fade-in">
+    <div className="w-full max-w-7xl mx-auto space-y-4 fade-in">
       {/* PAGE HEADER */}
       <div className="flex items-center justify-between">
         <div>
@@ -544,7 +544,7 @@ export function EmployeeLeave({ me }) {
         )}
 
         {/* REASON & SUBMIT ROW */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
           <input
             type="text"
             value={currentReason}
@@ -563,30 +563,32 @@ export function EmployeeLeave({ me }) {
             className="flex-1 h-10 bg-surface-muted/50 focus:bg-white border border-border-light focus:border-primary rounded-xl px-3.5 text-xs text-text outline-none transition-all"
           />
 
-          {editing && (
-            <button
-              type="button"
-              onClick={() => setEditing(null)}
-              className="h-10 px-3 text-xs text-text-muted hover:text-text rounded-xl hover:bg-surface-muted transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {editing && (
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="flex-1 sm:flex-initial h-10 px-3 text-xs text-text-muted hover:text-text rounded-xl hover:bg-surface-muted transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            )}
 
-          <button
-            onClick={editing ? saveEdit : doSubmit}
-            disabled={saving || !currentReason.trim()}
-            className="h-10 px-4 flex items-center gap-1.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 shrink-0 cursor-pointer"
-          >
-            {editing ? <Check size={13} /> : <Send size={13} />}
-            <span>
-              {saving
-                ? "Saving..."
-                : editing
-                  ? "Update Request"
-                  : "Submit Request"}
-            </span>
-          </button>
+            <button
+              onClick={editing ? saveEdit : doSubmit}
+              disabled={saving || !currentReason.trim()}
+              className="flex-1 sm:flex-initial h-10 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 cursor-pointer"
+            >
+              {editing ? <Check size={13} /> : <Send size={13} />}
+              <span>
+                {saving
+                  ? "Saving..."
+                  : editing
+                    ? "Update Request"
+                    : "Submit Request"}
+              </span>
+            </button>
+          </div>
         </div>
 
         {isOverQuota && (
@@ -608,7 +610,7 @@ export function EmployeeLeave({ me }) {
             Leave History
           </h3>
 
-          <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-xl border border-border-light text-xs overflow-x-auto max-w-full">
+          <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-xl border border-border-light text-xs overflow-x-auto max-w-full touch-pan-x">
             {["all", "Pending", "Approved", "Rejected"].map((tab) => (
               <button
                 key={tab}

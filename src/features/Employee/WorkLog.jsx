@@ -33,6 +33,9 @@ import {
   AlertCircle,
   Building2,
   MapPin,
+  FileText,
+  Briefcase,
+  Info,
 } from "lucide-react";
 
 import { EmptyState } from "../../components/EmptyState";
@@ -291,7 +294,7 @@ export function EmployeeWorklog({ me }) {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 fade-in">
+    <div className="w-full max-w-7xl mx-auto space-y-4 fade-in">
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
@@ -309,67 +312,63 @@ export function EmployeeWorklog({ me }) {
         </div>
       )}
 
-      {/* VISUAL PROJECT EFFORT DISTRIBUTION BAR */}
-      {projectStats.totalLogs > 0 && (
-        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-2.5">
-          <div className="flex items-center justify-between text-xs flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-text">
-                Project Contribution Breakdown
-              </span>
-              {projectStats.totalSiteLogs > 0 && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/20 px-2 py-0.5 rounded-md">
-                  <MapPin size={10} /> {projectStats.totalSiteLogs} site visit
-                  {projectStats.totalSiteLogs !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-            <span className="font-mono text-text-muted text-[11px]">
-              {projectStats.totalLogs} total entries across{" "}
-              {projectStats.segments.length} initiative
-              {projectStats.segments.length !== 1 ? "s" : ""}
-            </span>
+      {/* SUMMARY METRIC CARDS */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="bg-white border border-border rounded-2xl p-3 sm:p-4 shadow-2xs space-y-1 min-w-0">
+          <div className="flex items-center justify-between text-text-muted gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider truncate">Total Logs</span>
+            <FileText size={14} className="text-primary shrink-0" />
           </div>
-
-          {/* MULTI-COLOR SEGMENTED BAR */}
-          <div className="w-full h-2.5 rounded-full bg-surface-muted overflow-hidden flex shadow-inner">
-            {projectStats.segments.map((seg) => (
-              <div
-                key={seg.pId}
-                style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
-                className="h-full transition-all duration-500"
-                title={`${seg.name}: ${seg.count} logs (${seg.pct}%)`}
-              />
-            ))}
+          <div className="text-xl sm:text-2xl font-bold font-mono text-text">
+            {projectStats.totalLogs}
           </div>
-
-          {/* PROJECT PILLS LEGEND */}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {projectStats.segments.map((seg) => (
-              <div
-                key={seg.pId}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-muted/60 border border-border-light text-[11px]"
-              >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: seg.color }}
-                />
-                <span className="font-medium text-text">{seg.name}</span>
-                <span className="font-mono font-bold text-text-muted text-[10px]">
-                  ({seg.count} · {seg.pct}%)
-                </span>
-              </div>
-            ))}
-          </div>
+          <div className="text-[10px] text-text-muted truncate">Logged accomplishments</div>
         </div>
-      )}
 
-      {/* ROOMY WORK ENTRY BOX */}
-      <div
-        className={`bg-white border rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3 transition-all ${
-          editingId ? "border-primary ring-2 ring-primary/20" : "border-border"
-        }`}
-      >
+        <div className="bg-white border border-border rounded-2xl p-3 sm:p-4 shadow-2xs space-y-1 min-w-0">
+          <div className="flex items-center justify-between text-text-muted gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider truncate">Desk Work</span>
+            <Building2 size={14} className="text-primary shrink-0" />
+          </div>
+          <div className="text-xl sm:text-2xl font-bold font-mono text-text">
+            {projectStats.totalDeskLogs}
+          </div>
+          <div className="text-[10px] text-text-muted truncate">In-office sessions</div>
+        </div>
+
+        <div className="bg-white border border-border rounded-2xl p-3 sm:p-4 shadow-2xs space-y-1 min-w-0">
+          <div className="flex items-center justify-between text-text-muted gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider truncate">Site Visits</span>
+            <MapPin size={14} className="text-[#63537E] shrink-0" />
+          </div>
+          <div className="text-xl sm:text-2xl font-bold font-mono text-[#63537E]">
+            {projectStats.totalSiteLogs}
+          </div>
+          <div className="text-[10px] text-text-muted truncate">Field / on-site trips</div>
+        </div>
+
+        <div className="bg-white border border-border rounded-2xl p-3 sm:p-4 shadow-2xs space-y-1 min-w-0">
+          <div className="flex items-center justify-between text-text-muted gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider truncate">Initiatives</span>
+            <Briefcase size={14} className="text-warning shrink-0" />
+          </div>
+          <div className="text-xl sm:text-2xl font-bold font-mono text-text">
+            {projectStats.segments.length}
+          </div>
+          <div className="text-[10px] text-text-muted truncate">Active projects</div>
+        </div>
+      </div>
+
+      {/* 2-COLUMN SECTION: COMPOSER & HISTORY (LEFT) + PROJECT CONTRIBUTION (RIGHT) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* LEFT COLUMN (8 COLS): COMPOSER & HISTORY */}
+        <div className="lg:col-span-8 space-y-4">
+          {/* ROOMY WORK ENTRY BOX */}
+          <div
+            className={`bg-white border rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-3 transition-all ${
+              editingId ? "border-primary ring-2 ring-primary/20" : "border-border"
+            }`}
+          >
         {/* WORK TYPE SELECTOR: DESK WORK VS SITE VISIT */}
         <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border-light">
           <div className="flex items-center p-0.5 bg-surface-muted rounded-xl border border-border-light text-xs">
@@ -826,7 +825,96 @@ export function EmployeeWorklog({ me }) {
             );
           })
         )}
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN (4 COLS): PROJECT EFFORT BREAKDOWN & GUIDELINES */}
+      <div className="lg:col-span-4 space-y-3.5">
+        {/* PROJECT CONTRIBUTION CARD */}
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-border-light">
+            <div className="flex items-center gap-2">
+              <Briefcase size={16} className="text-primary" />
+              <h3 className="text-xs sm:text-sm font-bold text-text">Project Contribution</h3>
+            </div>
+            {projectStats.totalSiteLogs > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/20 px-2 py-0.5 rounded-md">
+                <MapPin size={9} /> {projectStats.totalSiteLogs} site
+              </span>
+            )}
+          </div>
+
+          {projectStats.totalLogs > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-[11px] text-text-muted">
+                <span>Effort Distribution</span>
+                <span className="font-mono font-medium">
+                  {projectStats.totalLogs} {projectStats.totalLogs === 1 ? "entry" : "entries"}
+                </span>
+              </div>
+
+              {/* MULTI-COLOR SEGMENTED BAR */}
+              <div className="w-full h-2.5 rounded-full bg-surface-muted overflow-hidden flex shadow-inner">
+                {projectStats.segments.map((seg) => (
+                  <div
+                    key={seg.pId}
+                    style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
+                    className="h-full transition-all duration-500"
+                    title={`${seg.name}: ${seg.count} logs (${seg.pct}%)`}
+                  />
+                ))}
+              </div>
+
+              {/* DETAILED PROJECT PILLS / BARS */}
+              <div className="space-y-1.5 pt-1">
+                {projectStats.segments.map((seg) => (
+                  <div
+                    key={seg.pId}
+                    className="p-2.5 rounded-xl bg-surface-muted/40 border border-border-light space-y-1 text-xs"
+                  >
+                    <div className="flex items-center justify-between font-medium text-text text-[11px]">
+                      <div className="flex items-center gap-2 truncate">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: seg.color }}
+                        />
+                        <span className="truncate">{seg.name}</span>
+                      </div>
+                      <span className="font-mono text-[10px] text-text-muted shrink-0">
+                        {seg.count} · {seg.pct}%
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-surface-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${seg.pct}%`, backgroundColor: seg.color }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-text-muted py-2 leading-relaxed">
+              No project contributions logged yet. Add your daily work to see your effort breakdown across projects.
+            </p>
+          )}
+        </div>
+
+        {/* LOGGING GUIDELINES CARD */}
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-2 text-xs">
+          <div className="flex items-center gap-2 pb-1.5 border-b border-border-light">
+            <Info size={15} className="text-primary" />
+            <h4 className="font-bold text-text">Logging Guidelines</h4>
+          </div>
+          <ul className="space-y-1.5 text-[11px] text-text-muted list-disc list-inside">
+            <li>Record your deliverables and accomplishments daily.</li>
+            <li>Site visits track on-site hours against your workday target.</li>
+            <li>Assigning projects links your accomplishments to team reports.</li>
+          </ul>
+        </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
