@@ -9,7 +9,7 @@ export function Card({ title, subtitle, children, right, cardStyle, className = 
           <div className="min-w-0">
             {title && <h3 className="font-semibold text-sm sm:text-[15px] text-text truncate">{title}</h3>}
             {subtitle && (
-              <p className="text-[11px] sm:text-[12px] text-text-muted mt-0.5 truncate">{subtitle}</p>
+              <p className="text-[11px] sm:text-[12px] text-text-muted mt-0.5 leading-normal">{subtitle}</p>
             )}
           </div>
           {right && <div className="shrink-0">{right}</div>}

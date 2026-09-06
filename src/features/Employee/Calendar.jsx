@@ -722,51 +722,51 @@ export function EmployeeCalendar({ me }) {
           <Card
             title="Upcoming Schedule"
             subtitle="Meetings, deadlines, holidays, and leaves from today onwards."
-            right={
-              <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-xl border border-border-light text-[10px] overflow-x-auto max-w-full touch-pan-x">
-                <button
-                  onClick={() => setFeedFilter("all")}
-                  className={`px-2 py-0.5 rounded-lg font-semibold transition-colors ${
-                    feedFilter === "all"
-                      ? "bg-white text-text shadow-xs"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setFeedFilter("deadlines")}
-                  className={`px-2 py-0.5 rounded-lg font-semibold transition-colors ${
-                    feedFilter === "deadlines"
-                      ? "bg-white text-alert shadow-xs"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  Deadlines
-                </button>
-                <button
-                  onClick={() => setFeedFilter("meetings")}
-                  className={`px-2 py-0.5 rounded-lg font-semibold transition-colors ${
-                    feedFilter === "meetings"
-                      ? "bg-white text-[#1E4E5F] shadow-xs font-bold"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  Meetings
-                </button>
-                <button
-                  onClick={() => setFeedFilter("holidays")}
-                  className={`px-2 py-0.5 rounded-lg font-semibold transition-colors ${
-                    feedFilter === "holidays"
-                      ? "bg-white text-alert shadow-xs"
-                      : "text-text-muted hover:text-text"
-                  }`}
-                >
-                  Holidays
-                </button>
-              </div>
-            }
           >
+            {/* FILTER PILLS */}
+            <div className="flex items-center gap-1 bg-surface-muted p-1 rounded-xl border border-border-light text-[10px] overflow-x-auto max-w-full touch-pan-x mb-3.5">
+              <button
+                onClick={() => setFeedFilter("all")}
+                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
+                  feedFilter === "all"
+                    ? "bg-white text-text shadow-xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setFeedFilter("deadlines")}
+                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
+                  feedFilter === "deadlines"
+                    ? "bg-white text-alert shadow-xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                Deadlines
+              </button>
+              <button
+                onClick={() => setFeedFilter("meetings")}
+                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
+                  feedFilter === "meetings"
+                    ? "bg-white text-[#1E4E5F] shadow-xs font-bold"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                Meetings
+              </button>
+              <button
+                onClick={() => setFeedFilter("holidays")}
+                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
+                  feedFilter === "holidays"
+                    ? "bg-white text-alert shadow-xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                Holidays
+              </button>
+            </div>
+
             {upcomingFeed.length === 0 ? (
               <div className="py-6 text-center text-xs text-text-muted">
                 No upcoming{" "}
