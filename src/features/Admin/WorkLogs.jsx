@@ -45,8 +45,14 @@ const PROJECT_BORDER_COLORS = [
 ];
 
 export function AdminWorklogs() {
-  const { employees } = useRoster();
+  const { employees, staff } = useRoster();
   const { projects } = useProjects();
+
+  const staffMembers = useMemo(() => {
+    if (staff && staff.length > 0) return staff;
+    return employees || [];
+  }, [staff, employees]);
+
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
   const [empSearch, setEmpSearch] = useState("");
@@ -56,13 +62,13 @@ export function AdminWorklogs() {
   const [selectedBSYear, setSelectedBSYear] = useState(todayBS.year);
 
   useEffect(() => {
-    if (!selectedId && employees?.length) {
-      setSelectedId(employees[0].id);
+    if (!selectedId && staffMembers?.length) {
+      setSelectedId(staffMembers[0].id);
     }
-  }, [employees, selectedId]);
+  }, [staffMembers, selectedId]);
 
-  const selected = selectedId || employees?.[0]?.id || null;
-  const employee = (employees || []).find((e) => e.id === selected);
+  const selected = selectedId || staffMembers?.[0]?.id || null;
+  const employee = (staffMembers || []).find((e) => e.id === selected);
 
   const { entries } = useWorkLogs(selected);
   const { records } = useAttendance(selected);
@@ -161,7 +167,7 @@ export function AdminWorklogs() {
   }, [filteredEntries]);
 
   const filteredEmployees = useMemo(() => {
-    return (employees || []).filter((e) => {
+    return (staffMembers || []).filter((e) => {
       if (!empSearch.trim()) return true;
       const q = empSearch.toLowerCase();
       return (
@@ -170,7 +176,7 @@ export function AdminWorklogs() {
         e.role?.toLowerCase().includes(q)
       );
     });
-  }, [employees, empSearch]);
+  }, [staffMembers, empSearch]);
 
   if (employees === null) return null;
 
@@ -195,7 +201,7 @@ export function AdminWorklogs() {
               Employees
             </span>
             <span className="text-[11px] text-text-muted font-mono font-medium">
-              {employees.length} total
+              {staffMembers.length} staff
             </span>
           </div>
 

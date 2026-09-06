@@ -76,6 +76,10 @@ export function AdminProjects({ me }) {
             logCount: cStat.count,
           };
         })
+        .filter((c) => {
+          const emp = c.employee;
+          return !emp || (emp.role?.toLowerCase() !== "admin" && emp.title?.toLowerCase() !== "admin");
+        })
         .sort((a, b) => b.logCount - a.logCount);
 
       const status = p.status || (p.archived ? "Completed" : "Active");

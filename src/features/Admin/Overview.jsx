@@ -23,6 +23,7 @@ import {
   isLateClockIn,
   isDateWithinLeave,
   getWeekday,
+  isRegularStaff,
 } from "../../utils/attendance";
 import { isHalfDayLeave } from "../../utils/leaveUtils";
 import {
@@ -66,12 +67,10 @@ export function AdminOverview({ me }) {
   const isWeekend = getWeekday(today) === 6;
 
   // Trackable staff: exclude admins from absence counting
+  // Trackable staff: exclude admins from attendance tracking
   const trackableEmployees = useMemo(() => {
     if (!employees) return [];
-    const regularStaff = employees.filter(
-      (e) =>
-        e.role?.toLowerCase() !== "admin" && e.title?.toLowerCase() !== "admin",
-    );
+    const regularStaff = employees.filter(isRegularStaff);
     return regularStaff.length > 0 ? regularStaff : employees;
   }, [employees]);
 
@@ -91,9 +90,9 @@ export function AdminOverview({ me }) {
     return dates;
   }, [today]);
 
-  // Employee status mapping
+  // Employee status mapping (tracks regular staff only)
   const employeeStatusMap = useMemo(() => {
-    if (!employees) return new Map();
+    if (!trackableEmployees) return new Map();
     const map = new Map();
 
     const attendanceMap = new Map();
@@ -105,10 +104,7 @@ export function AdminOverview({ me }) {
       (l) => l.status === "Approved",
     );
 
-    employees.forEach((emp) => {
-      const isAdmin =
-        emp.role?.toLowerCase() === "admin" ||
-        emp.title?.toLowerCase() === "admin";
+    trackableEmployees.forEach((emp) => {
       const att = attendanceMap.get(emp.id);
       const onLeave = approvedLeaves.find(
         (l) => l.employee_id === emp.id && isDateWithinLeave(today, l),
@@ -133,9 +129,6 @@ export function AdminOverview({ me }) {
       } else if (isWeekend) {
         status = "Holiday";
         time = "Saturday";
-      } else if (isAdmin) {
-        status = "Admin";
-        time = "Management";
       }
 
       map.set(emp.id, {
@@ -144,12 +137,12 @@ export function AdminOverview({ me }) {
         workedMin,
         record: att,
         leave: onLeave,
-        isAdmin,
+        isAdmin: false,
       });
     });
 
     return map;
-  }, [employees, todayAttendance, allLeave, today, isWeekend]);
+  }, [trackableEmployees, todayAttendance, allLeave, today, isWeekend, officeHours]);
 
   // 7-day schedule forecast
   const scheduleData = useMemo(() => {
@@ -228,7 +221,7 @@ export function AdminOverview({ me }) {
   const totalTrackable = trackableEmployees.length || 1;
   const attendancePct = Math.round((totalPresent / totalTrackable) * 100);
 
-  const filteredEmployees = employees.filter((e) => {
+  const filteredEmployees = trackableEmployees.filter((e) => {
     const info = employeeStatusMap.get(e.id);
     const status = info?.status || "Absent";
 
@@ -241,7 +234,7 @@ export function AdminOverview({ me }) {
         return false;
       if (statusFilter === "Late" && status !== "Late") return false;
       if (statusFilter === "On Leave" && status !== "On Leave") return false;
-      if (statusFilter === "Absent" && (status !== "Absent" || info?.isAdmin))
+      if (statusFilter === "Absent" && status !== "Absent")
         return false;
     }
 
@@ -388,7 +381,7 @@ export function AdminOverview({ me }) {
 
           {/* 2. PUNCTUALITY LEADERBOARD */}
           <PunctualityRadar
-            employees={employees}
+            employees={trackableEmployees}
             allAttendance={allOrgAttendance}
             currentBSMonth={todayBS.month}
             currentBSYear={todayBS.year}
@@ -397,7 +390,7 @@ export function AdminOverview({ me }) {
           {/* 3. LEAVE REQUESTS QUICK ACTION CARD */}
           <OverviewLeaveCard
             requests={allLeave}
-            employees={employees}
+            employees={trackableEmployees}
             onDecide={handleDecideLeave}
             actingId={actingLeaveId}
           />

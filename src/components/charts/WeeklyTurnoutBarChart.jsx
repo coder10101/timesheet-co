@@ -28,20 +28,19 @@ export function WeeklyTurnoutBarChart({
   }, [todayISO]);
 
   const dailyTurnout = useMemo(() => {
-    const totalStaff =
-      (employees || []).filter(
-        (e) =>
-          e.role?.toLowerCase() !== "admin" &&
-          e.title?.toLowerCase() !== "admin",
-      ).length ||
-      employees?.length ||
-      1;
+    const eligibleStaff = (employees || []).filter(
+      (e) =>
+        e.role?.toLowerCase() !== "admin" &&
+        e.title?.toLowerCase() !== "admin",
+    );
+    const staffIds = new Set(eligibleStaff.map((e) => e.id));
+    const totalStaff = eligibleStaff.length || employees?.length || 1;
 
     const holidayMap = new Map();
     (holidays || []).forEach((h) => holidayMap.set(h.date, h.name));
 
     const approvedLeaves = (leaveRequests || []).filter(
-      (l) => l.status === "Approved",
+      (l) => l.status === "Approved" && (staffIds.size === 0 || staffIds.has(l.employee_id)),
     );
 
     return weekDates.map((date) => {
@@ -53,9 +52,9 @@ export function WeeklyTurnoutBarChart({
       const isFuture = date > todayISO;
       const bs = isoToBS(date);
 
-      // Attendance records for this date
+      // Attendance records for this date (filtered to staff only)
       const dateRecords = (allAttendance || []).filter(
-        (r) => r.date === date && r.clock_in,
+        (r) => r.date === date && r.clock_in && (staffIds.size === 0 || staffIds.has(r.employee_id)),
       );
 
       let onTimeCount = 0;

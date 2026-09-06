@@ -1,10 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
-import { nepalDateTimeToISO } from "../utils/timezone";
-import { todayISO } from "../utils/workTime";
+import { nepalDateTimeToISO, todayISO } from "../utils/timezone";
 import { isHalfDayLeave } from "../utils/leaveUtils";
+import { isAdminProfile, isRegularStaff } from "../utils/userUtils";
+
+export { isAdminProfile, isRegularStaff };
 
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
+
 
 /* ---------------- Attendance ---------------- */
 export function useAttendance(employeeId) {
@@ -500,7 +503,7 @@ export function useLeaveRequests(employeeId, scope = "mine") {
     queryFn: async () => {
       let q = supabase
         .from("leave_requests")
-        .select("*, profiles!leave_requests_employee_id_fkey(name)")
+        .select("*, profiles!leave_requests_employee_id_fkey(name, role, title)")
         .order("created_at", { ascending: false });
 
       if (scope === "mine") {
@@ -511,14 +514,24 @@ export function useLeaveRequests(employeeId, scope = "mine") {
 
       if (error) throw error;
 
-      return (data || []).map((r) => {
-        const isHalf = isHalfDayLeave(r);
-        return {
-          ...r,
-          days: isHalf ? 0.5 : Number(r.days),
-          employeeName: r.profiles?.name,
-        };
-      });
+      return (data || [])
+        .filter((r) => {
+          if (scope === "org") {
+            const role = r.profiles?.role?.toLowerCase();
+            const title = r.profiles?.title?.toLowerCase();
+            if (role === "admin" || title === "admin") return false;
+          }
+          return true;
+        })
+        .map((r) => {
+          const isHalf = isHalfDayLeave(r);
+          return {
+            ...r,
+            days: isHalf ? 0.5 : Number(r.days),
+            employeeName: r.profiles?.name,
+            employeeRole: r.profiles?.role,
+          };
+        });
     },
 
     enabled: scope === "org" || !!employeeId,
@@ -802,8 +815,12 @@ export function useRoster() {
     },
   });
 
+  const employees = query.data ?? null;
+  const staff = employees ? employees.filter(isRegularStaff) : null;
+
   return {
-    employees: query.data ?? null,
+    employees,
+    staff,
     isLoading: query.isLoading,
   };
 }
@@ -879,16 +896,23 @@ export function useOrgWorkLogs() {
       const { data, error } = await supabase
         .from("work_logs")
         .select(
-          "*, profiles!work_logs_employee_id_fkey(name), projects(name, color)",
+          "*, profiles!work_logs_employee_id_fkey(name, role, title), projects(name, color)",
         )
         .order("date", { ascending: false });
       if (error) throw error;
-      return data.map((e) => ({
-        ...e,
-        employeeName: e.profiles?.name,
-        projectName: e.projects?.name,
-        projectColor: e.projects?.color,
-      }));
+      return (data || [])
+        .filter((e) => {
+          const role = e.profiles?.role?.toLowerCase();
+          const title = e.profiles?.title?.toLowerCase();
+          return role !== "admin" && title !== "admin";
+        })
+        .map((e) => ({
+          ...e,
+          employeeName: e.profiles?.name,
+          employeeRole: e.profiles?.role,
+          projectName: e.projects?.name,
+          projectColor: e.projects?.color,
+        }));
     },
   });
 

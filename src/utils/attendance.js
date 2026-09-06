@@ -2,7 +2,7 @@ import { WORK_DAY_MINUTES } from "./workTime";
 import { isHalfDayLeave, getHalfDaySession, HALF_DAY_SESSIONS } from "./leaveUtils";
 import { DEFAULT_SCHEDULE } from "../constants/officeHours";
 
-export const OFFICE_START_HOUR = DEFAULT_SCHEDULE.startH;
+export const OFFICE_START_HOUR = 10;
 
 export function pad(value) {
   return String(value).padStart(2, "0");
@@ -149,3 +149,7 @@ export function isOnTimeClockIn(dateTime, leave = null, schedule = DEFAULT_SCHED
   }
   return mins >= schedule.startTimeMinutes && mins <= schedule.graceMinutesTotal;
 }
+
+import { isAdminProfile, isRegularStaff } from "./userUtils";
+export { isAdminProfile, isRegularStaff };
+

@@ -23,19 +23,24 @@ export function MonthlyOrgAttendanceChart({
 
   const monthStats = useMemo(() => {
     const totalDays = getDaysInBSMonth(currentBSYear, currentBSMonth);
-    const totalStaff = (employees || []).filter(
+    const staffMembers = (employees || []).filter(
       (e) => e.role?.toLowerCase() !== "admin" && e.title?.toLowerCase() !== "admin"
-    ).length || (employees?.length || 1);
+    );
+    const staffIds = new Set(staffMembers.map((e) => e.id));
+    const totalStaff = staffMembers.length || (employees?.length || 1);
 
     const holidayMap = new Map();
     (holidays || []).forEach((h) => holidayMap.set(h.date, h.name));
 
-    const approvedLeaves = (leaveRequests || []).filter((r) => r.status === "Approved");
+    const approvedLeaves = (leaveRequests || []).filter(
+      (r) => r.status === "Approved" && (staffIds.size === 0 || staffIds.has(r.employee_id))
+    );
 
-    // Group attendance by date
+    // Group attendance by date (filtered to staff only)
     const attendanceByDate = new Map();
     (allAttendance || []).forEach((rec) => {
       if (!rec.clock_in) return;
+      if (staffIds.size > 0 && !staffIds.has(rec.employee_id)) return;
       if (!attendanceByDate.has(rec.date)) {
         attendanceByDate.set(rec.date, new Set());
       }

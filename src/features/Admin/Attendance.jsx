@@ -50,10 +50,15 @@ import { EditOfficeHoursModal } from "./EditOfficeHoursModal";
 
 export function AdminAttendance() {
   const officeHours = useOfficeHours();
-  const { employees } = useRoster();
+  const { employees, staff } = useRoster();
   const todayStr = todayISO();
   const today = todayStr;
   const todayBS = getTodayBS();
+
+  const staffMembers = useMemo(() => {
+    if (staff && staff.length > 0) return staff;
+    return employees || [];
+  }, [staff, employees]);
 
   const [selected, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
@@ -64,9 +69,9 @@ export function AdminAttendance() {
 
   const effectiveSelectedId = useMemo(() => {
     if (selected) return selected;
-    if (employees && employees.length > 0) return employees[0].id;
+    if (staffMembers && staffMembers.length > 0) return staffMembers[0].id;
     return null;
-  }, [selected, employees]);
+  }, [selected, staffMembers]);
 
   const { records } = useAttendance(effectiveSelectedId);
   const { entries: workLogs } = useWorkLogs(effectiveSelectedId);
@@ -74,13 +79,13 @@ export function AdminAttendance() {
   const { holidays } = useHolidays();
 
   const selectedEmployee = useMemo(() => {
-    if (!employees || !effectiveSelectedId) return null;
-    return employees.find((e) => e.id === effectiveSelectedId) || null;
-  }, [employees, effectiveSelectedId]);
+    if (!staffMembers || !effectiveSelectedId) return null;
+    return staffMembers.find((e) => e.id === effectiveSelectedId) || null;
+  }, [staffMembers, effectiveSelectedId]);
 
   const filteredEmployees = useMemo(() => {
-    if (!employees) return [];
-    return employees.filter((emp) => {
+    if (!staffMembers) return [];
+    return staffMembers.filter((emp) => {
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       return (
@@ -90,7 +95,7 @@ export function AdminAttendance() {
         emp.department?.toLowerCase().includes(q)
       );
     });
-  }, [employees, search]);
+  }, [staffMembers, search]);
 
   const monthDates = useMemo(() => {
     const totalDays = getDaysInBSMonth(selectedBSYear, selectedBSMonth);
@@ -108,7 +113,11 @@ export function AdminAttendance() {
     const map = new Map();
     if (!workLogs || !workLogs.length) return map;
     monthDates.forEach((d) => {
-      const summary = getSiteSummaryForDate(workLogs, d.isoDate, officeHours.workDayHours);
+      const summary = getSiteSummaryForDate(
+        workLogs,
+        d.isoDate,
+        officeHours.workDayHours,
+      );
       if (summary.hasSiteVisit) {
         map.set(d.isoDate, summary);
       }
@@ -196,7 +205,9 @@ export function AdminAttendance() {
 
   const netOvertimeMinutes = monthRecords.reduce((acc, r) => {
     if (r.is_site_only) {
-      const worked = Math.round((r.site_hours || officeHours.workDayHours) * 60);
+      const worked = Math.round(
+        (r.site_hours || officeHours.workDayHours) * 60,
+      );
       return acc + (worked - officeHours.workDayMinutes);
     }
     const effOut = getEffectiveClockOut(r, todayStr, officeHours.endTime);
@@ -245,7 +256,10 @@ export function AdminAttendance() {
           title="Configure Organization Shift Hours"
         >
           <Clock size={13} className="text-primary" />
-          <span>{officeHours.workDayHours}h Shift ({officeHours.startTimeAmPm} – {officeHours.endTimeAmPm})</span>
+          <span>
+            {officeHours.workDayHours}h Shift ({officeHours.startTimeAmPm} –{" "}
+            {officeHours.endTimeAmPm})
+          </span>
           <Settings size={12} className="text-text-muted ml-0.5" />
         </button>
       </div>
@@ -259,7 +273,7 @@ export function AdminAttendance() {
               Team Members
             </span>
             <span className="text-xs font-mono font-medium text-text-muted">
-              {employees.length} total
+              {staffMembers.length} staff
             </span>
           </div>
 
@@ -353,15 +367,6 @@ export function AdminAttendance() {
                   </span>
                   <span className="text-[9px] text-warning font-semibold uppercase tracking-wider">
                     Late
-                  </span>
-                </div>
-
-                <div className="bg-primary-light border border-primary/30 rounded-xl px-2.5 py-1.5 text-center min-w-[75px]">
-                  <span className="text-primary text-sm font-mono font-bold block leading-none">
-                    {formatDuration(totalWorkedMinutes)}
-                  </span>
-                  <span className="text-[9px] text-primary font-semibold uppercase tracking-wider">
-                    Monthly
                   </span>
                 </div>
 
@@ -529,25 +534,38 @@ export function AdminAttendance() {
                       const siteInfo = siteSummaryByDate.get(r.date);
                       const hasSite = !!siteInfo?.hasSiteVisit;
                       const isToday = r.date === todayStr;
-                      const effOut = getEffectiveClockOut(r, todayStr, officeHours.endTime);
-                      const isAutoClockOut = !r.clock_out && !isToday && !!r.clock_in;
+                      const effOut = getEffectiveClockOut(
+                        r,
+                        todayStr,
+                        officeHours.endTime,
+                      );
+                      const isAutoClockOut =
+                        !r.clock_out && !isToday && !!r.clock_in;
                       const leave = employeeLeaves.find((l) =>
                         isDateWithinLeave(r.date, l),
                       );
                       const isHalf = isHalfDayLeave(leave);
-                      const targetMins = isHalf ? officeHours.halfDayMinutes : officeHours.workDayMinutes;
+                      const targetMins = isHalf
+                        ? officeHours.halfDayMinutes
+                        : officeHours.workDayMinutes;
                       const workedMinutes = r.is_site_only
-                        ? Math.round((r.site_hours || officeHours.workDayHours) * 60)
+                        ? Math.round(
+                            (r.site_hours || officeHours.workDayHours) * 60,
+                          )
                         : r.clock_in && effOut
-                          ? getWorkedMinutes(r.clock_in, effOut, r.break_minutes || 0)
+                          ? getWorkedMinutes(
+                              r.clock_in,
+                              effOut,
+                              r.break_minutes || 0,
+                            )
                           : null;
-                      const isLate = r.clock_in && isLateClockIn(r.clock_in, leave, officeHours);
+                      const isLate =
+                        r.clock_in &&
+                        isLateClockIn(r.clock_in, leave, officeHours);
                       const bs = isoToBS(r.date);
                       const weekday = getWeekday(r.date);
                       const diffMinutes =
-                        workedMinutes !== null
-                          ? workedMinutes - targetMins
-                          : 0;
+                        workedMinutes !== null ? workedMinutes - targetMins : 0;
 
                       return (
                         <tr
@@ -657,11 +675,13 @@ export function AdminAttendance() {
                               </span>
                             ) : isLate ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">
-                                Late {isHalf && "· ½d"}{hasSite && "· Site"}
+                                Late {isHalf && "· ½d"}
+                                {hasSite && "· Site"}
                               </span>
                             ) : r.clock_in ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-light text-success border border-success/30 text-[10px] font-semibold">
-                                On-Time {isHalf && "· ½d"}{hasSite && "· Site"}
+                                On-Time {isHalf && "· ½d"}
+                                {hasSite && "· Site"}
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-md bg-surface-muted text-text-muted border border-border text-[10px] font-semibold">
