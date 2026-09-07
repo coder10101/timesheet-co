@@ -1,7 +1,7 @@
 import { Sun, HeartPulse, Umbrella } from "lucide-react";
 import { Card } from "../../../components/Card";
 import { COLORS } from "../../../constants/colors";
-import { formatLeaveBalance } from "../../../utils/leaveUtils";
+import { formatLeaveBalance, calculateEmployeeLeaveStats } from "../../../utils/leaveUtils";
 
 const LEAVE_VISUAL = {
   Annual: {
@@ -33,11 +33,10 @@ export function LeaveBalance({ myLeave, me }) {
       <div className="grid grid-cols-2 gap-2">
         {Object.entries(LEAVE_VISUAL).map(
           ([type, { icon: Icon, color, max }]) => {
-            const value = me.leave_balance?.[type];
-            if (value === undefined) return null;
-
+            const stats = calculateEmployeeLeaveStats(myLeave, me?.id, type, max);
+            const value = stats.remaining;
+            const used = stats.used;
             const isOut = value <= 0;
-            const used = Math.max(0, max - value);
             const stubColor = isOut ? "#B5563A" : color;
 
             return (

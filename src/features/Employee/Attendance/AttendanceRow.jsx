@@ -367,7 +367,7 @@ function TimeStatus({ record, workStatus, date, hasCheckout, result }) {
 function StatusCell({ result }) {
   if (result.status === "site_full") {
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#EEEAF2] text-[#63537E]">
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#E0F2FE] text-[#0284C7] border border-[#BAE6FD]">
         <MapPin size={11} /> Site Visit
       </span>
     );
@@ -402,12 +402,12 @@ function FullSiteVisitRecord({ date, result, onStartEdit }) {
   const siteHours = result.siteInfo?.totalHours || officeHours.workDayHours;
 
   return (
-    <div className="border-b border-border-light last:border-0 hover:bg-surface-muted/40 transition-colors bg-[#FAF8FC]">
+    <div className="border-b border-border-light last:border-0 hover:bg-surface-muted/40 transition-colors bg-[#F0F9FF]/40 border-l-4 border-l-[#0284C7]">
       <div className="px-4 py-2.5 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1.1fr_44px] gap-2 sm:gap-4 items-center">
         <DateCell date={date} />
 
         <MobileCell label="Clock in">
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/30 px-2 py-0.5 rounded-md">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0284C7] bg-[#E0F2FE] border border-[#BAE6FD] px-2 py-0.5 rounded-md">
             <MapPin size={11} /> Site Duty
           </span>
         </MobileCell>
@@ -424,7 +424,7 @@ function FullSiteVisitRecord({ date, result, onStartEdit }) {
         </MobileCell>
 
         <MobileCell label="Shift Status">
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#63537E] bg-[#EEEAF2] px-2.5 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0284C7] bg-[#E0F2FE] border border-[#BAE6FD] px-2.5 py-0.5 rounded-full">
             <MapPin size={11} /> Site Visit ({siteHours}h)
           </span>
         </MobileCell>

@@ -24,6 +24,7 @@ import {
   formatLeaveBalance,
   cleanLeaveReason,
   buildLeaveReason,
+  calculateEmployeeLeaveStats,
   HALF_DAY_SESSIONS,
   SESSION_LABELS,
   SESSION_SHORT_LABELS,
@@ -73,7 +74,13 @@ export function EmployeeLeave({ me }) {
   const currentEnd = editing ? editing.end_date : end;
   const currentReason = editing ? editing.reason : reason;
 
-  const balance = me.leave_balance?.[currentType] ?? 0;
+  const quotaStats = calculateEmployeeLeaveStats(
+    requests,
+    me?.id,
+    currentType,
+    LEAVE_TYPES[currentType]?.max,
+  );
+  const balance = quotaStats.remaining;
   const leaveDays =
     currentDurationMode === "half"
       ? 0.5
@@ -246,16 +253,24 @@ export function EmployeeLeave({ me }) {
       {/* VISUAL LEAVE QUOTA & USAGE CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {Object.entries(LEAVE_TYPES).map(([leaveKey, meta]) => {
-          const val = me.leave_balance?.[leaveKey] ?? 0;
           const max = meta.max;
-          const used = Math.max(0, max - val);
-          const remaining = Math.max(0, val);
+          const stats = calculateEmployeeLeaveStats(
+            requests,
+            me?.id,
+            leaveKey,
+            max,
+          );
+          const used = stats.used;
+          const remaining = stats.remaining;
           const usedPct = Math.min(100, Math.round((used / max) * 100));
           const Icon = meta.icon;
 
           const pendingDaysForType = (requests || [])
             .filter((r) => r.status === "Pending" && r.type === leaveKey)
-            .reduce((acc, r) => acc + (Number(r.days) || 1), 0);
+            .reduce(
+              (acc, r) => acc + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1),
+              0,
+            );
 
           return (
             <div
@@ -405,7 +420,14 @@ export function EmployeeLeave({ me }) {
               isOverQuota ? "text-alert" : "text-primary"
             }`}
           >
-            {formatLeaveDays(leaveDays)}
+            <span>
+              {formatLeaveDays(leaveDays)}
+              {currentDurationMode === "full" && leaveDays > 1 && (
+                <span className="text-[10px] font-normal text-text-muted ml-1">
+                  (Sun–Fri only)
+                </span>
+              )}
+            </span>
           </span>
         </div>
 
@@ -518,14 +540,19 @@ export function EmployeeLeave({ me }) {
               value={currentStart}
               onChange={(d) => {
                 if (editing) {
+                  const wasSingleDay = editing.start_date === editing.end_date;
                   setEditing({
                     ...editing,
                     start_date: d,
-                    end_date: editing.end_date < d ? d : editing.end_date,
+                    end_date:
+                      wasSingleDay || editing.end_date < d
+                        ? d
+                        : editing.end_date,
                   });
                 } else {
+                  const wasSingleDay = start === end;
                   setStart(d);
-                  if (end < d) setEnd(d);
+                  if (wasSingleDay || end < d) setEnd(d);
                 }
               }}
               placeholder="Start date"
@@ -543,32 +570,53 @@ export function EmployeeLeave({ me }) {
           </div>
         )}
 
-        {/* REASON & SUBMIT ROW */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-          <input
-            type="text"
+        {/* REASON TEXTAREA (FULL WIDTH & ROOMY ON MOBILE) */}
+        <div className="space-y-1.5">
+          <label className="block text-[11px] font-semibold text-text-muted">
+            Reason / Notes <span className="text-alert">*</span>
+          </label>
+          <textarea
+            rows={2}
             value={currentReason}
             onChange={(e) => {
               if (editing) setEditing({ ...editing, reason: e.target.value });
               else setReason(e.target.value);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 if (editing) saveEdit();
                 else doSubmit();
               }
             }}
-            placeholder="Brief reason / note for HR..."
-            className="flex-1 h-10 bg-surface-muted/50 focus:bg-white border border-border-light focus:border-primary rounded-xl px-3.5 text-xs text-text outline-none transition-all"
+            placeholder="Provide a brief reason or note for HR / management..."
+            className="w-full min-h-[64px] sm:min-h-[72px] bg-surface-muted/40 focus:bg-white border border-border-light focus:border-primary rounded-xl p-3 text-xs sm:text-sm text-text outline-none resize-y transition-all shadow-2xs leading-relaxed"
           />
+        </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+        {/* QUOTA WARNING (IF ANY) */}
+        {isOverQuota && (
+          <div className="text-[11px] text-alert font-medium flex items-center gap-1.5 p-2 rounded-lg bg-alert-light border border-alert/20">
+            <AlertCircle size={13} className="shrink-0" />
+            <span>
+              Quota Warning: Exceeds your remaining {currentType.toLowerCase()}{" "}
+              balance by {formatLeaveBalance(leaveDays - balance)} day(s).
+            </span>
+          </div>
+        )}
+
+        {/* ACTIONS ROW */}
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-0.5">
+          <div className="text-[11px] text-text-muted hidden sm:block">
+            Tip: Press <kbd className="px-1.5 py-0.5 rounded bg-surface-muted border border-border-light font-mono text-[10px]">Cmd / Ctrl + Enter</kbd> to submit
+          </div>
+
+          <div className="flex items-center gap-2 justify-end w-full sm:w-auto">
             {editing && (
               <button
                 type="button"
                 onClick={() => setEditing(null)}
-                className="flex-1 sm:flex-initial h-10 px-3 text-xs text-text-muted hover:text-text rounded-xl hover:bg-surface-muted transition-colors cursor-pointer"
+                className="flex-1 sm:flex-none h-10 px-4 text-xs font-semibold text-text-muted hover:text-text rounded-xl hover:bg-surface-muted border border-border-light sm:border-transparent transition-colors cursor-pointer text-center"
               >
                 Cancel
               </button>
@@ -577,7 +625,7 @@ export function EmployeeLeave({ me }) {
             <button
               onClick={editing ? saveEdit : doSubmit}
               disabled={saving || !currentReason.trim()}
-              className="flex-1 sm:flex-initial h-10 px-4 flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 cursor-pointer"
+              className="flex-1 sm:flex-none h-10 px-5 flex items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 cursor-pointer"
             >
               {editing ? <Check size={13} /> : <Send size={13} />}
               <span>
@@ -590,16 +638,6 @@ export function EmployeeLeave({ me }) {
             </button>
           </div>
         </div>
-
-        {isOverQuota && (
-          <div className="text-[11px] text-alert font-medium flex items-center gap-1.5 pt-0.5">
-            <AlertCircle size={13} />
-            <span>
-              Quota Warning: Exceeds your remaining {currentType.toLowerCase()}{" "}
-              balance by {formatLeaveBalance(leaveDays - balance)} day(s).
-            </span>
-          </div>
-        )}
       </div>
 
       {/* LEAVE HISTORY LIST */}

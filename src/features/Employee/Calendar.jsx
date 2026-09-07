@@ -295,9 +295,7 @@ export function EmployeeCalendar({ me }) {
                 className={`text-[11px] font-semibold uppercase tracking-wider py-1 ${
                   idx === 6
                     ? "text-alert"
-                    : idx === 0
-                      ? "text-primary"
-                      : "text-text-muted"
+                    : "text-text-muted"
                 }`}
               >
                 {label}
@@ -355,15 +353,15 @@ export function EmployeeCalendar({ me }) {
                       isSelected
                         ? "border-primary bg-primary-light/40 ring-2 ring-primary/30 shadow-xs"
                         : isToday
-                          ? "border-primary/60 bg-primary-light/20 ring-1 ring-primary/20"
+                          ? "border-slate-800 bg-slate-50/80 ring-1 ring-slate-800/20"
                           : hasDeadline
-                            ? "border-alert/30 bg-[#FFF7F5] hover:border-alert/50"
+                            ? "border-pink-300 bg-pink-50/40 hover:border-pink-400"
                             : hasMeeting
                               ? "border-[#1E4E5F]/30 bg-[#EEF6F8]/50 hover:border-[#1E4E5F]/50"
                               : isHoliday
                                 ? "border-alert/20 bg-alert-light/30 hover:border-alert/40"
                                 : isLeave
-                                  ? "border-primary/20 bg-primary-light/20 hover:border-primary/40"
+                                  ? "border-purple-200 bg-purple-50/50 hover:border-purple-300"
                                   : "border-border-light bg-white hover:border-border hover:bg-surface-muted/40"
                     }
                   `}
@@ -373,12 +371,14 @@ export function EmployeeCalendar({ me }) {
                     <span
                       className={`font-mono text-xs sm:text-sm font-bold ${
                         isToday
-                          ? "text-primary"
+                          ? "w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-[10px] sm:text-[11px]"
                           : hasDeadline
-                            ? "text-alert"
+                            ? "text-pink-700"
                             : isHoliday || isSaturday
                               ? "text-alert"
-                              : "text-text"
+                              : isLeave
+                                ? "text-purple-700"
+                                : "text-text"
                       }`}
                     >
                       {cell.bsDay}
@@ -394,10 +394,10 @@ export function EmployeeCalendar({ me }) {
                     {/* DEADLINE CHIP */}
                     {hasDeadline && (
                       <div
-                        className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-alert-light text-alert border border-alert/20 text-[8px] font-bold truncate leading-tight shadow-2xs"
+                        className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-pink-100 text-pink-700 border border-pink-300 text-[8px] font-bold truncate leading-tight shadow-2xs"
                         title={`Deadline: ${cellDeadlines[0].title}`}
                       >
-                        <Flag size={7} className="shrink-0 text-alert" />
+                        <Flag size={7} className="shrink-0 text-pink-600" />
                         <span className="truncate">
                           {cellDeadlines[0].title}
                         </span>
@@ -434,10 +434,10 @@ export function EmployeeCalendar({ me }) {
                       !hasDeadline &&
                       !hasMeeting && (
                         <div
-                          className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-primary-light text-primary border border-primary/20 text-[8px] font-semibold truncate leading-tight"
+                          className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200 text-[8px] font-semibold truncate leading-tight"
                           title="Approved Leave"
                         >
-                          <Sun size={7} className="shrink-0" />
+                          <Sun size={7} className="shrink-0 text-purple-600" />
                           <span className="truncate">Leave</span>
                         </div>
                       )}
@@ -447,7 +447,7 @@ export function EmployeeCalendar({ me }) {
                   <div className="w-full flex items-center gap-1 overflow-hidden mt-auto pt-0.5">
                     {hasDeadline && (
                       <span
-                        className="w-1.5 h-1.5 rounded-full bg-alert shrink-0"
+                        className="w-1.5 h-1.5 rounded-full bg-pink-500 shrink-0"
                         title="Deadline"
                       />
                     )}
@@ -471,12 +471,12 @@ export function EmployeeCalendar({ me }) {
                     )}
                     {isLeave && (
                       <span
-                        className="w-1.5 h-1.5 rounded-full bg-primary shrink-0"
+                        className="w-1.5 h-1.5 rounded-full bg-purple-600 shrink-0"
                         title="Approved Leave"
                       />
                     )}
                     {isToday && (
-                      <span className="text-[7px] uppercase tracking-wide font-bold text-primary ml-auto">
+                      <span className="text-[7px] uppercase tracking-wide font-extrabold text-slate-800 bg-slate-200/80 px-1 rounded ml-auto">
                         Today
                       </span>
                     )}
@@ -489,7 +489,7 @@ export function EmployeeCalendar({ me }) {
           {/* LEGEND BAR */}
           <div className="pt-3 border-t border-border-light flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-text-muted">
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full border-2 border-primary bg-primary-light" />
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-900 ring-2 ring-slate-400/40" />
               Today
             </span>
             <span className="flex items-center gap-1.5 font-medium">
@@ -497,17 +497,17 @@ export function EmployeeCalendar({ me }) {
               Holiday / Sat
             </span>
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full bg-alert" />
-              <Flag size={10} className="text-alert" />
-              Deadline (Red)
+              <span className="w-2.5 h-2.5 rounded-full bg-pink-500" />
+              <Flag size={10} className="text-pink-600" />
+              Deadline
             </span>
             <span className="flex items-center gap-1.5 font-medium">
               <span className="w-2.5 h-2.5 rounded-full bg-[#1E4E5F]" />
               <Users size={10} className="text-[#1E4E5F]" />
-              Meeting (Petrol Teal)
+              Meeting
             </span>
             <span className="flex items-center gap-1.5 font-medium">
-              <span className="w-2.5 h-2.5 rounded-full bg-primary" />
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-600" />
               Leave
             </span>
           </div>
@@ -544,20 +544,20 @@ export function EmployeeCalendar({ me }) {
 
               {/* APPROVED LEAVE BANNER */}
               {selectedLeave && (
-                <div className="p-3 rounded-xl bg-primary-light border border-primary/20 text-primary flex items-start gap-2.5">
-                  <Sun size={16} className="shrink-0 mt-0.5" />
+                <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-start gap-2.5">
+                  <Sun size={16} className="shrink-0 mt-0.5 text-purple-600" />
                   <div>
                     <h4 className="text-xs font-semibold">
                       Approved {selectedLeave.type} Leave
                     </h4>
-                    <p className="text-[11px] text-primary/80 mt-0.5">
+                    <p className="text-[11px] text-purple-600/80 mt-0.5">
                       {selectedLeave.days} day
                       {selectedLeave.days !== 1 ? "s" : ""} ·{" "}
                       {fmtDate(selectedLeave.start_date)} to{" "}
                       {fmtDate(selectedLeave.end_date)}
                     </p>
                     {selectedLeave.reason && (
-                      <p className="text-[11px] italic mt-1 bg-white/50 px-2 py-0.5 rounded">
+                      <p className="text-[11px] italic mt-1 bg-white/60 px-2 py-0.5 rounded">
                         "{selectedLeave.reason}"
                       </p>
                     )}
@@ -565,21 +565,21 @@ export function EmployeeCalendar({ me }) {
                 </div>
               )}
 
-              {/* DEADLINES SECTION (CRIMSON/RED) */}
+              {/* DEADLINES SECTION (PINK) */}
               {selectedDeadlines.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-alert flex items-center gap-1.5">
-                    <Flag size={12} className="text-alert" />
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-pink-600 flex items-center gap-1.5">
+                    <Flag size={12} className="text-pink-600" />
                     <span>Deadlines ({selectedDeadlines.length})</span>
                   </h4>
                   {selectedDeadlines.map((dl) => (
                     <div
                       key={dl.id}
-                      className="p-3 rounded-xl bg-[#FFF6F4] border border-[#FCD9D1] text-text space-y-1.5 shadow-2xs"
+                      className="p-3 rounded-xl bg-pink-50/60 border border-pink-200 text-text space-y-1.5 shadow-2xs"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-alert text-white">
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-pink-500 text-white">
                             Deadline
                           </span>
                           <span className="text-xs font-bold text-text">
@@ -588,7 +588,7 @@ export function EmployeeCalendar({ me }) {
                         </div>
 
                         {dl.time && (
-                          <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-alert bg-white px-2 py-0.5 rounded-full border border-alert/20">
+                          <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-pink-700 bg-white px-2 py-0.5 rounded-full border border-pink-200">
                             <Clock size={10} />
                             Due {fmtTimeAmPm(dl.time)}
                           </span>
@@ -739,7 +739,7 @@ export function EmployeeCalendar({ me }) {
                 onClick={() => setFeedFilter("deadlines")}
                 className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
                   feedFilter === "deadlines"
-                    ? "bg-white text-alert shadow-xs"
+                    ? "bg-white text-pink-600 shadow-xs font-bold"
                     : "text-text-muted hover:text-text"
                 }`}
               >
@@ -783,11 +783,11 @@ export function EmployeeCalendar({ me }) {
                   const badgeClass = isHoliday
                     ? "bg-alert-light text-alert border-alert/20"
                     : isDeadline
-                      ? "bg-[#FDEDEA] text-[#B5563A] border-[#FAD8CF]"
+                      ? "bg-pink-50 text-pink-700 border border-pink-200"
                       : isMeeting
                         ? "bg-[#EEF6F8] text-[#1E4E5F] border-[#C5DCE4]"
                         : isLeave
-                          ? "bg-primary-light text-primary border-primary/20"
+                          ? "bg-purple-50 text-purple-700 border border-purple-200"
                           : "bg-warning-light text-warning border-warning/20";
 
                   const Icon = isHoliday

@@ -29,15 +29,31 @@ export const SESSION_SHORT_LABELS = {
   second_half: "Second Half · Afternoon",
 };
 
+export const LEAVE_QUOTAS = {
+  Annual: 24,
+  Sick: 6,
+};
+
 export function isHalfDayLeave(leave) {
   if (!leave) return false;
   const numDays = Number(leave.days);
   if (numDays === 0.5) return true;
+  if (leave.durationMode === "half") return true;
+  if (
+    leave.session === HALF_DAY_SESSIONS.FIRST_HALF ||
+    leave.session === HALF_DAY_SESSIONS.SECOND_HALF
+  ) {
+    return true;
+  }
   if (typeof leave.reason === "string") {
+    const r = leave.reason.toLowerCase();
     return (
-      leave.reason.includes("[First Half") ||
-      leave.reason.includes("[Second Half") ||
-      leave.reason.includes("[Half Day")
+      r.includes("first half") ||
+      r.includes("second half") ||
+      r.includes("half day") ||
+      r.includes("half-day") ||
+      r.includes("morning") ||
+      r.includes("afternoon")
     );
   }
   return false;
@@ -45,11 +61,17 @@ export function isHalfDayLeave(leave) {
 
 export function getHalfDaySession(leave) {
   if (!leave) return null;
-  const r = leave.reason || "";
-  if (r.includes("[Second Half") || r.includes("Afternoon")) {
+  if (
+    leave.session === HALF_DAY_SESSIONS.FIRST_HALF ||
+    leave.session === HALF_DAY_SESSIONS.SECOND_HALF
+  ) {
+    return leave.session;
+  }
+  const r = (leave.reason || "").toLowerCase();
+  if (r.includes("second half") || r.includes("afternoon")) {
     return HALF_DAY_SESSIONS.SECOND_HALF;
   }
-  if (r.includes("[First Half") || r.includes("Morning")) {
+  if (r.includes("first half") || r.includes("morning")) {
     return HALF_DAY_SESSIONS.FIRST_HALF;
   }
   return isHalfDayLeave(leave) ? HALF_DAY_SESSIONS.FIRST_HALF : null;
@@ -66,7 +88,51 @@ export function formatLeaveDays(days) {
 export function formatLeaveBalance(balance) {
   const n = Number(balance);
   if (Number.isNaN(n)) return "0";
-  return n % 1 === 0 ? String(n) : n.toFixed(1);
+  const rounded = Math.round(n * 10) / 10;
+  return rounded % 1 === 0 ? String(rounded) : rounded.toFixed(1);
+}
+
+/**
+ * Calculates used and remaining leave days for an employee given a list of leave requests.
+ * @param {Array} leaveRequests - list of requests for the employee (or all org requests)
+ * @param {string} employeeId - employee id to calculate for
+ * @param {string} leaveType - "Annual" | "Sick"
+ * @param {number} customAllowance - optional override for max quota (defaults to 24 for Annual, 6 for Sick)
+ */
+export function calculateEmployeeLeaveStats(
+  leaveRequests,
+  employeeId,
+  leaveType,
+  customAllowance,
+) {
+  const maxQuota =
+    customAllowance ??
+    (LEAVE_QUOTAS[leaveType] || (leaveType === "Sick" ? 6 : 24));
+
+  if (!leaveRequests || !employeeId) {
+    return { used: 0, remaining: maxQuota, maxQuota };
+  }
+
+  const approvedDays = (leaveRequests || [])
+    .filter(
+      (r) =>
+        r.employee_id === employeeId &&
+        r.type === leaveType &&
+        r.status === "Approved",
+    )
+    .reduce((sum, r) => {
+      const isHalf = isHalfDayLeave(r);
+      return sum + (isHalf ? 0.5 : Number(r.days) || 1);
+    }, 0);
+
+  const roundedUsed = Math.round(approvedDays * 10) / 10;
+  const remaining = Math.max(0, Math.round((maxQuota - roundedUsed) * 10) / 10);
+
+  return {
+    used: roundedUsed,
+    remaining,
+    maxQuota,
+  };
 }
 
 export function cleanLeaveReason(reason) {

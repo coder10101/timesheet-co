@@ -1,6 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useLeaveRequests, useRoster } from "../../hooks/useOrgData";
+import {
+  useLeaveRequests,
+  useRoster,
+  syncEmployeeLeaveBalance,
+} from "../../hooks/useOrgData";
 import { fmtDate } from "../../utils/workTime";
 import { isoToBS, NEPALI_MONTHS } from "../../utils/nepaliCalendar";
 import {
@@ -28,6 +32,7 @@ import {
   formatLeaveDays,
   formatLeaveBalance,
   cleanLeaveReason,
+  calculateEmployeeLeaveStats,
   SESSION_SHORT_LABELS,
   getSessionLabels,
 } from "../../utils/leaveUtils";
@@ -87,6 +92,29 @@ export function AdminLeave({ me }) {
     });
   }, [requests, adminIds]);
 
+  // Auto-heal / reconcile balances for all staff in background
+  useEffect(() => {
+    if (!staffRequests || !staffMembers?.length) return;
+    staffMembers.forEach((emp) => {
+      const empReqs = staffRequests.filter((r) => r.employee_id === emp.id);
+      const annStats = calculateEmployeeLeaveStats(empReqs, emp.id, "Annual", 24);
+      const sickStats = calculateEmployeeLeaveStats(empReqs, emp.id, "Sick", 6);
+
+      const curSick =
+        emp.leave_balance?.Sick !== undefined
+          ? Number(emp.leave_balance.Sick)
+          : null;
+      const curAnnual =
+        emp.leave_balance?.Annual !== undefined
+          ? Number(emp.leave_balance.Annual)
+          : null;
+
+      if (curSick !== sickStats.remaining || curAnnual !== annStats.remaining) {
+        syncEmployeeLeaveBalance(emp.id);
+      }
+    });
+  }, [staffRequests, staffMembers]);
+
   if (requests === null || employees === null) return null;
 
   const act = async (r, status) => {
@@ -144,11 +172,11 @@ export function AdminLeave({ me }) {
     const empReqs = staffRequests.filter((r) => r.employee_id === emp.id);
     const pendingCount = empReqs.filter((r) => r.status === "Pending").length;
     const approvedCount = empReqs.filter((r) => r.status === "Approved").length;
-    const annualBal = emp.leave_balance?.Annual ?? 24;
-    const sickBal = emp.leave_balance?.Sick ?? 6;
+    const annStats = calculateEmployeeLeaveStats(empReqs, emp.id, "Annual", 24);
+    const sickStats = calculateEmployeeLeaveStats(empReqs, emp.id, "Sick", 6);
     employeeStatsMap.set(emp.id, {
-      annualBal,
-      sickBal,
+      annualBal: annStats.remaining,
+      sickBal: sickStats.remaining,
       pendingCount,
       approvedCount,
     });
@@ -165,10 +193,22 @@ export function AdminLeave({ me }) {
   // Selected employee's quota stats
   const annualAllowance = 24;
   const sickAllowance = 6;
-  const selectedAnnualBal = selectedEmployee?.leave_balance?.Annual ?? annualAllowance;
-  const selectedSickBal = selectedEmployee?.leave_balance?.Sick ?? sickAllowance;
-  const selectedAnnualUsed = Math.max(0, annualAllowance - selectedAnnualBal);
-  const selectedSickUsed = Math.max(0, sickAllowance - selectedSickBal);
+  const selAnnStats = calculateEmployeeLeaveStats(
+    selectedEmpRequests,
+    selectedEmployee?.id,
+    "Annual",
+    annualAllowance,
+  );
+  const selSickStats = calculateEmployeeLeaveStats(
+    selectedEmpRequests,
+    selectedEmployee?.id,
+    "Sick",
+    sickAllowance,
+  );
+  const selectedAnnualBal = selAnnStats.remaining;
+  const selectedSickBal = selSickStats.remaining;
+  const selectedAnnualUsed = selAnnStats.used;
+  const selectedSickUsed = selSickStats.used;
   const selectedAnnualUsedPct = Math.min(
     100,
     Math.round((selectedAnnualUsed / annualAllowance) * 100),
@@ -179,15 +219,16 @@ export function AdminLeave({ me }) {
   );
 
   const totalApprovedDays = selectedEmpApproved.reduce(
-    (acc, r) => acc + (Number(r.days) || 1),
+    (acc, r) => acc + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1),
     0,
   );
   const pendingAnnualDays = selectedEmpPending
     .filter((r) => r.type === "Annual")
-    .reduce((acc, r) => acc + (Number(r.days) || 1), 0);
+    .reduce((acc, r) => acc + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1), 0);
   const pendingSickDays = selectedEmpPending
     .filter((r) => r.type === "Sick")
-    .reduce((acc, r) => acc + (Number(r.days) || 1), 0);
+    .reduce((acc, r) => acc + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1), 0);
+
 
   // Filtered requests inside selected employee's ledger
   const filteredSelectedEmpRequests = selectedEmpRequests.filter((r) => {
@@ -404,9 +445,9 @@ export function AdminLeave({ me }) {
                     const bsEnd = r.end_date ? isoToBS(r.end_date) : null;
                     const emp = (employees || []).find((e) => e.id === r.employee_id);
                     const maxQuota = r.type === "Sick" ? 6 : 24;
-                    const balance = emp?.leave_balance?.[r.type] ?? maxQuota;
-                    const usedDays = Math.max(0, maxQuota - balance);
-                    const remainingDays = Math.max(0, balance);
+                    const stats = calculateEmployeeLeaveStats(staffRequests, r.employee_id, r.type, maxQuota);
+                    const usedDays = stats.used;
+                    const remainingDays = stats.remaining;
                     const isExceeding = Number(r.days) > remainingDays;
 
                     return (

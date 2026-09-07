@@ -1,13 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
 import { nepalDateTimeToISO, todayISO } from "../utils/timezone";
-import { isHalfDayLeave } from "../utils/leaveUtils";
+import { isHalfDayLeave, LEAVE_QUOTAS } from "../utils/leaveUtils";
 import { isAdminProfile, isRegularStaff } from "../utils/userUtils";
 
 export { isAdminProfile, isRegularStaff };
 
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 
+
+export const calculateBreaksTotalMins = (breaksList, fallbackMins = 0) => {
+  if (!Array.isArray(breaksList) || breaksList.length === 0) {
+    return Math.max(0, Number(fallbackMins) || 0);
+  }
+  const totalMs = breaksList.reduce((acc, b) => {
+    if (b?.start && b?.end) {
+      const ms = new Date(b.end).getTime() - new Date(b.start).getTime();
+      return acc + (isNaN(ms) || ms < 0 ? 0 : ms);
+    }
+    if (b?.duration_seconds) {
+      return acc + Math.max(0, Number(b.duration_seconds) * 1000);
+    }
+    if (b?.duration) {
+      return acc + Math.max(0, Number(b.duration) * 60000);
+    }
+    return acc;
+  }, 0);
+  return Math.floor(totalMs / 60000);
+};
 
 /* ---------------- Attendance ---------------- */
 export function useAttendance(employeeId) {
@@ -27,7 +47,7 @@ export function useAttendance(employeeId) {
       return (data || []).map((r) => {
         let break_minutes = r.break_minutes ?? 0;
         let break_start = r.break_start ?? null;
-        let breaks = r.breaks ?? [];
+        let breaks = Array.isArray(r.breaks) ? r.breaks : [];
         try {
           const localActive = localStorage.getItem(
             `break_start_${r.employee_id}_${r.date}`,
@@ -38,12 +58,18 @@ export function useAttendance(employeeId) {
           );
           if (localData) {
             const parsed = JSON.parse(localData);
-            if ((parsed.break_minutes || 0) > break_minutes) {
-              break_minutes = parsed.break_minutes;
-              breaks = parsed.breaks || breaks;
+            if (Array.isArray(parsed.breaks) && parsed.breaks.length > 0) {
+              breaks = parsed.breaks;
+            }
+            if (r.break_minutes === null || r.break_minutes === undefined) {
+              break_minutes = parsed.break_minutes || 0;
             }
           }
         } catch (_) {}
+
+        if (breaks.length > 0) {
+          break_minutes = calculateBreaksTotalMins(breaks, break_minutes);
+        }
 
         return {
           ...r,
@@ -75,6 +101,8 @@ export function useAttendance(employeeId) {
     mutationFn: async () => {
       // If a break was in progress when clocking out, finalize it
       const today = todayISO();
+      const now = new Date();
+      const nowISO = now.toISOString();
       let startISO = null;
       try {
         startISO = localStorage.getItem(`break_start_${employeeId}_${today}`);
@@ -83,20 +111,42 @@ export function useAttendance(employeeId) {
 
       const currentRecord = (query.data || []).find((r) => r.date === today);
       const activeStart = currentRecord?.break_start || startISO;
-      let additionalBreakMins = 0;
+      const existingBreaks = Array.isArray(currentRecord?.breaks)
+        ? currentRecord.breaks
+        : [];
+      let updatedBreaks = existingBreaks;
+      let totalBreakMinutes = currentRecord?.break_minutes || 0;
+
       if (activeStart) {
-        const diffMs = new Date().getTime() - new Date(activeStart).getTime();
-        additionalBreakMins = Math.max(1, Math.round(diffMs / 60000));
+        const diffMs = Math.max(0, now.getTime() - new Date(activeStart).getTime());
+        const newBreakItem = {
+          start: activeStart,
+          end: nowISO,
+          duration_seconds: Math.round(diffMs / 1000),
+        };
+        updatedBreaks = [...existingBreaks, newBreakItem];
+        totalBreakMinutes = calculateBreaksTotalMins(
+          updatedBreaks,
+          (currentRecord?.break_minutes || 0) + Math.floor(diffMs / 60000),
+        );
+
+        try {
+          localStorage.setItem(
+            `break_data_${employeeId}_${today}`,
+            JSON.stringify({
+              break_minutes: totalBreakMinutes,
+              breaks: updatedBreaks,
+            }),
+          );
+        } catch (_) {}
       }
-      const totalBreakMinutes = (currentRecord?.break_minutes || 0) + additionalBreakMins;
 
       const updateData = {
-        clock_out: new Date().toISOString(),
+        clock_out: nowISO,
         break_start: null,
+        break_minutes: totalBreakMinutes,
+        breaks: updatedBreaks,
       };
-      if (additionalBreakMins > 0) {
-        updateData.break_minutes = totalBreakMinutes;
-      }
 
       const { error } = await supabase
         .from("attendance")
@@ -109,6 +159,7 @@ export function useAttendance(employeeId) {
           // Fallback if break columns don't exist yet
           delete updateData.break_start;
           delete updateData.break_minutes;
+          delete updateData.breaks;
           const { error: err2 } = await supabase
             .from("attendance")
             .update(updateData)
@@ -159,11 +210,9 @@ export function useAttendance(employeeId) {
         } catch (_) {}
       }
 
-      let elapsedBreakMins = 0;
-      if (startISO) {
-        const diffMs = now.getTime() - new Date(startISO).getTime();
-        elapsedBreakMins = Math.max(1, Math.round(diffMs / 60000));
-      }
+      const diffMs = startISO
+        ? Math.max(0, now.getTime() - new Date(startISO).getTime())
+        : 0;
 
       const existingBreaks = Array.isArray(currentRecord?.breaks)
         ? currentRecord.breaks
@@ -171,11 +220,13 @@ export function useAttendance(employeeId) {
       const newBreakItem = {
         start: startISO || nowISO,
         end: nowISO,
-        duration: elapsedBreakMins,
+        duration_seconds: Math.round(diffMs / 1000),
       };
       const updatedBreaks = [...existingBreaks, newBreakItem];
-      const totalBreakMinutes =
-        (currentRecord?.break_minutes || 0) + elapsedBreakMins;
+      const totalBreakMinutes = calculateBreaksTotalMins(
+        updatedBreaks,
+        (currentRecord?.break_minutes || 0) + Math.floor(diffMs / 60000),
+      );
 
       try {
         localStorage.removeItem(`break_start_${employeeId}_${today}`);
@@ -520,6 +571,77 @@ export function useWorkLogs(employeeId) {
   };
 }
 
+/**
+ * Automatically recalculates and synchronizes an employee's profile leave_balance
+ * strictly from their actual approved leave requests. This eliminates incremental drift,
+ * double deductions, and stale balances.
+ */
+export async function syncEmployeeLeaveBalance(employeeId) {
+  if (!employeeId) return;
+
+  try {
+    const { data: approvedReqs, error: reqErr } = await supabase
+      .from("leave_requests")
+      .select("type, days, reason, start_date, end_date")
+      .eq("employee_id", employeeId)
+      .eq("status", "Approved");
+
+    if (reqErr) throw reqErr;
+
+    const sickUsed = (approvedReqs || [])
+      .filter((r) => r.type === "Sick")
+      .reduce(
+        (sum, r) => sum + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1),
+        0,
+      );
+
+    const annualUsed = (approvedReqs || [])
+      .filter((r) => r.type === "Annual")
+      .reduce(
+        (sum, r) => sum + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1),
+        0,
+      );
+
+    const sickBal = Math.max(
+      0,
+      Math.round((LEAVE_QUOTAS.Sick - sickUsed) * 10) / 10,
+    );
+    const annualBal = Math.max(
+      0,
+      Math.round((LEAVE_QUOTAS.Annual - annualUsed) * 10) / 10,
+    );
+
+    const { data: prof, error: profErr } = await supabase
+      .from("profiles")
+      .select("leave_balance")
+      .eq("id", employeeId)
+      .single();
+
+    if (profErr) throw profErr;
+
+    const currentSick = Number(prof?.leave_balance?.Sick);
+    const currentAnnual = Number(prof?.leave_balance?.Annual);
+
+    if (currentSick !== sickBal || currentAnnual !== annualBal) {
+      await supabase
+        .from("profiles")
+        .update({
+          leave_balance: {
+            ...(prof?.leave_balance || {}),
+            Sick: sickBal,
+            Annual: annualBal,
+          },
+        })
+        .eq("id", employeeId);
+    }
+  } catch (err) {
+    console.warn(
+      "Could not automatically synchronize profiles.leave_balance:",
+      err,
+    );
+  }
+}
+
 /* ---------------- Leave requests ---------------- */
 export function useLeaveRequests(employeeId, scope = "mine") {
   const qc = useQueryClient();
@@ -687,6 +809,10 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         );
       }
 
+      if (employeeId) {
+        await syncEmployeeLeaveBalance(employeeId);
+      }
+
       return data[0];
     },
 
@@ -718,6 +844,10 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         .eq("employee_id", employeeId);
 
       if (error) throw error;
+
+      if (employeeId) {
+        await syncEmployeeLeaveBalance(employeeId);
+      }
     },
 
     onSuccess: invalidate,
@@ -731,7 +861,7 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         throw new Error("Invalid leave status.");
       }
 
-      // Fetch existing request to detect status transition and employee/type/days
+      // Fetch existing request to identify employee
       const { data: existingReq, error: fetchErr } = await supabase
         .from("leave_requests")
         .select("*")
@@ -740,11 +870,7 @@ export function useLeaveRequests(employeeId, scope = "mine") {
 
       if (fetchErr) throw fetchErr;
 
-      const previousStatus = existingReq?.status;
-      const isHalf = isHalfDayLeave(existingReq);
-      const leaveDays = isHalf ? 0.5 : Number(existingReq?.days || 1);
       const empId = existingReq?.employee_id;
-      const leaveType = existingReq?.type;
 
       const { error } = await supabase
         .from("leave_requests")
@@ -757,46 +883,9 @@ export function useLeaveRequests(employeeId, scope = "mine") {
 
       if (error) throw error;
 
-      // Automatically update profile leave_balance if status transitioned
-      if (empId && leaveType && ["Annual", "Sick"].includes(leaveType)) {
-        try {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("leave_balance")
-            .eq("id", empId)
-            .single();
-
-          if (prof?.leave_balance) {
-            const currentBal =
-              Number(prof.leave_balance[leaveType]) ??
-              (leaveType === "Sick" ? 6 : 24);
-            let newBal = currentBal;
-
-            if (previousStatus !== "Approved" && status === "Approved") {
-              newBal = Math.max(0, currentBal - leaveDays);
-            } else if (previousStatus === "Approved" && status !== "Approved") {
-              newBal = currentBal + leaveDays;
-            }
-
-            if (newBal !== currentBal) {
-              const roundedBal = Math.round(newBal * 10) / 10;
-              await supabase
-                .from("profiles")
-                .update({
-                  leave_balance: {
-                    ...prof.leave_balance,
-                    [leaveType]: roundedBal,
-                  },
-                })
-                .eq("id", empId);
-            }
-          }
-        } catch (balErr) {
-          console.warn(
-            "Could not automatically adjust profiles.leave_balance:",
-            balErr,
-          );
-        }
+      // Automatically recalculate & sync profile leave_balance from actual approved requests
+      if (empId) {
+        await syncEmployeeLeaveBalance(empId);
       }
     },
 
