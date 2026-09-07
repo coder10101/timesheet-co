@@ -24,6 +24,7 @@ import {
   formatLeaveBalance,
   cleanLeaveReason,
   buildLeaveReason,
+  calculateEmployeeLeaveStats,
   HALF_DAY_SESSIONS,
   SESSION_LABELS,
   SESSION_SHORT_LABELS,
@@ -73,7 +74,13 @@ export function EmployeeLeave({ me }) {
   const currentEnd = editing ? editing.end_date : end;
   const currentReason = editing ? editing.reason : reason;
 
-  const balance = me.leave_balance?.[currentType] ?? 0;
+  const quotaStats = calculateEmployeeLeaveStats(
+    requests,
+    me?.id,
+    currentType,
+    LEAVE_TYPES[currentType]?.max,
+  );
+  const balance = quotaStats.remaining;
   const leaveDays =
     currentDurationMode === "half"
       ? 0.5
@@ -246,16 +253,24 @@ export function EmployeeLeave({ me }) {
       {/* VISUAL LEAVE QUOTA & USAGE CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {Object.entries(LEAVE_TYPES).map(([leaveKey, meta]) => {
-          const val = me.leave_balance?.[leaveKey] ?? 0;
           const max = meta.max;
-          const used = Math.max(0, max - val);
-          const remaining = Math.max(0, val);
+          const stats = calculateEmployeeLeaveStats(
+            requests,
+            me?.id,
+            leaveKey,
+            max,
+          );
+          const used = stats.used;
+          const remaining = stats.remaining;
           const usedPct = Math.min(100, Math.round((used / max) * 100));
           const Icon = meta.icon;
 
           const pendingDaysForType = (requests || [])
             .filter((r) => r.status === "Pending" && r.type === leaveKey)
-            .reduce((acc, r) => acc + (Number(r.days) || 1), 0);
+            .reduce(
+              (acc, r) => acc + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1),
+              0,
+            );
 
           return (
             <div
@@ -405,7 +420,14 @@ export function EmployeeLeave({ me }) {
               isOverQuota ? "text-alert" : "text-primary"
             }`}
           >
-            {formatLeaveDays(leaveDays)}
+            <span>
+              {formatLeaveDays(leaveDays)}
+              {currentDurationMode === "full" && leaveDays > 1 && (
+                <span className="text-[10px] font-normal text-text-muted ml-1">
+                  (Sun–Fri only)
+                </span>
+              )}
+            </span>
           </span>
         </div>
 
@@ -518,14 +540,19 @@ export function EmployeeLeave({ me }) {
               value={currentStart}
               onChange={(d) => {
                 if (editing) {
+                  const wasSingleDay = editing.start_date === editing.end_date;
                   setEditing({
                     ...editing,
                     start_date: d,
-                    end_date: editing.end_date < d ? d : editing.end_date,
+                    end_date:
+                      wasSingleDay || editing.end_date < d
+                        ? d
+                        : editing.end_date,
                   });
                 } else {
+                  const wasSingleDay = start === end;
                   setStart(d);
-                  if (end < d) setEnd(d);
+                  if (wasSingleDay || end < d) setEnd(d);
                 }
               }}
               placeholder="Start date"

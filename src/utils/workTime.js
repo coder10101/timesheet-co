@@ -127,10 +127,21 @@ export const calculateLeaveDays = (startDate, endDate) => {
 
   const [sy, sm, sd] = startDate.split("-").map(Number);
   const [ey, em, ed] = endDate.split("-").map(Number);
-  const start = new Date(sy, sm - 1, sd);
+  const cur = new Date(sy, sm - 1, sd);
   const end = new Date(ey, em - 1, ed);
 
-  return Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+  if (cur > end) return 0;
+
+  let workingDays = 0;
+  // In Nepal, Sunday (0) through Friday (5) are working days; Saturday (6) is a weekly holiday.
+  while (cur <= end) {
+    if (cur.getDay() !== 6) {
+      workingDays += 1;
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+
+  return workingDays;
 };
 
 export const fmtTime = (value) => {

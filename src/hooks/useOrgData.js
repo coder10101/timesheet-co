@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
 import { nepalDateTimeToISO, todayISO } from "../utils/timezone";
-import { isHalfDayLeave } from "../utils/leaveUtils";
+import { isHalfDayLeave, LEAVE_QUOTAS } from "../utils/leaveUtils";
 import { isAdminProfile, isRegularStaff } from "../utils/userUtils";
 
 export { isAdminProfile, isRegularStaff };
@@ -542,6 +542,77 @@ export function useWorkLogs(employeeId) {
   };
 }
 
+/**
+ * Automatically recalculates and synchronizes an employee's profile leave_balance
+ * strictly from their actual approved leave requests. This eliminates incremental drift,
+ * double deductions, and stale balances.
+ */
+export async function syncEmployeeLeaveBalance(employeeId) {
+  if (!employeeId) return;
+
+  try {
+    const { data: approvedReqs, error: reqErr } = await supabase
+      .from("leave_requests")
+      .select("type, days, reason, start_date, end_date")
+      .eq("employee_id", employeeId)
+      .eq("status", "Approved");
+
+    if (reqErr) throw reqErr;
+
+    const sickUsed = (approvedReqs || [])
+      .filter((r) => r.type === "Sick")
+      .reduce(
+        (sum, r) => sum + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1),
+        0,
+      );
+
+    const annualUsed = (approvedReqs || [])
+      .filter((r) => r.type === "Annual")
+      .reduce(
+        (sum, r) => sum + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1),
+        0,
+      );
+
+    const sickBal = Math.max(
+      0,
+      Math.round((LEAVE_QUOTAS.Sick - sickUsed) * 10) / 10,
+    );
+    const annualBal = Math.max(
+      0,
+      Math.round((LEAVE_QUOTAS.Annual - annualUsed) * 10) / 10,
+    );
+
+    const { data: prof, error: profErr } = await supabase
+      .from("profiles")
+      .select("leave_balance")
+      .eq("id", employeeId)
+      .single();
+
+    if (profErr) throw profErr;
+
+    const currentSick = Number(prof?.leave_balance?.Sick);
+    const currentAnnual = Number(prof?.leave_balance?.Annual);
+
+    if (currentSick !== sickBal || currentAnnual !== annualBal) {
+      await supabase
+        .from("profiles")
+        .update({
+          leave_balance: {
+            ...(prof?.leave_balance || {}),
+            Sick: sickBal,
+            Annual: annualBal,
+          },
+        })
+        .eq("id", employeeId);
+    }
+  } catch (err) {
+    console.warn(
+      "Could not automatically synchronize profiles.leave_balance:",
+      err,
+    );
+  }
+}
+
 /* ---------------- Leave requests ---------------- */
 export function useLeaveRequests(employeeId, scope = "mine") {
   const qc = useQueryClient();
@@ -709,6 +780,10 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         );
       }
 
+      if (employeeId) {
+        await syncEmployeeLeaveBalance(employeeId);
+      }
+
       return data[0];
     },
 
@@ -740,6 +815,10 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         .eq("employee_id", employeeId);
 
       if (error) throw error;
+
+      if (employeeId) {
+        await syncEmployeeLeaveBalance(employeeId);
+      }
     },
 
     onSuccess: invalidate,
@@ -753,7 +832,7 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         throw new Error("Invalid leave status.");
       }
 
-      // Fetch existing request to detect status transition and employee/type/days
+      // Fetch existing request to identify employee
       const { data: existingReq, error: fetchErr } = await supabase
         .from("leave_requests")
         .select("*")
@@ -762,11 +841,7 @@ export function useLeaveRequests(employeeId, scope = "mine") {
 
       if (fetchErr) throw fetchErr;
 
-      const previousStatus = existingReq?.status;
-      const isHalf = isHalfDayLeave(existingReq);
-      const leaveDays = isHalf ? 0.5 : Number(existingReq?.days || 1);
       const empId = existingReq?.employee_id;
-      const leaveType = existingReq?.type;
 
       const { error } = await supabase
         .from("leave_requests")
@@ -779,46 +854,9 @@ export function useLeaveRequests(employeeId, scope = "mine") {
 
       if (error) throw error;
 
-      // Automatically update profile leave_balance if status transitioned
-      if (empId && leaveType && ["Annual", "Sick"].includes(leaveType)) {
-        try {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("leave_balance")
-            .eq("id", empId)
-            .single();
-
-          if (prof?.leave_balance) {
-            const currentBal =
-              Number(prof.leave_balance[leaveType]) ??
-              (leaveType === "Sick" ? 6 : 24);
-            let newBal = currentBal;
-
-            if (previousStatus !== "Approved" && status === "Approved") {
-              newBal = Math.max(0, currentBal - leaveDays);
-            } else if (previousStatus === "Approved" && status !== "Approved") {
-              newBal = currentBal + leaveDays;
-            }
-
-            if (newBal !== currentBal) {
-              const roundedBal = Math.round(newBal * 10) / 10;
-              await supabase
-                .from("profiles")
-                .update({
-                  leave_balance: {
-                    ...prof.leave_balance,
-                    [leaveType]: roundedBal,
-                  },
-                })
-                .eq("id", empId);
-            }
-          }
-        } catch (balErr) {
-          console.warn(
-            "Could not automatically adjust profiles.leave_balance:",
-            balErr,
-          );
-        }
+      // Automatically recalculate & sync profile leave_balance from actual approved requests
+      if (empId) {
+        await syncEmployeeLeaveBalance(empId);
       }
     },
 
