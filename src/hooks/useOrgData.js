@@ -9,6 +9,26 @@ export { isAdminProfile, isRegularStaff };
 const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 
 
+export const calculateBreaksTotalMins = (breaksList, fallbackMins = 0) => {
+  if (!Array.isArray(breaksList) || breaksList.length === 0) {
+    return Math.max(0, Number(fallbackMins) || 0);
+  }
+  const totalMs = breaksList.reduce((acc, b) => {
+    if (b?.start && b?.end) {
+      const ms = new Date(b.end).getTime() - new Date(b.start).getTime();
+      return acc + (isNaN(ms) || ms < 0 ? 0 : ms);
+    }
+    if (b?.duration_seconds) {
+      return acc + Math.max(0, Number(b.duration_seconds) * 1000);
+    }
+    if (b?.duration) {
+      return acc + Math.max(0, Number(b.duration) * 60000);
+    }
+    return acc;
+  }, 0);
+  return Math.floor(totalMs / 60000);
+};
+
 /* ---------------- Attendance ---------------- */
 export function useAttendance(employeeId) {
   const qc = useQueryClient();
@@ -27,7 +47,7 @@ export function useAttendance(employeeId) {
       return (data || []).map((r) => {
         let break_minutes = r.break_minutes ?? 0;
         let break_start = r.break_start ?? null;
-        let breaks = r.breaks ?? [];
+        let breaks = Array.isArray(r.breaks) ? r.breaks : [];
         try {
           const localActive = localStorage.getItem(
             `break_start_${r.employee_id}_${r.date}`,
@@ -38,12 +58,18 @@ export function useAttendance(employeeId) {
           );
           if (localData) {
             const parsed = JSON.parse(localData);
-            if ((parsed.break_minutes || 0) > break_minutes) {
-              break_minutes = parsed.break_minutes;
-              breaks = parsed.breaks || breaks;
+            if (Array.isArray(parsed.breaks) && parsed.breaks.length > 0) {
+              breaks = parsed.breaks;
+            }
+            if (r.break_minutes === null || r.break_minutes === undefined) {
+              break_minutes = parsed.break_minutes || 0;
             }
           }
         } catch (_) {}
+
+        if (breaks.length > 0) {
+          break_minutes = calculateBreaksTotalMins(breaks, break_minutes);
+        }
 
         return {
           ...r,
@@ -74,6 +100,8 @@ export function useAttendance(employeeId) {
     mutationFn: async () => {
       // If a break was in progress when clocking out, finalize it
       const today = todayISO();
+      const now = new Date();
+      const nowISO = now.toISOString();
       let startISO = null;
       try {
         startISO = localStorage.getItem(`break_start_${employeeId}_${today}`);
@@ -82,20 +110,42 @@ export function useAttendance(employeeId) {
 
       const currentRecord = (query.data || []).find((r) => r.date === today);
       const activeStart = currentRecord?.break_start || startISO;
-      let additionalBreakMins = 0;
+      const existingBreaks = Array.isArray(currentRecord?.breaks)
+        ? currentRecord.breaks
+        : [];
+      let updatedBreaks = existingBreaks;
+      let totalBreakMinutes = currentRecord?.break_minutes || 0;
+
       if (activeStart) {
-        const diffMs = new Date().getTime() - new Date(activeStart).getTime();
-        additionalBreakMins = Math.max(1, Math.round(diffMs / 60000));
+        const diffMs = Math.max(0, now.getTime() - new Date(activeStart).getTime());
+        const newBreakItem = {
+          start: activeStart,
+          end: nowISO,
+          duration_seconds: Math.round(diffMs / 1000),
+        };
+        updatedBreaks = [...existingBreaks, newBreakItem];
+        totalBreakMinutes = calculateBreaksTotalMins(
+          updatedBreaks,
+          (currentRecord?.break_minutes || 0) + Math.floor(diffMs / 60000),
+        );
+
+        try {
+          localStorage.setItem(
+            `break_data_${employeeId}_${today}`,
+            JSON.stringify({
+              break_minutes: totalBreakMinutes,
+              breaks: updatedBreaks,
+            }),
+          );
+        } catch (_) {}
       }
-      const totalBreakMinutes = (currentRecord?.break_minutes || 0) + additionalBreakMins;
 
       const updateData = {
-        clock_out: new Date().toISOString(),
+        clock_out: nowISO,
         break_start: null,
+        break_minutes: totalBreakMinutes,
+        breaks: updatedBreaks,
       };
-      if (additionalBreakMins > 0) {
-        updateData.break_minutes = totalBreakMinutes;
-      }
 
       const { error } = await supabase
         .from("attendance")
@@ -108,6 +158,7 @@ export function useAttendance(employeeId) {
           // Fallback if break columns don't exist yet
           delete updateData.break_start;
           delete updateData.break_minutes;
+          delete updateData.breaks;
           const { error: err2 } = await supabase
             .from("attendance")
             .update(updateData)
@@ -158,11 +209,9 @@ export function useAttendance(employeeId) {
         } catch (_) {}
       }
 
-      let elapsedBreakMins = 0;
-      if (startISO) {
-        const diffMs = now.getTime() - new Date(startISO).getTime();
-        elapsedBreakMins = Math.max(1, Math.round(diffMs / 60000));
-      }
+      const diffMs = startISO
+        ? Math.max(0, now.getTime() - new Date(startISO).getTime())
+        : 0;
 
       const existingBreaks = Array.isArray(currentRecord?.breaks)
         ? currentRecord.breaks
@@ -170,11 +219,13 @@ export function useAttendance(employeeId) {
       const newBreakItem = {
         start: startISO || nowISO,
         end: nowISO,
-        duration: elapsedBreakMins,
+        duration_seconds: Math.round(diffMs / 1000),
       };
       const updatedBreaks = [...existingBreaks, newBreakItem];
-      const totalBreakMinutes =
-        (currentRecord?.break_minutes || 0) + elapsedBreakMins;
+      const totalBreakMinutes = calculateBreaksTotalMins(
+        updatedBreaks,
+        (currentRecord?.break_minutes || 0) + Math.floor(diffMs / 60000),
+      );
 
       try {
         localStorage.removeItem(`break_start_${employeeId}_${today}`);

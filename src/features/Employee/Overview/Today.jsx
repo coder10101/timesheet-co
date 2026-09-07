@@ -55,18 +55,32 @@ export function Today({
   }, [todayRecord?.clock_in, todayRecord?.clock_out]);
 
   const isOnBreak = !!todayRecord?.break_start && !todayRecord?.clock_out;
-  const activeBreakMinutes = isOnBreak
+  const activeBreakSeconds = isOnBreak
     ? Math.max(
         0,
-        Math.round(
+        Math.floor(
           (currentTime.getTime() -
             new Date(todayRecord.break_start).getTime()) /
-            60000,
+            1000,
         ),
       )
     : 0;
 
+  const activeBreakMinutes = Math.floor(activeBreakSeconds / 60);
+
   const totalBreaks = (todayRecord?.break_minutes || 0) + activeBreakMinutes;
+
+  const formatActiveBreakStatus = () => {
+    if (activeBreakSeconds < 60) {
+      return `On Break (${activeBreakSeconds}s)`;
+    }
+    const mins = Math.floor(activeBreakSeconds / 60);
+    const secs = activeBreakSeconds % 60;
+    if (mins < 60) {
+      return `On Break (${mins}m ${String(secs).padStart(2, "0")}s)`;
+    }
+    return `On Break (${formatDuration(mins)})`;
+  };
 
   const workedMinutes = todayRecord?.clock_in
     ? getWorkedMinutes(
@@ -233,7 +247,7 @@ export function Today({
                   : todayRecord.clock_out
                     ? "Workday completed"
                     : isOnBreak
-                      ? `On Break (${formatDuration(activeBreakMinutes)})`
+                      ? formatActiveBreakStatus()
                       : "Currently working"}
               </p>
             </div>
@@ -352,6 +366,8 @@ export function Today({
               <span className="text-amber-300 font-semibold">On Break</span>
             ) : totalBreaks > 0 ? (
               `${totalBreaks} mins`
+            ) : todayRecord?.breaks?.length > 0 ? (
+              "< 1 min"
             ) : (
               "—"
             )}
