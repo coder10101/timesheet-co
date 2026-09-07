@@ -42,6 +42,7 @@ import {
   TrendingUp,
   MapPin,
   Settings,
+  Coffee,
 } from "lucide-react";
 import { getEmployeeColor, COLORS } from "../../constants/colors";
 import { WorkHoursChart } from "../../components/charts/WorkHoursChart";
@@ -534,6 +535,18 @@ export function AdminAttendance() {
                       const siteInfo = siteSummaryByDate.get(r.date);
                       const hasSite = !!siteInfo?.hasSiteVisit;
                       const isToday = r.date === todayStr;
+                      const isOnBreak = isToday && !!r.break_start && !r.clock_out;
+                      const activeBreakMinutes = isOnBreak
+                        ? Math.max(
+                            0,
+                            Math.round(
+                              (new Date().getTime() -
+                                new Date(r.break_start).getTime()) /
+                                60000,
+                            ),
+                          )
+                        : 0;
+                      const totalBreaks = (r.break_minutes || 0) + activeBreakMinutes;
                       const effOut = getEffectiveClockOut(
                         r,
                         todayStr,
@@ -556,7 +569,7 @@ export function AdminAttendance() {
                           ? getWorkedMinutes(
                               r.clock_in,
                               effOut,
-                              r.break_minutes || 0,
+                              totalBreaks,
                             )
                           : null;
                       const isLate =
@@ -613,9 +626,16 @@ export function AdminAttendance() {
                             ) : r.clock_out ? (
                               fmtTime(r.clock_out)
                             ) : isToday && r.clock_in ? (
-                              <span className="text-primary italic font-sans text-[11px]">
-                                Working
-                              </span>
+                              isOnBreak ? (
+                                <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded text-[10px] font-bold">
+                                  <Coffee size={10} className="text-amber-600 animate-pulse" />
+                                  On Break
+                                </span>
+                              ) : (
+                                <span className="text-primary italic font-sans text-[11px]">
+                                  Working
+                                </span>
+                              )
                             ) : isAutoClockOut ? (
                               <div className="flex items-center gap-1">
                                 <span>{officeHours.endTimeAmPm}</span>
@@ -635,11 +655,34 @@ export function AdminAttendance() {
                             {workedMinutes !== null && workedMinutes > 0 ? (
                               <div>
                                 <div>{formatDuration(workedMinutes)}</div>
-                                {r.break_minutes > 0 && (
+                                {totalBreaks > 0 && (
                                   <div className="text-[10px] text-amber-600 font-sans font-medium">
-                                    ☕ {r.break_minutes}m break
+                                    ☕ {totalBreaks}m break
+                                    {isOnBreak && ` (${activeBreakMinutes}m active)`}
                                   </div>
                                 )}
+                              </div>
+                            ) : isToday && r.clock_in && !r.clock_out ? (
+                              <div>
+                                <span className="text-xs font-normal text-text-muted italic">
+                                  In progress
+                                </span>
+                                {isOnBreak ? (
+                                  <div className="text-[10px] text-amber-600 font-sans font-medium">
+                                    ☕ {totalBreaks}m break ({activeBreakMinutes}m active)
+                                  </div>
+                                ) : totalBreaks > 0 ? (
+                                  <div className="text-[10px] text-amber-600 font-sans font-medium">
+                                    ☕ {totalBreaks}m break
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : totalBreaks > 0 ? (
+                              <div>
+                                <div>—</div>
+                                <div className="text-[10px] text-amber-600 font-sans font-medium">
+                                  ☕ {totalBreaks}m break
+                                </div>
                               </div>
                             ) : (
                               "—"
@@ -672,6 +715,11 @@ export function AdminAttendance() {
                             {r.is_site_only ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#EEEAF2] text-[#63537E] border border-[#63537E]/30 text-[10px] font-semibold">
                                 <MapPin size={9} /> Site Visit
+                              </span>
+                            ) : isOnBreak ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 border border-amber-500/30 text-[10px] font-bold">
+                                <Coffee size={10} className="text-amber-600 animate-pulse" />
+                                On Break
                               </span>
                             ) : isLate ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warning-light text-warning border border-warning/30 text-[10px] font-semibold">

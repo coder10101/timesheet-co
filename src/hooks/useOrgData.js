@@ -54,6 +54,7 @@ export function useAttendance(employeeId) {
       });
     },
     enabled: !!employeeId,
+    refetchInterval: 30000,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
@@ -343,8 +344,36 @@ export function useOrgAttendance(date) {
 
       const { data, error } = await q;
       if (error) throw error;
-      return data || [];
+      return (data || []).map((r) => {
+        let break_minutes = r.break_minutes ?? 0;
+        let break_start = r.break_start ?? null;
+        let breaks = r.breaks ?? [];
+        try {
+          const localActive = localStorage.getItem(
+            `break_start_${r.employee_id}_${r.date}`,
+          );
+          if (localActive && !break_start) break_start = localActive;
+          const localData = localStorage.getItem(
+            `break_data_${r.employee_id}_${r.date}`,
+          );
+          if (localData) {
+            const parsed = JSON.parse(localData);
+            if ((parsed.break_minutes || 0) > break_minutes) {
+              break_minutes = parsed.break_minutes;
+              breaks = parsed.breaks || breaks;
+            }
+          }
+        } catch (_) {}
+
+        return {
+          ...r,
+          break_minutes,
+          break_start,
+          breaks,
+        };
+      });
     },
+    refetchInterval: 30000,
   });
 
   return {

@@ -36,6 +36,7 @@ import {
   CalendarDays,
   UserCheck,
   Settings,
+  Coffee,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { getEmployeeColor, COLORS } from "../../constants/colors";
@@ -113,14 +114,32 @@ export function AdminOverview({ me }) {
       let status = "Absent";
       let time = null;
       let workedMin = 0;
+      let isOnBreak = false;
+      let isLate = false;
+      let activeBreakMinutes = 0;
+      const breakMinutes = att?.break_minutes || 0;
+      let totalBreaks = breakMinutes;
 
       if (att?.clock_in) {
-        const isLate = isLateClockIn(att.clock_in, onLeave, officeHours);
-        status = isLate ? "Late" : "Present";
-        time = fmtTime(att.clock_in);
+        isLate = isLateClockIn(att.clock_in, onLeave, officeHours);
+        isOnBreak = !!att?.break_start && !att?.clock_out;
+        activeBreakMinutes = isOnBreak
+          ? Math.max(
+              0,
+              Math.round(
+                (new Date().getTime() - new Date(att.break_start).getTime()) /
+                  60000,
+              ),
+            )
+          : 0;
+        totalBreaks = breakMinutes + activeBreakMinutes;
+
+        status = isOnBreak ? "On Break" : isLate ? "Late" : "Present";
+        time = isOnBreak ? fmtTime(att.break_start) : fmtTime(att.clock_in);
         workedMin = getWorkedMinutes(
           att.clock_in,
           att.clock_out || new Date().toISOString(),
+          totalBreaks,
         );
       } else if (onLeave) {
         const isHalf = isHalfDayLeave(onLeave);
@@ -138,6 +157,11 @@ export function AdminOverview({ me }) {
         record: att,
         leave: onLeave,
         isAdmin: false,
+        isOnBreak,
+        isLate,
+        activeBreakMinutes,
+        breakMinutes,
+        totalBreaks,
       });
     });
 
@@ -210,7 +234,10 @@ export function AdminOverview({ me }) {
     (s) => s.status === "Present",
   ).length;
   const lateCount = trackableStatuses.filter((s) => s.status === "Late").length;
-  const totalPresent = onTimeCount + lateCount;
+  const onBreakCount = trackableStatuses.filter(
+    (s) => s.status === "On Break",
+  ).length;
+  const totalPresent = onTimeCount + lateCount + onBreakCount;
   const onLeaveCount = trackableStatuses.filter(
     (s) => s.status === "On Leave",
   ).length;
@@ -228,11 +255,11 @@ export function AdminOverview({ me }) {
     if (statusFilter !== "all") {
       if (
         statusFilter === "Present" &&
-        status !== "Present" &&
-        status !== "Late"
+        status !== "Present"
       )
         return false;
-      if (statusFilter === "Late" && status !== "Late") return false;
+      if (statusFilter === "On Break" && status !== "On Break") return false;
+      if (statusFilter === "Late" && !info?.isLate && status !== "Late") return false;
       if (statusFilter === "On Leave" && status !== "On Leave") return false;
       if (statusFilter === "Absent" && status !== "Absent")
         return false;
@@ -288,6 +315,16 @@ export function AdminOverview({ me }) {
               </span>
             )}
           </div>
+
+          {/* ON BREAK */}
+          {onBreakCount > 0 && (
+            <div className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-lg">
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+              <span className="font-bold text-amber-900 text-xs">
+                {onBreakCount} On Break
+              </span>
+            </div>
+          )}
 
           {/* ON LEAVE */}
           <div className="flex items-center gap-1.5 bg-primary-light/40 border border-primary/30 px-2.5 py-1 rounded-lg">
@@ -444,7 +481,8 @@ export function AdminOverview({ me }) {
               <div className="flex flex-wrap items-center gap-1 text-[10px]">
                 {[
                   { id: "all", label: `All (${employees.length})` },
-                  { id: "Present", label: `Present (${totalPresent})` },
+                  { id: "Present", label: `Present (${onTimeCount})` },
+                  { id: "On Break", label: `On Break (${onBreakCount})` },
                   { id: "Late", label: `Late (${lateCount})` },
                   { id: "On Leave", label: `On Leave (${onLeaveCount})` },
                   { id: "Absent", label: `Absent (${absentCount})` },
@@ -502,6 +540,22 @@ export function AdminOverview({ me }) {
                         </div>
 
                         <div className="text-right shrink-0">
+                          {info.status === "On Break" && (
+                            <div className="space-y-0.5">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 border border-amber-500/30 text-[9px] font-bold">
+                                <Coffee size={10} className="text-amber-600 animate-pulse" />
+                                On Break
+                              </span>
+                              <p className="text-[9px] font-mono text-amber-700 font-medium">
+                                {info.totalBreaks > info.activeBreakMinutes
+                                  ? `${info.totalBreaks}m total (${info.activeBreakMinutes}m active)`
+                                  : info.activeBreakMinutes > 0
+                                    ? `${info.activeBreakMinutes}m elapsed`
+                                    : `Since ${info.time}`}
+                              </p>
+                            </div>
+                          )}
+
                           {info.status === "Present" && (
                             <div className="space-y-0.2">
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-success-light text-success border border-success/30 text-[9px] font-semibold">
@@ -512,6 +566,11 @@ export function AdminOverview({ me }) {
                                 {info.workedMin > 0 &&
                                   `· ${formatDuration(info.workedMin)}`}
                               </p>
+                              {info.breakMinutes > 0 && (
+                                <p className="text-[9px] font-mono text-amber-600">
+                                  ☕ {info.breakMinutes}m break
+                                </p>
+                              )}
                             </div>
                           )}
 
@@ -525,6 +584,11 @@ export function AdminOverview({ me }) {
                                 {info.workedMin > 0 &&
                                   `· ${formatDuration(info.workedMin)}`}
                               </p>
+                              {info.breakMinutes > 0 && (
+                                <p className="text-[9px] font-mono text-amber-600">
+                                  ☕ {info.breakMinutes}m break
+                                </p>
+                              )}
                             </div>
                           )}
 
