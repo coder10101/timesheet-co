@@ -7,7 +7,7 @@ function getBlockClass(status) {
       return "bg-success text-success";
 
     case "site_full":
-      return "bg-[#63537E] text-white";
+      return "bg-[#0284C7] text-white";
 
     case "late":
       return "bg-warning text-warning";

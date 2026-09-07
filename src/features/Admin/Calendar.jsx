@@ -110,6 +110,7 @@ export function AdminCalendar({ me }) {
       const isToday = isoDate === todayStr;
       const isPast = isoDate < todayStr;
       const greg = bs.toGreg(bsYear, bsMonth, d);
+      const isSaturday = (firstWeekday + d - 1) % 7 === 6;
 
       days.push({
         empty: false,
@@ -121,6 +122,7 @@ export function AdminCalendar({ me }) {
         events: dayEvents,
         isToday,
         isPast,
+        isSaturday,
         key: isoDate,
       });
     }
@@ -337,19 +339,19 @@ export function AdminCalendar({ me }) {
             {/* LEGEND */}
             <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted font-medium">
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-primary" />
-                <span>Public</span>
+                <span className="w-2 h-2 rounded-full bg-alert" />
+                <span>Holiday</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-success" />
                 <span>Company</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-primary-dark" />
+                <span className="w-2 h-2 rounded-full bg-[#1E4E5F]" />
                 <span>Meeting</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-alert" />
+                <span className="w-2 h-2 rounded-full bg-pink-500" />
                 <span>Deadline</span>
               </div>
             </div>
@@ -357,13 +359,13 @@ export function AdminCalendar({ me }) {
 
           {/* WEEKDAY LABELS (SUN - SAT) */}
           <div className="grid grid-cols-7 text-center text-[10px] font-bold uppercase tracking-wider text-text-muted">
-            <span className="text-alert">SUN</span>
+            <span>SUN</span>
             <span>MON</span>
             <span>TUE</span>
             <span>WED</span>
             <span>THU</span>
             <span>FRI</span>
-            <span className="text-warning">SAT</span>
+            <span className="text-alert">SAT</span>
           </div>
 
           {/* DAYS GRID */}
@@ -396,9 +398,11 @@ export function AdminCalendar({ me }) {
                       className={`text-xs font-bold font-mono ${
                         cell.isToday
                           ? "w-5 h-5 rounded-full bg-primary text-white flex items-center justify-center text-[11px]"
-                          : cell.isPast
-                            ? "text-text-muted"
-                            : "text-text"
+                          : cell.holidays.length > 0 || cell.isSaturday
+                            ? "text-alert"
+                            : cell.isPast
+                              ? "text-text-muted"
+                              : "text-text"
                       }`}
                     >
                       {cell.dayNumBS}
@@ -418,7 +422,7 @@ export function AdminCalendar({ me }) {
                         className={`text-[9px] sm:text-[10px] font-semibold px-1 sm:px-1.5 py-0.5 rounded truncate transition-transform hover:scale-[1.02] ${
                           h.category === "company"
                             ? "bg-success-light text-success border border-success/30"
-                            : "bg-primary-light text-primary-dark border border-primary/20"
+                            : "bg-alert-light text-alert border border-alert/30"
                         }`}
                         title={
                           cell.isPast
@@ -435,9 +439,9 @@ export function AdminCalendar({ me }) {
                       const isDeadline = ev.event_type === "deadline";
 
                       const pillClass = isMeeting
-                        ? "bg-primary-light text-primary-dark border border-primary/30"
+                        ? "bg-[#EEF6F8] text-[#1E4E5F] border border-[#C5DCE4]"
                         : isDeadline
-                          ? "bg-alert-light text-alert border border-alert/30"
+                          ? "bg-pink-50 text-pink-700 border border-pink-200"
                           : "bg-warning-light text-warning border border-warning/30";
 
                       return (
@@ -489,17 +493,10 @@ export function AdminCalendar({ me }) {
                 .map((h) => {
                   const isPast = isPastDate(h.date);
                   const isCompany = h.category === "company";
-                  const isFestival = h.category === "festival";
-                  const dotColor = isCompany
-                    ? "bg-success"
-                    : isFestival
-                      ? "bg-warning"
-                      : "bg-primary";
+                  const dotColor = isCompany ? "bg-success" : "bg-alert";
                   const badgeClass = isCompany
                     ? "bg-success-light text-success border-success/30"
-                    : isFestival
-                      ? "bg-warning-light text-warning border-warning/30"
-                      : "bg-primary-light text-primary-dark border-primary/20";
+                    : "bg-alert-light text-alert border-alert/30";
 
                   const bsDate = isoToBS(h.date);
 
@@ -634,41 +631,52 @@ export function AdminCalendar({ me }) {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                    {selectedDay.holidays.map((h) => (
-                      <div
-                        key={h.id}
-                        className="p-3 rounded-xl border border-primary/20 bg-primary-light/40 flex items-center justify-between gap-2"
-                      >
-                        <div className="min-w-0">
-                          <span className="text-xs font-bold text-text block truncate">
-                            {h.name}
-                          </span>
-                          <span className="text-[10px] text-primary font-semibold capitalize">
-                            {h.category} Holiday
-                          </span>
+                    {selectedDay.holidays.map((h) => {
+                      const isCompany = h.category === "company";
+                      return (
+                        <div
+                          key={h.id}
+                          className={`p-3 rounded-xl border flex items-center justify-between gap-2 ${
+                            isCompany
+                              ? "border-success/20 bg-success-light/40 text-text"
+                              : "border-alert/20 bg-alert-light/40 text-text"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold text-text block truncate">
+                              {h.name}
+                            </span>
+                            <span
+                              className={`text-[10px] font-semibold capitalize ${
+                                isCompany ? "text-success" : "text-alert"
+                              }`}
+                            >
+                              {h.category} Holiday
+                            </span>
+                          </div>
+                          {!selectedDay.isPast && (
+                            <button
+                              onClick={() => {
+                                setSelectedDay(null);
+                                openEditHoliday(h);
+                              }}
+                              className="p-1.5 text-text-muted hover:text-text hover:bg-black/5 rounded-lg cursor-pointer transition-colors"
+                              title="Edit Holiday"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
                         </div>
-                        {!selectedDay.isPast && (
-                          <button
-                            onClick={() => {
-                              setSelectedDay(null);
-                              openEditHoliday(h);
-                            }}
-                            className="p-1.5 text-primary hover:bg-primary-light rounded-lg cursor-pointer transition-colors"
-                            title="Edit Holiday"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {selectedDay.events.map((ev) => {
                       const isMeeting = ev.event_type === "meeting";
                       const isDeadline = ev.event_type === "deadline";
                       const cardClass = isMeeting
-                        ? "border-primary/20 bg-primary-light/40 text-text"
+                        ? "border-[#C5DCE4] bg-[#EEF6F8] text-text"
                         : isDeadline
-                          ? "border-alert/20 bg-alert-light/40 text-text"
+                          ? "border-pink-200 bg-pink-50 text-text"
                           : "border-warning/20 bg-warning-light/40 text-text";
 
                       return (

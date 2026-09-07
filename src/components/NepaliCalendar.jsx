@@ -127,10 +127,12 @@ export function NepaliCalendar() {
 
       {/* WEEKDAYS */}
       <div className="grid grid-cols-7 gap-1 text-center mb-1">
-        {WEEKDAY_LABELS.map((d) => (
+        {WEEKDAY_LABELS.map((d, idx) => (
           <div
             key={d}
-            className="text-[9px] uppercase text-text-subtle font-medium"
+            className={`text-[9px] uppercase font-medium ${
+              idx === 6 ? "text-alert font-bold" : "text-text-subtle"
+            }`}
           >
             {d}
           </div>
@@ -182,7 +184,7 @@ export function NepaliCalendar() {
                     : isSelected
                       ? "bg-border text-text font-semibold ring-1 ring-primary"
                       : hasDeadline
-                        ? "bg-[#FFF6F4] text-alert border border-alert/30 font-semibold"
+                        ? "bg-pink-50 text-pink-700 border border-pink-200 font-semibold"
                         : hasMeeting
                           ? "bg-[#EEF6F8] text-[#1E4E5F] border border-[#C5DCE4] font-semibold"
                           : isHoliday
@@ -201,7 +203,7 @@ export function NepaliCalendar() {
               {!isToday && (
                 <div className="absolute top-1 right-1 flex items-center gap-0.5">
                   {hasDeadline && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-alert" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
                   )}
                   {hasMeeting && (
                     <span className="w-1.5 h-1.5 rounded-full bg-[#1E4E5F]" />
@@ -216,12 +218,12 @@ export function NepaliCalendar() {
                 <span
                   className={`absolute bottom-0.5 left-1 right-1 font-mono text-[6px] font-bold truncate ${
                     hasDeadline
-                      ? "text-alert"
+                      ? "text-pink-600"
                       : hasMeeting
                         ? "text-[#1E4E5F]"
                         : isHoliday
                           ? "text-alert"
-                          : "text-warning"
+                          : "text-text-muted"
                   }`}
                 >
                   {label}
