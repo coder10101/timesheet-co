@@ -92,6 +92,29 @@ export function AdminLeave({ me }) {
     });
   }, [requests, adminIds]);
 
+  // Auto-heal / reconcile balances for all staff in background
+  useEffect(() => {
+    if (!staffRequests || !staffMembers?.length) return;
+    staffMembers.forEach((emp) => {
+      const empReqs = staffRequests.filter((r) => r.employee_id === emp.id);
+      const annStats = calculateEmployeeLeaveStats(empReqs, emp.id, "Annual", 24);
+      const sickStats = calculateEmployeeLeaveStats(empReqs, emp.id, "Sick", 6);
+
+      const curSick =
+        emp.leave_balance?.Sick !== undefined
+          ? Number(emp.leave_balance.Sick)
+          : null;
+      const curAnnual =
+        emp.leave_balance?.Annual !== undefined
+          ? Number(emp.leave_balance.Annual)
+          : null;
+
+      if (curSick !== sickStats.remaining || curAnnual !== annStats.remaining) {
+        syncEmployeeLeaveBalance(emp.id);
+      }
+    });
+  }, [staffRequests, staffMembers]);
+
   if (requests === null || employees === null) return null;
 
   const act = async (r, status) => {
@@ -206,28 +229,6 @@ export function AdminLeave({ me }) {
     .filter((r) => r.type === "Sick")
     .reduce((acc, r) => acc + (isHalfDayLeave(r) ? 0.5 : Number(r.days) || 1), 0);
 
-  // Auto-heal / reconcile balances for all staff in background
-  useEffect(() => {
-    if (!staffRequests || !staffMembers?.length) return;
-    staffMembers.forEach((emp) => {
-      const empReqs = staffRequests.filter((r) => r.employee_id === emp.id);
-      const annStats = calculateEmployeeLeaveStats(empReqs, emp.id, "Annual", 24);
-      const sickStats = calculateEmployeeLeaveStats(empReqs, emp.id, "Sick", 6);
-
-      const curSick =
-        emp.leave_balance?.Sick !== undefined
-          ? Number(emp.leave_balance.Sick)
-          : null;
-      const curAnnual =
-        emp.leave_balance?.Annual !== undefined
-          ? Number(emp.leave_balance.Annual)
-          : null;
-
-      if (curSick !== sickStats.remaining || curAnnual !== annStats.remaining) {
-        syncEmployeeLeaveBalance(emp.id);
-      }
-    });
-  }, [staffRequests, staffMembers]);
 
   // Filtered requests inside selected employee's ledger
   const filteredSelectedEmpRequests = selectedEmpRequests.filter((r) => {
