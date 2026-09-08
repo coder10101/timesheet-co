@@ -192,3 +192,24 @@ create policy "admins delete holidays" on holidays
     org_id is null or is_org_admin(org_id) or exists (select 1 from profiles where id = auth.uid() and role = 'admin')
   );
 
+-- ============================================================
+-- Performance Indexes (Run in Supabase SQL Editor)
+-- ============================================================
+-- Fast attendance lookup by date & employee
+create index if not exists idx_attendance_date on attendance(date desc);
+create index if not exists idx_attendance_emp_date on attendance(employee_id, date desc);
+
+-- Fast work logs lookup by project & employee date
+create index if not exists idx_work_logs_project_id on work_logs(project_id);
+create index if not exists idx_work_logs_emp_date on work_logs(employee_id, date desc);
+create index if not exists idx_work_logs_date on work_logs(date desc);
+
+-- Fast leave requests filtering
+create index if not exists idx_leave_requests_emp_status on leave_requests(employee_id, status);
+create index if not exists idx_leave_requests_status on leave_requests(status);
+create index if not exists idx_leave_requests_dates on leave_requests(start_date, end_date);
+
+-- Fast profiles lookup for RLS policy evaluation
+create index if not exists idx_profiles_org_role on profiles(org_id, role);
+
+

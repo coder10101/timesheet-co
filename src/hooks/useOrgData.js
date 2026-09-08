@@ -81,6 +81,7 @@ export function useAttendance(employeeId) {
     },
     enabled: !!employeeId,
     refetchInterval: 30000,
+    staleTime: 15000,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
@@ -378,8 +379,22 @@ export function useAttendance(employeeId) {
   };
 }
 
-export function useOrgAttendance(date) {
-  const key = ["org-attendance", date || "all"];
+export function useOrgAttendance(dateOrOptions) {
+  const isDateString = typeof dateOrOptions === "string";
+  const date = isDateString ? dateOrOptions : dateOrOptions?.date;
+  const fromDate = !isDateString ? dateOrOptions?.fromDate : null;
+  const toDate = !isDateString ? dateOrOptions?.toDate : null;
+
+  const key = [
+    "org-attendance",
+    date
+      ? `date:${date}`
+      : fromDate
+        ? `range:${fromDate}-${toDate || "latest"}`
+        : "all",
+  ];
+
+  const isTodayOnly = date === todayISO();
 
   const query = useQuery({
     queryKey: key,
@@ -391,6 +406,11 @@ export function useOrgAttendance(date) {
 
       if (date) {
         q = q.eq("date", date);
+      } else if (fromDate) {
+        q = q.gte("date", fromDate);
+        if (toDate) {
+          q = q.lte("date", toDate);
+        }
       }
 
       const { data, error } = await q;
@@ -424,7 +444,9 @@ export function useOrgAttendance(date) {
         };
       });
     },
-    refetchInterval: 30000,
+    // Live 30s poll only for today's active check-ins; 5-min cache for charts/historical ranges
+    refetchInterval: isTodayOnly ? 30000 : false,
+    staleTime: isTodayOnly ? 15000 : 1000 * 60 * 5,
   });
 
   return {
@@ -931,6 +953,7 @@ export function useRoster() {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   const employees = query.data ?? null;
@@ -959,6 +982,7 @@ export function useProjects() {
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 5,
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: key });
@@ -1014,7 +1038,7 @@ export function useOrgWorkLogs() {
       const { data, error } = await supabase
         .from("work_logs")
         .select(
-          "*, profiles!work_logs_employee_id_fkey(name, role, title), projects(name, color)",
+          "id, employee_id, project_id, date, profiles!work_logs_employee_id_fkey(name, role, title)",
         )
         .order("date", { ascending: false });
       if (error) throw error;
@@ -1028,10 +1052,9 @@ export function useOrgWorkLogs() {
           ...e,
           employeeName: e.profiles?.name,
           employeeRole: e.profiles?.role,
-          projectName: e.projects?.name,
-          projectColor: e.projects?.color,
         }));
     },
+    staleTime: 1000 * 60 * 3, // 3 minutes cache
   });
 
   return { entries: query.data ?? null, isLoading: query.isLoading };

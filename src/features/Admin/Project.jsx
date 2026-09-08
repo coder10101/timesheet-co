@@ -94,7 +94,8 @@ export function AdminProjects({ me }) {
     return map;
   }, [projects, entries, employees]);
 
-  if (projects === null || entries === null) return null;
+  const isProjectsLoading = projects === null;
+  const isEntriesLoading = entries === null;
 
   const activeProjects = (projects || []).filter(
     (p) => !p.archived && (p.status === "Active" || !p.status),
@@ -157,7 +158,7 @@ export function AdminProjects({ me }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 fade-in pb-8">
+    <div className="w-full max-w-7xl mx-auto space-y-4 fade-in pb-8">
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -184,43 +185,87 @@ export function AdminProjects({ me }) {
       )}
 
       {/* TOP 3 METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        {/* ACTIVE */}
-        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-success-light text-success border border-success/30 flex items-center justify-center text-xl font-bold font-mono">
-            {activeProjects.length}
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-text">Active</h3>
-            <p className="text-xs text-text-muted">initiatives underway</p>
-          </div>
+      {isProjectsLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4 animate-pulse"
+            >
+              <div className="w-11 h-11 rounded-2xl bg-surface-muted" />
+              <div className="space-y-1.5 flex-1">
+                <div className="h-4 w-16 bg-surface-muted rounded" />
+                <div className="h-3 w-28 bg-surface-muted rounded" />
+              </div>
+            </div>
+          ))}
         </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {/* ACTIVE */}
+          <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-success-light text-success border border-success/30 flex items-center justify-center text-xl font-bold font-mono">
+              {activeProjects.length}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-text">Active</h3>
+              <p className="text-xs text-text-muted">initiatives underway</p>
+            </div>
+          </div>
 
-        {/* ON HOLD */}
-        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-warning-light text-warning border border-warning/30 flex items-center justify-center text-xl font-bold font-mono">
-            {onHoldProjects.length}
+          {/* ON HOLD */}
+          <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-warning-light text-warning border border-warning/30 flex items-center justify-center text-xl font-bold font-mono">
+              {onHoldProjects.length}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-text">On Hold</h3>
+              <p className="text-xs text-text-muted">temporarily paused</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-text">On Hold</h3>
-            <p className="text-xs text-text-muted">temporarily paused</p>
-          </div>
-        </div>
 
-        {/* COMPLETED */}
-        <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
-          <div className="w-11 h-11 rounded-2xl bg-primary-light text-primary border border-primary/30 flex items-center justify-center text-xl font-bold font-mono">
-            {completedProjects.length}
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-text">Completed</h3>
-            <p className="text-xs text-text-muted">delivered / archived</p>
+          {/* COMPLETED */}
+          <div className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-primary-light text-primary border border-primary/30 flex items-center justify-center text-xl font-bold font-mono">
+              {completedProjects.length}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-text">Completed</h3>
+              <p className="text-xs text-text-muted">delivered / archived</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* PROJECTS GRID */}
-      {projects.length === 0 ? (
+      {isProjectsLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div
+              key={i}
+              className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs animate-pulse space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-3.5 h-3.5 rounded-full bg-surface-muted" />
+                  <div className="h-4 w-28 bg-surface-muted rounded" />
+                </div>
+                <div className="h-5 w-14 bg-surface-muted rounded-md" />
+              </div>
+              <div className="pt-3 border-t border-border-light space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="h-3 w-20 bg-surface-muted rounded" />
+                  <div className="h-3 w-12 bg-surface-muted rounded" />
+                </div>
+                <div className="flex gap-1.5 pt-0.5">
+                  <div className="h-6 w-20 bg-surface-muted rounded-lg" />
+                  <div className="h-6 w-16 bg-surface-muted rounded-lg" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : projects.length === 0 ? (
         <div className="bg-white border border-border rounded-2xl p-12 text-center text-xs text-text-muted shadow-2xs">
           <FolderKanban size={32} className="mx-auto mb-2 text-text-faint" />
           <p className="font-semibold text-text">No projects yet</p>
@@ -232,9 +277,9 @@ export function AdminProjects({ me }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {projects.map((p) => {
             const stats = projectStats.get(p.id) || {
-              memberCount: 1,
+              memberCount: 0,
               entryCount: 0,
-              status: "Active",
+              status: p.status || (p.archived ? "Completed" : "Active"),
             };
 
             return (
@@ -284,16 +329,24 @@ export function AdminProjects({ me }) {
                       <span className="flex items-center gap-1.5 font-semibold text-text">
                         <Users size={13} className="text-text-muted" />
                         <span>
-                          {stats.contributors?.length || 0} Contributor
-                          {(stats.contributors?.length || 0) !== 1 ? "s" : ""}
+                          {isEntriesLoading
+                            ? "Loading team..."
+                            : `${stats.contributors?.length || 0} Contributor${(stats.contributors?.length || 0) !== 1 ? "s" : ""}`}
                         </span>
                       </span>
                       <span className="font-mono text-[11px]">
-                        {stats.entryCount} log{stats.entryCount !== 1 ? "s" : ""}
+                        {isEntriesLoading
+                          ? "..."
+                          : `${stats.entryCount} log${stats.entryCount !== 1 ? "s" : ""}`}
                       </span>
                     </div>
 
-                    {stats.contributors && stats.contributors.length > 0 ? (
+                    {isEntriesLoading ? (
+                      <div className="flex items-center gap-1.5 pt-0.5 animate-pulse">
+                        <div className="h-6 w-20 bg-surface-muted rounded-lg border border-border-light" />
+                        <div className="h-6 w-16 bg-surface-muted rounded-lg border border-border-light" />
+                      </div>
+                    ) : stats.contributors && stats.contributors.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5 pt-0.5">
                         {stats.contributors.map((c) => (
                           <span

@@ -56,7 +56,7 @@ export function AdminTeam({ me }) {
     });
   }, [employees, search]);
 
-  if (query.isLoading || !query.data) return null;
+  const isTeamLoading = query.isLoading || !query.data;
 
   const act = async (id, isActive, name) => {
     setErr("");
@@ -74,7 +74,7 @@ export function AdminTeam({ me }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 fade-in pb-8">
+    <div className="w-full max-w-7xl mx-auto space-y-4 fade-in pb-8">
       {/* HEADER WITH VIEW TOGGLE */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -136,7 +136,26 @@ export function AdminTeam({ me }) {
       </div>
 
       {/* GRID VIEW */}
-      {viewMode === "grid" ? (
+      {isTeamLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div
+              key={i}
+              className="bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-4 animate-pulse"
+            >
+              <div className="w-11 h-11 rounded-2xl bg-surface-muted" />
+              <div className="space-y-2">
+                <div className="h-4 w-28 bg-surface-muted rounded" />
+                <div className="h-3 w-20 bg-surface-muted rounded" />
+              </div>
+              <div className="pt-2.5 border-t border-border-light flex justify-between">
+                <div className="h-5 w-16 bg-surface-muted rounded-md" />
+                <div className="h-5 w-14 bg-surface-muted rounded-md" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           {filteredEmployees.map((emp) => {
             const isMe = emp.id === me?.id;

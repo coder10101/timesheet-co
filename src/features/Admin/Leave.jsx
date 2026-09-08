@@ -115,7 +115,49 @@ export function AdminLeave({ me }) {
     });
   }, [staffRequests, staffMembers]);
 
-  if (requests === null || employees === null) return null;
+  const isLeaveLoading = requests === null || employees === null;
+
+  if (isLeaveLoading) {
+    return (
+      <div className="w-full max-w-7xl mx-auto space-y-4 fade-in pb-8 animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1.5">
+            <div className="h-6 w-48 bg-surface-muted rounded-lg" />
+            <div className="h-3.5 w-72 bg-surface-muted rounded" />
+          </div>
+          <div className="h-9 w-52 bg-surface-muted rounded-xl" />
+        </div>
+        {/* Top 4 stat cards skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="bg-white border border-border rounded-2xl p-4 shadow-2xs flex items-center justify-between"
+            >
+              <div className="space-y-2">
+                <div className="h-3 w-20 bg-surface-muted rounded" />
+                <div className="h-6 w-12 bg-surface-muted rounded" />
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-surface-muted" />
+            </div>
+          ))}
+        </div>
+        {/* Table skeleton */}
+        <div className="bg-white border border-border rounded-2xl p-5 shadow-2xs space-y-3">
+          <div className="h-4 w-36 bg-surface-muted rounded" />
+          <div className="space-y-2.5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className="h-12 w-full bg-surface-muted/40 rounded-xl"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const act = async (r, status) => {
     setActingId(r.id);
@@ -257,7 +299,7 @@ export function AdminLeave({ me }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 fade-in pb-8">
+    <div className="w-full max-w-7xl mx-auto space-y-4 fade-in pb-8">
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

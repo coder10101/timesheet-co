@@ -178,10 +178,10 @@ export function AdminWorklogs() {
     });
   }, [staffMembers, empSearch]);
 
-  if (employees === null) return null;
+  const isStaffLoading = employees === null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 fade-in">
+    <div className="w-full max-w-7xl mx-auto space-y-4 fade-in pb-8">
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -216,43 +216,90 @@ export function AdminWorklogs() {
           </div>
 
           <div className="space-y-1 max-h-[600px] overflow-y-auto pr-0.5">
-            {filteredEmployees.map((emp) => {
-              const isSelected = emp.id === selected;
-
-              return (
-                <button
-                  key={emp.id}
-                  onClick={() => setSelectedId(emp.id)}
-                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-primary-light/60 border-2 border-primary shadow-xs"
-                      : "hover:bg-surface-muted/60 border border-transparent"
-                  }`}
-                >
+            {isStaffLoading ? (
+              <div className="space-y-2 p-1">
+                {[1, 2, 3, 4, 5, 6, 7].map((i) => (
                   <div
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[11px] font-bold shrink-0 shadow-xs"
-                    style={{ backgroundColor: getEmployeeColor(emp) }}
+                    key={i}
+                    className="flex items-center gap-3 p-2.5 rounded-xl border border-border-light bg-surface-muted/30 animate-pulse"
                   >
-                    {emp.name?.slice(0, 2).toUpperCase()}
+                    <div className="w-8 h-8 rounded-xl bg-surface-muted shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 w-28 bg-surface-muted rounded" />
+                      <div className="h-2.5 w-20 bg-surface-muted rounded" />
+                    </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              filteredEmployees.map((emp) => {
+                const isSelected = emp.id === selected;
 
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-xs font-bold text-text truncate">{emp.name}</h4>
-                    <p className="text-[10px] text-text-muted truncate capitalize">
-                      {emp.department || emp.title || emp.role || "Engineering"}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={emp.id}
+                    onClick={() => setSelectedId(emp.id)}
+                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-primary-light/60 border-2 border-primary shadow-xs"
+                        : "hover:bg-surface-muted/60 border border-transparent"
+                    }`}
+                  >
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-[11px] font-bold shrink-0 shadow-xs"
+                      style={{ backgroundColor: getEmployeeColor(emp) }}
+                    >
+                      {emp.name?.slice(0, 2).toUpperCase()}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-text truncate">
+                        {emp.name}
+                      </h4>
+                      <p className="text-[10px] text-text-muted truncate capitalize">
+                        {emp.department || emp.title || emp.role || "Engineering"}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
 
         {/* RIGHT COLUMN: WORK LOGS TIMELINE */}
         <div className="lg:col-span-8 space-y-3.5">
-          {/* EMPLOYEE HEADER & MONTH DROPDOWN */}
-          {employee && (
-            <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {isStaffLoading ? (
+            <div className="space-y-3.5 animate-pulse">
+              <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-surface-muted" />
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-36 bg-surface-muted rounded" />
+                    <div className="h-3 w-24 bg-surface-muted rounded" />
+                  </div>
+                </div>
+                <div className="h-8 w-28 bg-surface-muted rounded-xl" />
+              </div>
+              <div className="bg-white border border-border rounded-2xl p-5 shadow-2xs space-y-3">
+                <div className="h-4 w-32 bg-surface-muted rounded" />
+                <div className="h-20 w-full bg-surface-muted/40 rounded-xl" />
+                <div className="h-20 w-full bg-surface-muted/40 rounded-xl" />
+              </div>
+            </div>
+          ) : !employee ? (
+            <div className="bg-white border border-border rounded-2xl p-12 text-center text-xs text-text-muted shadow-2xs">
+              <User size={32} className="mx-auto mb-2 text-text-faint" />
+              <p className="font-semibold text-text">No team member selected</p>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                Select an employee from the left panel to inspect their work logs
+                and accomplishments.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* EMPLOYEE HEADER & MONTH DROPDOWN */}
+              <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0 shadow-xs"
@@ -295,7 +342,6 @@ export function AdminWorklogs() {
                 </select>
               </div>
             </div>
-          )}
 
           {/* WORK TYPE FILTER TABS: ALL vs DESK WORK vs SITE VISITS */}
           <div className="flex flex-wrap items-center justify-between gap-2.5 bg-white border border-border rounded-2xl p-2.5 sm:px-3.5 shadow-2xs">
@@ -541,7 +587,9 @@ export function AdminWorklogs() {
                     </div>
                   );
                 })}
-            </div>
+              </div>
+            )}
+            </>
           )}
         </div>
       </div>

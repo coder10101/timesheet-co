@@ -11,6 +11,7 @@ import {
   todayISO,
   formatDuration,
   getWorkedMinutes,
+  getWeekDates,
 } from "../../utils/workTime";
 import {
   isoToBSLabel,
@@ -18,6 +19,7 @@ import {
   NEPALI_MONTHS,
   WEEKDAY_LABELS,
   isoToBS,
+  bsDateToISO,
 } from "../../utils/nepaliCalendar";
 import {
   isLateClockIn,
@@ -48,13 +50,26 @@ import { EditOfficeHoursModal } from "./EditOfficeHoursModal";
 
 export function AdminOverview({ me }) {
   const officeHours = useOfficeHours();
+  const today = todayISO();
+  const todayBS = getTodayBS();
+  const isWeekend = getWeekday(today) === 6;
+
+  const earliestChartDate = useMemo(() => {
+    const monthStart = bsDateToISO(todayBS.year, todayBS.month, 1);
+    const weekDates = getWeekDates(today);
+    const weekStart = weekDates[0];
+    return monthStart < weekStart ? monthStart : weekStart;
+  }, [today, todayBS.year, todayBS.month]);
+
   const { employees } = useRoster();
   const { requests: allLeave, decide: decideLeave } = useLeaveRequests(
     null,
     "org",
   );
-  const { records: todayAttendance } = useOrgAttendance(todayISO());
-  const { records: allOrgAttendance } = useOrgAttendance(null);
+  const { records: todayAttendance } = useOrgAttendance(today);
+  const { records: allOrgAttendance } = useOrgAttendance({
+    fromDate: earliestChartDate,
+  });
   const { holidays } = useHolidays();
 
   const [actingLeaveId, setActingLeaveId] = useState(null);
@@ -62,10 +77,6 @@ export function AdminOverview({ me }) {
   const [teamSearch, setTeamSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "Present" | "Late" | "On Leave" | "Absent"
   const [showHoursModal, setShowHoursModal] = useState(false);
-
-  const today = todayISO();
-  const todayBS = getTodayBS();
-  const isWeekend = getWeekday(today) === 6;
 
   // Trackable staff: exclude admins from absence counting
   // Trackable staff: exclude admins from attendance tracking
@@ -222,7 +233,69 @@ export function AdminOverview({ me }) {
     });
   }, [horizonDates, today, trackableEmployees, allLeave, holidays]);
 
-  if (employees === null || allLeave === null) return null;
+  const isLoading = employees === null || allLeave === null;
+
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-7xl mx-auto space-y-4 fade-in pb-8 animate-pulse">
+        {/* Top header skeleton */}
+        <div className="bg-white border border-border rounded-2xl px-4 py-3 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-24 bg-surface-muted rounded-lg" />
+            <div className="h-6 w-36 bg-surface-muted rounded-lg" />
+          </div>
+          <div className="flex gap-2">
+            <div className="h-7 w-20 bg-surface-muted rounded-lg" />
+            <div className="h-7 w-20 bg-surface-muted rounded-lg" />
+            <div className="h-7 w-28 bg-surface-muted rounded-lg" />
+          </div>
+        </div>
+
+        {/* Shift banner skeleton */}
+        <div className="bg-white border border-border rounded-2xl px-4 py-3 shadow-2xs flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-surface-muted" />
+            <div className="space-y-1.5">
+              <div className="h-3 w-28 bg-surface-muted rounded" />
+              <div className="h-3.5 w-48 bg-surface-muted rounded" />
+            </div>
+          </div>
+          <div className="h-8 w-32 bg-surface-muted rounded-xl" />
+        </div>
+
+        {/* 2-column grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          <div className="lg:col-span-7 space-y-3">
+            <div className="bg-white border border-border rounded-2xl p-5 shadow-2xs h-64 space-y-3">
+              <div className="h-4 w-32 bg-surface-muted rounded" />
+              <div className="h-48 w-full bg-surface-muted/50 rounded-xl" />
+            </div>
+            <div className="bg-white border border-border rounded-2xl p-5 shadow-2xs h-64 space-y-3">
+              <div className="h-4 w-32 bg-surface-muted rounded" />
+              <div className="h-48 w-full bg-surface-muted/50 rounded-xl" />
+            </div>
+          </div>
+          <div className="lg:col-span-5 bg-white border border-border rounded-2xl p-4 shadow-2xs space-y-3">
+            <div className="h-5 w-32 bg-surface-muted rounded" />
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 p-2 rounded-xl bg-surface-muted/40"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-surface-muted shrink-0" />
+                  <div className="flex-1 space-y-1">
+                    <div className="h-3 w-24 bg-surface-muted rounded" />
+                    <div className="h-2.5 w-16 bg-surface-muted rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const pendingLeave = allLeave.filter((r) => r.status === "Pending");
 
@@ -289,7 +362,7 @@ export function AdminOverview({ me }) {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-4 fade-in pb-8">
+    <div className="w-full max-w-7xl mx-auto space-y-4 fade-in pb-8">
       {/* 1. TOP HEADER & ATTENDANCE STATUS BAR (ONE-LINER) */}
       <div className="bg-white border border-border rounded-2xl px-4 py-2.5 shadow-2xs flex flex-wrap lg:flex-nowrap items-center justify-between gap-3">
         {/* LEFT SIDE: OVERVIEW & DATE WITH FULL DAY NAME */}
@@ -480,7 +553,7 @@ export function AdminOverview({ me }) {
               {/* FILTER PILLS */}
               <div className="flex flex-wrap items-center gap-1 text-[10px]">
                 {[
-                  { id: "all", label: `All (${employees.length})` },
+                  { id: "all", label: `All (${employees?.length || 0})` },
                   { id: "Present", label: `Present (${onTimeCount})` },
                   { id: "On Break", label: `On Break (${onBreakCount})` },
                   { id: "Late", label: `Late (${lateCount})` },
