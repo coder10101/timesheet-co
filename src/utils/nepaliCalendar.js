@@ -107,13 +107,13 @@ export function isoToBS(iso) {
   if (!iso || !String(iso).trim()) return null;
   const clean = String(iso).trim();
 
-  // 1. Bikram Sambat YYYY/MM/DD or YYYY-MM-DD (year between 2000 and 2150)
+  // 1. Bikram Sambat YYYY/MM/DD or YYYY-MM-DD (BS years: 2070 to 2120)
   const bsMatch = clean.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
   if (bsMatch) {
     const y = parseInt(bsMatch[1], 10);
     const m = parseInt(bsMatch[2], 10);
     const d = parseInt(bsMatch[3], 10);
-    if (y >= 2000 && y <= 2150 && m >= 1 && m <= 12) {
+    if (y >= 2070 && y <= 2120 && m >= 1 && m <= 12 && d >= 1 && d <= 32) {
       return { year: y, month: m, day: d };
     }
   }

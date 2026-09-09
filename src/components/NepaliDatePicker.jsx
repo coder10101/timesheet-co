@@ -229,7 +229,7 @@ export function NepaliDatePicker({
               className="text-primary hover:text-primary-dark font-semibold transition-colors flex items-center gap-1"
             >
               <Sparkles size={11} />
-              <span>Today ({isoToBSLabel(todayISO)})</span>
+              <span>Today ({todayBS.day} {NEPALI_MONTHS[todayBS.month - 1]}, {todayBS.year})</span>
             </button>
 
             <button
