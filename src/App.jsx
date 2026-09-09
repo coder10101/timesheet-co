@@ -14,6 +14,9 @@ import { AdminTeam } from "./features/Admin/Team";
 import { AdminCalendar } from "./features/Admin/Calendar";
 import { EmployeeOverview } from "./features/Employee/Overview";
 import { EmployeeCalendar } from "./features/Employee/Calendar";
+import { EmployeeProjects } from "./features/Employee/Project";
+import { ProjectDetails } from "./features/Projects/ProjectDetails";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
   return (
@@ -68,43 +71,57 @@ function Root() {
   const isAdmin = profile.role === "admin";
 
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard me={profile} onLogout={signOut} />}>
-        <Route index element={<Navigate to="overview" replace />} />
-        {!isAdmin && (
-          <>
-            <Route
-              path="overview"
-              element={<EmployeeOverview me={profile} />}
-            />
-            <Route
-              path="attendance"
-              element={<EmployeeAttendance me={profile} />}
-            />
-            <Route path="worklog" element={<EmployeeWorklog me={profile} />} />
-            <Route path="leave" element={<EmployeeLeave me={profile} />} />
-            <Route
-              path="calendar"
-              element={<EmployeeCalendar me={profile} />}
-            />
-          </>
-        )}
-        {isAdmin && (
-          <>
-            <Route path="overview" element={<AdminOverview me={profile} />} />
-            <Route path="attendance" element={<AdminAttendance />} />
-            <Route
-              path="leave-approvals"
-              element={<AdminLeave me={profile} />}
-            />
-            <Route path="worklogs" element={<AdminWorklogs />} />
-            <Route path="projects" element={<AdminProjects me={profile} />} />
-            <Route path="team" element={<AdminTeam me={profile} />} />
-            <Route path="calendar" element={<AdminCalendar me={profile} />} />
-          </>
-        )}
-        <Route path="*" element={<Navigate to="overview" replace />} />
-      </Route>
-    </Routes>
+    <ErrorBoundary>
+      <Routes>
+        <Route path="/" element={<Dashboard me={profile} onLogout={signOut} />}>
+          <Route index element={<Navigate to="/overview" replace />} />
+          {!isAdmin && (
+            <>
+              <Route
+                path="overview"
+                element={<EmployeeOverview me={profile} />}
+              />
+              <Route
+                path="attendance"
+                element={<EmployeeAttendance me={profile} />}
+              />
+              <Route path="worklog" element={<EmployeeWorklog me={profile} />} />
+              <Route
+                path="projects"
+                element={<EmployeeProjects me={profile} />}
+              />
+              <Route
+                path="projects/:projectId"
+                element={<ProjectDetails me={profile} />}
+              />
+              <Route path="leave" element={<EmployeeLeave me={profile} />} />
+              <Route
+                path="calendar"
+                element={<EmployeeCalendar me={profile} />}
+              />
+            </>
+          )}
+          {isAdmin && (
+            <>
+              <Route path="overview" element={<AdminOverview me={profile} />} />
+              <Route path="attendance" element={<AdminAttendance />} />
+              <Route
+                path="leave-approvals"
+                element={<AdminLeave me={profile} />}
+              />
+              <Route path="worklogs" element={<AdminWorklogs />} />
+              <Route path="projects" element={<AdminProjects me={profile} />} />
+              <Route
+                path="projects/:projectId"
+                element={<ProjectDetails me={profile} />}
+              />
+              <Route path="team" element={<AdminTeam me={profile} />} />
+              <Route path="calendar" element={<AdminCalendar me={profile} />} />
+            </>
+          )}
+          <Route path="*" element={<Navigate to="/overview" replace />} />
+        </Route>
+      </Routes>
+    </ErrorBoundary>
   );
 }

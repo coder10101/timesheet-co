@@ -11,6 +11,18 @@ import {
 } from "../utils/nepaliCalendar";
 import { fmtDate, todayISO as getTodayISO } from "../utils/workTime";
 
+function parseSafeBS(val, fallbackBS) {
+  const safeFallback = fallbackBS || { year: 2081, month: 1 };
+  if (!val || typeof val !== "string" || !val.trim()) {
+    return { year: safeFallback.year || 2081, month: safeFallback.month || 1 };
+  }
+  const parsed = isoToBS(val);
+  if (parsed && typeof parsed.year === "number" && typeof parsed.month === "number") {
+    return { year: parsed.year, month: parsed.month };
+  }
+  return { year: safeFallback.year || 2081, month: safeFallback.month || 1 };
+}
+
 export function NepaliDatePicker({
   value,
   onChange,
@@ -19,25 +31,42 @@ export function NepaliDatePicker({
   max,
   className = "",
   align = "left",
+  dropUp = false,
 }) {
   const todayBS = useMemo(() => getTodayBS(), []);
   const todayISO = getTodayISO();
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
 
-  const [view, setView] = useState(() =>
-    value ? isoToBS(value) : { year: todayBS.year, month: todayBS.month },
-  );
+  const [view, setView] = useState(() => parseSafeBS(value, todayBS));
+  const [shouldDropUp, setShouldDropUp] = useState(dropUp);
 
   // Sync view when value changes externally
   useEffect(() => {
     if (value) {
-      const bs = isoToBS(value);
-      if (bs) {
-        setView({ year: bs.year, month: bs.month });
+      const bs = parseSafeBS(value, todayBS);
+      setView(bs);
+    }
+  }, [value, todayBS]);
+
+  // Determine dropUp based on space below vs above
+  useEffect(() => {
+    if (open && containerRef.current) {
+      if (dropUp) {
+        setShouldDropUp(true);
+        return;
+      }
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Calendar popup needs ~320px
+      if (spaceBelow < 340 && spaceAbove > 300) {
+        setShouldDropUp(true);
+      } else {
+        setShouldDropUp(false);
       }
     }
-  }, [value]);
+  }, [open, dropUp]);
 
   // Close on outside click
   useEffect(() => {
@@ -57,7 +86,14 @@ export function NepaliDatePicker({
     };
   }, [open]);
 
-  const weeks = useMemo(() => buildMonthGrid(view.year, view.month), [view]);
+  const currentYear = view?.year || todayBS?.year || 2081;
+  const currentMonth = view?.month || todayBS?.month || 1;
+
+  const weeks = useMemo(() => {
+    return buildMonthGrid(currentYear, currentMonth);
+  }, [currentYear, currentMonth]);
+
+  const selectedBS = useMemo(() => (value ? isoToBS(value) : null), [value]);
 
   const selectDay = (isoDate) => {
     if (min && isoDate < min) return;
@@ -91,7 +127,9 @@ export function NepaliDatePicker({
 
       {open && (
         <div
-          className={`absolute z-30 mt-1.5 bg-white border border-border rounded-2xl shadow-lg p-3.5 w-[calc(100vw-2.5rem)] sm:w-72 max-w-xs fade-in ${
+          className={`absolute z-50 bg-white border border-border rounded-2xl shadow-2xl p-3.5 w-[calc(100vw-2.5rem)] sm:w-72 max-w-xs fade-in ${
+            shouldDropUp ? "bottom-full mb-2" : "top-full mt-1.5"
+          } ${
             align === "right" ? "right-0" : "left-0"
           }`}
         >
@@ -99,7 +137,7 @@ export function NepaliDatePicker({
           <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-border-light">
             <button
               type="button"
-              onClick={() => setView(addMonths(view.year, view.month, -1))}
+              onClick={() => setView(addMonths(currentYear, currentMonth, -1))}
               className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted transition-colors"
               title="Previous month"
             >
@@ -108,14 +146,14 @@ export function NepaliDatePicker({
 
             <div className="text-center">
               <span className="text-xs font-bold text-text">
-                {NEPALI_MONTHS[view.month - 1]} {view.year}
+                {NEPALI_MONTHS[currentMonth - 1]} {currentYear}
               </span>
               <span className="block text-[9px] text-text-muted">Bikram Sambat</span>
             </div>
 
             <button
               type="button"
-              onClick={() => setView(addMonths(view.year, view.month, 1))}
+              onClick={() => setView(addMonths(currentYear, currentMonth, 1))}
               className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface-muted transition-colors"
               title="Next month"
             >
@@ -145,7 +183,12 @@ export function NepaliDatePicker({
               }
 
               const isToday = cell.isoDate === todayISO;
-              const isSelected = cell.isoDate === value;
+              const isSelected =
+                cell.isoDate === value ||
+                (selectedBS &&
+                  selectedBS.year === currentYear &&
+                  selectedBS.month === currentMonth &&
+                  selectedBS.day === cell.bsDay);
               const isDisabled =
                 (min && cell.isoDate < min) || (max && cell.isoDate > max);
               const isSaturday = cell.isWeekend;
@@ -192,7 +235,7 @@ export function NepaliDatePicker({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-text-muted hover:text-text font-medium"
+              className="text-text-muted hover:text-text font-medium cursor-pointer"
             >
               Close
             </button>

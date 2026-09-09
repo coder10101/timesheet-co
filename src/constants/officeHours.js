@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, createElement } from "react";
 import { useOrganization } from "../hooks/useOrgData";
+import { getProjectConfig } from "./projectPresets";
 
 /**
  * Default office configuration for this company.
@@ -120,12 +121,20 @@ export const HALF_DAY_MID_TIME_AMPM = DEFAULT_SCHEDULE.halfDayMidTimeAmPm;
 export const OfficeHoursContext = createContext(DEFAULT_SCHEDULE);
 
 export function OfficeHoursProvider({ orgId, children }) {
-  const { organization, updateOfficeHours, isLoading } = useOrganization(orgId);
+  const { organization, updateOfficeHours, updateProjectConfig, isLoading } = useOrganization(orgId);
 
   const schedule = useMemo(() => {
     const rawOfficeHours = organization?.office_hours;
     return computeOfficeSchedule(rawOfficeHours);
   }, [organization?.office_hours]);
+
+  const projectConfig = useMemo(() => {
+    const raw =
+      organization?.office_hours?.projectConfig ||
+      organization?.settings?.projectConfig ||
+      {};
+    return getProjectConfig(raw);
+  }, [organization?.office_hours?.projectConfig, organization?.settings?.projectConfig]);
 
   const value = useMemo(
     () => ({
@@ -134,8 +143,18 @@ export function OfficeHoursProvider({ orgId, children }) {
       organizationName: organization?.name || "Organization",
       isLoadingOrg: isLoading,
       updateOfficeHours,
+      projectConfig,
+      updateProjectConfig,
     }),
-    [schedule, orgId, organization?.name, isLoading, updateOfficeHours],
+    [
+      schedule,
+      orgId,
+      organization?.name,
+      isLoading,
+      updateOfficeHours,
+      projectConfig,
+      updateProjectConfig,
+    ],
   );
 
   return createElement(OfficeHoursContext.Provider, { value }, children);

@@ -212,4 +212,53 @@ create index if not exists idx_leave_requests_dates on leave_requests(start_date
 -- Fast profiles lookup for RLS policy evaluation
 create index if not exists idx_profiles_org_role on profiles(org_id, role);
 
+-- ---------- projects ----------
+create table if not exists projects (
+  id uuid primary key default uuid_generate_v4(),
+  org_id uuid references organizations(id) on delete cascade default '00000000-0000-0000-0000-000000000001',
+  name text not null,
+  color text default '#63537E',
+  archived boolean default false,
+  status text default 'Active',
+  lead_architect_id uuid references profiles(id) on delete set null,
+  sub_architect_ids jsonb default '[]'::jsonb,
+  project_work text,
+  current_stage text,
+  project_type text,
+  start_date text,
+  end_date text,
+  progress integer default 0,
+  updated_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+alter table projects enable row level security;
+
+drop policy if exists "anyone in org reads projects" on projects;
+create policy "anyone in org reads projects" on projects
+  for select using (
+    exists (select 1 from profiles p where p.id = auth.uid() and p.org_id = projects.org_id)
+    or org_id is null
+  );
+
+drop policy if exists "admins insert projects" on projects;
+create policy "admins insert projects" on projects
+  for insert with check (
+    exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin' and p.org_id = projects.org_id)
+    or exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
+  );
+
+drop policy if exists "admins and employees update projects" on projects;
+create policy "admins and employees update projects" on projects
+  for update using (
+    exists (select 1 from profiles p where p.id = auth.uid() and p.org_id = projects.org_id)
+    or org_id is null
+  );
+
+drop policy if exists "admins delete projects" on projects;
+create policy "admins delete projects" on projects
+  for delete using (
+    exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
+  );
+
 

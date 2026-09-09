@@ -536,7 +536,7 @@ export function EmployeeWorklog({ me }) {
                 <option value="">No Project</option>
                 {activeProjects.map((project) => (
                   <option key={project.id} value={project.id}>
-                    {project.name}
+                    {project.name}{project.current_stage ? ` • [${project.current_stage}]` : ""}
                   </option>
                 ))}
               </select>
@@ -591,6 +591,27 @@ export function EmployeeWorklog({ me }) {
             </button>
           </div>
         </div>
+
+        {/* Selected Project Milestone Context */}
+        {projectId && (() => {
+          const sel = activeProjects.find((p) => p.id === projectId);
+          if (!sel || (!sel.current_stage && !sel.deadline)) return null;
+          return (
+            <div className="flex items-center gap-2 pt-2 border-t border-border-light text-[11px] text-text-muted">
+              <span className="font-semibold text-text">Project Milestone:</span>
+              {sel.current_stage && (
+                <span className="px-2 py-0.5 rounded-md bg-surface-muted border border-border-light font-semibold text-text">
+                  Stage: {sel.current_stage}
+                </span>
+              )}
+              {sel.deadline && (
+                <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+                  Target Deadline: {sel.deadline}
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* FILTER & ACCORDION CONTROLS (ABOVE HISTORY) */}
@@ -649,7 +670,7 @@ export function EmployeeWorklog({ me }) {
             <option value="none">No Project</option>
             {activeProjects.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {p.name}{p.current_stage ? ` • [${p.current_stage}]` : ""}
               </option>
             ))}
           </select>

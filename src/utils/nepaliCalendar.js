@@ -104,26 +104,54 @@ export function getCurrentBSMonthInfo() {
 }
 
 export function isoToBS(iso) {
-  if (!iso) return null;
+  if (!iso || !String(iso).trim()) return null;
+  const clean = String(iso).trim();
+
+  // 1. Bikram Sambat YYYY/MM/DD or YYYY-MM-DD (year between 2000 and 2150)
+  const bsMatch = clean.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (bsMatch) {
+    const y = parseInt(bsMatch[1], 10);
+    const m = parseInt(bsMatch[2], 10);
+    const d = parseInt(bsMatch[3], 10);
+    if (y >= 2000 && y <= 2150 && m >= 1 && m <= 12) {
+      return { year: y, month: m, day: d };
+    }
+  }
+
+  // 2. Shorthand M/D (e.g. 7/26)
+  const shortMatch = clean.match(/^(\d{1,2})[/-](\d{1,2})$/);
+  if (shortMatch) {
+    const m = parseInt(shortMatch[1], 10);
+    const d = parseInt(shortMatch[2], 10);
+    if (m >= 1 && m <= 12) {
+      const curYear = getTodayBS().year || 2081;
+      return { year: curYear, month: m, day: d };
+    }
+  }
+
+  // 3. Standard Gregorian ISO string YYYY-MM-DD
   try {
-    const cleanIso = String(iso).slice(0, 10);
-    return bs.toBik(cleanIso);
+    const cleanIso = clean.slice(0, 10);
+    const res = bs.toBik(cleanIso);
+    if (res && typeof res.year === "number" && typeof res.month === "number") {
+      return res;
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 export function isoToBSLabel(iso) {
-  if (!iso) return "—";
-  try {
-    const cleanIso = String(iso).slice(0, 10);
-    const d = bs.toBik(cleanIso);
-    if (!d || !d.year) return iso;
-    return `${d.day} ${NEPALI_MONTHS[d.month - 1]}, ${d.year}`;
-  } catch {
-    return iso;
+  if (!iso || !String(iso).trim()) return "—";
+  const d = isoToBS(iso);
+  if (d && d.year && d.month && d.day) {
+    const monthName = NEPALI_MONTHS[d.month - 1] || `Month ${d.month}`;
+    return `${d.day} ${monthName}, ${d.year}`;
   }
+  return String(iso);
 }
+
 
 export function getDaysInBSMonth(year, month) {
   return bs.daysInMonth(year, month);

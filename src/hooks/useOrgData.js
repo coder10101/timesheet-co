@@ -971,41 +971,603 @@ export function useProjects() {
   const qc = useQueryClient();
   const key = ["projects"];
 
+  // Check whether the Supabase projects table has the required extended columns
+  const checkColumnsQuery = useQuery({
+    queryKey: ["projects-db-columns-check"],
+    queryFn: async () => {
+      try {
+        const { error } = await supabase
+          .from("projects")
+          .select("end_date")
+          .limit(1);
+        if (error && (error.code === "42703" || error.message?.includes("column"))) {
+          return true; // Migration IS required
+        }
+        return false; // Database columns are present
+      } catch {
+        return false;
+      }
+    },
+    staleTime: 1000 * 30,
+  });
+
   const query = useQuery({
     queryKey: key,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: projData, error: projErr } = await supabase
         .from("projects")
         .select("*")
         .order("archived", { ascending: true })
         .order("name", { ascending: true });
-      if (error) throw error;
-      return data;
+      if (projErr) throw projErr;
+
+      // Also retrieve extended project metadata from organization office_hours as temporary bridge
+      let projectMeta = {};
+      try {
+        const { data: orgData } = await supabase
+          .from("organizations")
+          .select("id, office_hours")
+          .limit(1)
+          .maybeSingle();
+        if (orgData?.office_hours?.project_meta) {
+          projectMeta = orgData.office_hours.project_meta;
+        }
+      } catch (e) {
+        console.warn("Notice: could not read office_hours.project_meta", e);
+      }
+
+      // Map projects directly from database table rows (no hardcoded template merging!)
+      const merged = (projData || []).map((p) => {
+        const normName = (p.name || "").trim().toLowerCase();
+        const meta = projectMeta[p.id] || projectMeta[normName] || {};
+        const targetEndDate = p.end_date ?? meta.end_date ?? p.deadline ?? meta.deadline ?? "";
+
+        return {
+          ...p,
+          lead_architect_id: p.lead_architect_id ?? meta.lead_architect_id ?? null,
+          sub_architect_ids: Array.isArray(p.sub_architect_ids)
+            ? p.sub_architect_ids
+            : meta.sub_architect_ids ?? [],
+          project_work: p.project_work ?? meta.project_work ?? "",
+          current_stage: p.current_stage ?? meta.current_stage ?? "",
+          project_type: p.project_type ?? meta.project_type ?? "",
+          start_date: p.start_date ?? meta.start_date ?? "",
+          end_date: targetEndDate,
+          deadline: targetEndDate, // backward-compatible alias for UI components
+          status: p.status ?? meta.status ?? (p.archived ? "Completed" : "Active"),
+          activity_history:
+            Array.isArray(p.activity_history) && p.activity_history.length > 0
+              ? p.activity_history
+              : Array.isArray(meta.activity_history)
+              ? meta.activity_history
+              : [],
+        };
+      });
+
+      return merged;
     },
     staleTime: 1000 * 60 * 5,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: key });
+    qc.invalidateQueries({ queryKey: ["organization"] });
+  };
+
+  // Helper to persist extended fields into organization's office_hours.project_meta
+  const saveProjectMetaFallback = async (projectIdOrName, fields, orgId) => {
+    try {
+      let orgQuery = supabase.from("organizations").select("id, office_hours");
+      if (orgId) orgQuery = orgQuery.eq("id", orgId);
+      const { data: orgData } = await orgQuery.limit(1).maybeSingle();
+
+      if (orgData) {
+        const currentMeta = orgData.office_hours?.project_meta || {};
+        const updatedMeta = {
+          ...currentMeta,
+          [projectIdOrName]: {
+            ...(currentMeta[projectIdOrName] || {}),
+            ...fields,
+          },
+        };
+        await supabase
+          .from("organizations")
+          .update({
+            office_hours: {
+              ...(orgData.office_hours || {}),
+              project_meta: updatedMeta,
+            },
+          })
+          .eq("id", orgData.id);
+      }
+    } catch (err) {
+      console.warn("Could not save to project_meta fallback:", err);
+    }
+  };
 
   const createProject = useMutation({
-    mutationFn: async ({ name, color, orgId }) => {
-      const { error } = await supabase
-        .from("projects")
-        .insert({ name, color, org_id: orgId });
-      if (error) throw error;
+    mutationFn: async ({ orgId, actor, ...fields }) => {
+      const initialHistory = [
+        {
+          id: `act_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          type: "created",
+          title: "Project created",
+          description: `Project initialized${
+            fields.current_stage ? ` at stage "${fields.current_stage}"` : ""
+          }${
+            fields.end_date || fields.deadline
+              ? ` with deadline ${fields.end_date || fields.deadline}`
+              : ""
+          }`,
+          user_id: actor?.id || fields.user_id || null,
+          user_name: actor?.name || fields.user_name || "Project Administrator",
+          user_role: actor?.role || null,
+          created_at: new Date().toISOString(),
+        },
+      ];
+
+      const payload = {
+        name: fields.name,
+        color: fields.color,
+        status: fields.status || "Active",
+        lead_architect_id: fields.lead_architect_id || null,
+        sub_architect_ids: Array.isArray(fields.sub_architect_ids) ? fields.sub_architect_ids : [],
+        project_work: fields.project_work || "",
+        current_stage: fields.current_stage || "",
+        project_type: fields.project_type || "",
+        start_date: fields.start_date || "",
+        end_date: fields.end_date || fields.deadline || "",
+        progress: Number(fields.progress) || 0,
+        activity_history: initialHistory,
+        updated_at: new Date().toISOString(),
+        org_id: orgId,
+      };
+      try {
+        const { data, error } = await supabase
+          .from("projects")
+          .insert(payload)
+          .select()
+          .single();
+        if (error) throw error;
+        if (data?.id) {
+          await saveProjectMetaFallback(data.id, { ...fields, activity_history: initialHistory }, orgId);
+        }
+        return data;
+      } catch (err) {
+        if (err.code === "42703" || err.message?.includes("column")) {
+          console.warn("Falling back to core fields + project_meta:", err.message);
+          const corePayload = {
+            name: fields.name,
+            color: fields.color,
+            org_id: orgId,
+          };
+          const { data, error } = await supabase
+            .from("projects")
+            .insert(corePayload)
+            .select()
+            .single();
+          if (error) throw error;
+          if (data?.id) {
+            await saveProjectMetaFallback(data.id, { ...fields, activity_history: initialHistory }, orgId);
+          }
+          return { ...data, ...fields, activity_history: initialHistory };
+        }
+        throw err;
+      }
     },
     onSuccess: invalidate,
   });
 
   const updateProject = useMutation({
-    mutationFn: async ({ id, name, color }) => {
-      const { error } = await supabase
-        .from("projects")
-        .update({ name, color })
-        .eq("id", id);
+    mutationFn: async ({ id, actor, activityRecords, ...fields }) => {
+      const currentProjects = qc.getQueryData(key) || [];
+      const existing = currentProjects.find((p) => String(p.id) === String(id));
+
+      const payload = {};
+      if (fields.name !== undefined) payload.name = fields.name;
+      if (fields.color !== undefined) payload.color = fields.color;
+      if (fields.status !== undefined) payload.status = fields.status;
+      if (fields.archived !== undefined) payload.archived = fields.archived;
+      if (fields.lead_architect_id !== undefined) payload.lead_architect_id = fields.lead_architect_id;
+      if (fields.sub_architect_ids !== undefined) payload.sub_architect_ids = fields.sub_architect_ids;
+      if (fields.project_work !== undefined) payload.project_work = fields.project_work;
+      if (fields.current_stage !== undefined) payload.current_stage = fields.current_stage;
+      if (fields.project_type !== undefined) payload.project_type = fields.project_type;
+      if (fields.start_date !== undefined) payload.start_date = fields.start_date;
+      if (fields.end_date !== undefined) payload.end_date = fields.end_date;
+      else if (fields.deadline !== undefined) payload.end_date = fields.deadline;
+      if (fields.progress !== undefined) payload.progress = Number(fields.progress) || 0;
+
+      const targetEndDate = fields.end_date !== undefined ? fields.end_date : fields.deadline;
+
+      const newActivities = Array.isArray(activityRecords)
+        ? [...activityRecords]
+        : Array.isArray(fields.activity_history)
+        ? [...fields.activity_history]
+        : [];
+      const authorName = actor?.name || fields.user_name || "Team Member";
+      const authorId = actor?.id || null;
+      const authorRole = actor?.role || null;
+      const nowISO = new Date().toISOString();
+
+      if (newActivities.length === 0 && existing) {
+        if (fields.current_stage !== undefined && fields.current_stage !== existing.current_stage) {
+          newActivities.push({
+            id: `act_${Date.now()}_stage_${Math.random().toString(36).slice(2, 6)}`,
+            type: "stage_change",
+            title: `Stage changed to ${fields.current_stage}`,
+            description: existing.current_stage
+              ? `Stage changed from "${existing.current_stage}" to "${fields.current_stage}"`
+              : `Stage set to "${fields.current_stage}"`,
+            old_value: existing.current_stage || "",
+            new_value: fields.current_stage,
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+        if (targetEndDate !== undefined && targetEndDate !== (existing.end_date || existing.deadline)) {
+          newActivities.push({
+            id: `act_${Date.now()}_deadline_${Math.random().toString(36).slice(2, 6)}`,
+            type: "deadline_change",
+            title: targetEndDate ? `Target deadline updated` : `Deadline cleared`,
+            description: targetEndDate
+              ? (existing.end_date ? `Deadline changed from ${existing.end_date} to ${targetEndDate}` : `Target deadline scheduled for ${targetEndDate}`)
+              : `Removed target deadline`,
+            old_value: existing.end_date || existing.deadline || "",
+            new_value: targetEndDate || "",
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+        if (fields.start_date !== undefined && fields.start_date !== existing.start_date) {
+          newActivities.push({
+            id: `act_${Date.now()}_start_${Math.random().toString(36).slice(2, 6)}`,
+            type: "start_date_change",
+            title: fields.start_date ? `Start date set to ${fields.start_date}` : `Start date cleared`,
+            description: `Start date updated`,
+            old_value: existing.start_date || "",
+            new_value: fields.start_date || "",
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+        if (fields.status !== undefined && fields.status !== existing.status) {
+          newActivities.push({
+            id: `act_${Date.now()}_status_${Math.random().toString(36).slice(2, 6)}`,
+            type: "status_change",
+            title: `Status changed to ${fields.status}`,
+            description: existing.status ? `Status changed from "${existing.status}" to "${fields.status}"` : `Status set to "${fields.status}"`,
+            old_value: existing.status || "",
+            new_value: fields.status,
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+        if (
+          fields.progress !== undefined &&
+          Number(fields.progress) !== Number(existing.progress) &&
+          (fields.current_stage === undefined || fields.current_stage === existing.current_stage)
+        ) {
+          newActivities.push({
+            id: `act_${Date.now()}_prog_${Math.random().toString(36).slice(2, 6)}`,
+            type: "progress_change",
+            title: `Progress updated to ${fields.progress}%`,
+            description: `Completion progress adjusted from ${existing.progress || 0}% to ${fields.progress}%`,
+            old_value: existing.progress || 0,
+            new_value: Number(fields.progress),
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+      }
+
+      const existingHistory = Array.isArray(existing?.activity_history) ? existing.activity_history : [];
+      const updatedHistory = newActivities.length > 0 ? [...newActivities, ...existingHistory].slice(0, 100) : existingHistory;
+      if (newActivities.length > 0 || fields.activity_history !== undefined) {
+        payload.activity_history = updatedHistory;
+      }
+      payload.updated_at = new Date().toISOString();
+
+      try {
+        const { data, error } = await supabase
+          .from("projects")
+          .update(payload)
+          .eq("id", id)
+          .select()
+          .single();
+        if (error) throw error;
+        if (payload.activity_history) {
+          saveProjectMetaFallback(id, { activity_history: payload.activity_history });
+        }
+        return data;
+      } catch (err) {
+        if (err.code === "42703" || err.message?.includes("column")) {
+          console.warn("Falling back to core update + project_meta:", err.message);
+          const corePayload = {};
+          if (fields.name !== undefined) corePayload.name = fields.name;
+          if (fields.color !== undefined) corePayload.color = fields.color;
+          if (fields.archived !== undefined) corePayload.archived = fields.archived;
+          const { data, error } = await supabase
+            .from("projects")
+            .update(corePayload)
+            .eq("id", id)
+            .select()
+            .single();
+          if (error) throw error;
+          await saveProjectMetaFallback(id, { ...fields, activity_history: updatedHistory });
+          return { ...data, ...fields, activity_history: updatedHistory };
+        }
+        throw err;
+      }
+    },
+    onSuccess: invalidate,
+  });
+
+  const updateProjectStageAndDeadline = useMutation({
+    mutationFn: async ({ id, currentStage, deadline, endDate, progress, status, actor, activityRecords }) => {
+      const currentProjects = qc.getQueryData(key) || [];
+      const existing = currentProjects.find((p) => String(p.id) === String(id));
+
+      const payload = {};
+      if (currentStage !== undefined) payload.current_stage = currentStage;
+      const targetEndDate = endDate !== undefined ? endDate : deadline;
+      if (targetEndDate !== undefined) payload.end_date = targetEndDate;
+      if (progress !== undefined) payload.progress = Number(progress) || 0;
+      if (status !== undefined) payload.status = status;
+      payload.updated_at = new Date().toISOString();
+
+      const newActivities = Array.isArray(activityRecords) ? [...activityRecords] : [];
+      const authorName = actor?.name || "Team Member";
+      const authorId = actor?.id || null;
+      const authorRole = actor?.role || null;
+      const nowISO = new Date().toISOString();
+
+      if (newActivities.length === 0 && existing) {
+        if (currentStage !== undefined && currentStage !== existing.current_stage) {
+          newActivities.push({
+            id: `act_${Date.now()}_stage_${Math.random().toString(36).slice(2, 6)}`,
+            type: "stage_change",
+            title: `Stage changed to ${currentStage}`,
+            description: existing.current_stage
+              ? `Stage changed from "${existing.current_stage}" to "${currentStage}"`
+              : `Stage set to "${currentStage}"`,
+            old_value: existing.current_stage || "",
+            new_value: currentStage,
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+        if (targetEndDate !== undefined && targetEndDate !== (existing.end_date || existing.deadline)) {
+          newActivities.push({
+            id: `act_${Date.now()}_deadline_${Math.random().toString(36).slice(2, 6)}`,
+            type: "deadline_change",
+            title: targetEndDate ? `Target deadline updated` : `Deadline cleared`,
+            description: targetEndDate
+              ? (existing.end_date ? `Deadline changed from ${existing.end_date} to ${targetEndDate}` : `Target deadline scheduled for ${targetEndDate}`)
+              : `Removed target deadline`,
+            old_value: existing.end_date || existing.deadline || "",
+            new_value: targetEndDate || "",
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+        if (status !== undefined && status !== existing.status) {
+          newActivities.push({
+            id: `act_${Date.now()}_status_${Math.random().toString(36).slice(2, 6)}`,
+            type: "status_change",
+            title: `Status changed to ${status}`,
+            description: existing.status ? `Status changed from "${existing.status}" to "${status}"` : `Status marked as "${status}"`,
+            old_value: existing.status || "",
+            new_value: status,
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+        if (
+          progress !== undefined &&
+          Number(progress) !== Number(existing.progress) &&
+          (currentStage === undefined || currentStage === existing.current_stage)
+        ) {
+          newActivities.push({
+            id: `act_${Date.now()}_prog_${Math.random().toString(36).slice(2, 6)}`,
+            type: "progress_change",
+            title: `Progress updated to ${progress}%`,
+            description: `Completion progress adjusted from ${existing.progress || 0}% to ${progress}%`,
+            old_value: existing.progress || 0,
+            new_value: Number(progress),
+            user_id: authorId,
+            user_name: authorName,
+            user_role: authorRole,
+            created_at: nowISO,
+          });
+        }
+      }
+
+      const existingHistory = Array.isArray(existing?.activity_history) ? existing.activity_history : [];
+      const updatedHistory = newActivities.length > 0 ? [...newActivities, ...existingHistory].slice(0, 100) : existingHistory;
+      if (newActivities.length > 0) {
+        payload.activity_history = updatedHistory;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("projects")
+          .update(payload)
+          .eq("id", id)
+          .select()
+          .single();
+        if (error) throw error;
+        if (payload.activity_history) {
+          saveProjectMetaFallback(id, { activity_history: payload.activity_history });
+        }
+        return data;
+      } catch (err) {
+        if (err.code === "42703" || err.message?.includes("column")) {
+          console.warn("Migration pending for project stage and end_date; saving to project_meta:", err.message);
+          await saveProjectMetaFallback(id, { ...payload, activity_history: updatedHistory });
+          return { id, ...payload, activity_history: updatedHistory };
+        }
+        throw err;
+      }
+    },
+    onSuccess: invalidate,
+  });
+
+  const deleteProject = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("projects").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: invalidate,
+  });
+
+  const batchImportProjects = useMutation({
+    mutationFn: async ({ projects, orgId }) => {
+      const rows = projects.map((p) => ({
+        name: p.name,
+        color: p.color || "#63537E",
+        org_id: orgId,
+        lead_architect_id: p.lead_architect_id || null,
+        sub_architect_ids: p.sub_architect_ids || [],
+        project_work: p.project_work || "",
+        current_stage: p.current_stage || "",
+        project_type: p.project_type || "",
+        start_date: p.start_date || "",
+        end_date: p.end_date || p.deadline || "",
+        status: p.status || "Active",
+      }));
+      try {
+        const { error } = await supabase.from("projects").insert(rows);
+        if (error) throw error;
+      } catch (err) {
+        if (err.code === "42703" || err.message?.includes("column")) {
+          const coreRows = rows.map((r) => ({
+            name: r.name,
+            color: r.color,
+            org_id: orgId,
+          }));
+          const { error } = await supabase.from("projects").insert(coreRows);
+          if (error) throw error;
+        } else {
+          throw err;
+        }
+      }
+    },
+    onSuccess: invalidate,
+  });
+
+  const syncExcelProjectsWithDb = useMutation({
+    mutationFn: async ({ projects: templateProjects, orgId }) => {
+      // Check whether native columns exist in PostgreSQL
+      const { error: testErr } = await supabase
+        .from("projects")
+        .select("end_date")
+        .limit(1);
+
+      if (testErr && (testErr.code === "42703" || testErr.message?.includes("column"))) {
+        throw new Error(
+          "Supabase Database Migration Required: The 'projects' table in PostgreSQL does not have columns for lead_architect_id, sub_architect_ids, end_date, etc. Please run the SQL migration in your Supabase SQL Editor first, then click Sync."
+        );
+      }
+
+      // Fetch roster profiles to resolve user IDs
+      const { data: profileList } = await supabase
+        .from("profiles")
+        .select("id, name");
+
+      const findEmp = (nameStr) => {
+        if (!nameStr) return null;
+        const clean = nameStr.toLowerCase().replace(/^ar\.?\s*/i, "").trim();
+        return (profileList || []).find((p) => {
+          const pClean = (p.name || "").toLowerCase().replace(/^ar\.?\s*/i, "").trim();
+          return pClean === clean || pClean.includes(clean) || clean.includes(pClean);
+        });
+      };
+
+      const { data: existingProjects, error: fetchErr } = await supabase
+        .from("projects")
+        .select("*");
+      if (fetchErr) throw fetchErr;
+
+      let updatedCount = 0;
+      let createdCount = 0;
+
+      for (const t of templateProjects) {
+        const normName = (t.name || "").trim().toLowerCase();
+        const match = (existingProjects || []).find(
+          (ep) => ep.name && ep.name.trim().toLowerCase() === normName,
+        );
+
+        // Resolve user association
+        const leadUser = t.lead_architect_id
+          ? { id: t.lead_architect_id }
+          : findEmp(t.lead_architect);
+
+        let subIds = Array.isArray(t.sub_architect_ids) ? [...t.sub_architect_ids] : [];
+        if (!subIds.length && t.sub_architects) {
+          const subNames = t.sub_architects.split(/[,;/+]/).map((s) => s.trim()).filter(Boolean);
+          subIds = subNames
+            .map((n) => findEmp(n)?.id)
+            .filter(Boolean);
+        }
+
+        const projectRow = {
+          name: t.name,
+          color: t.color || "#63537E",
+          lead_architect_id: leadUser?.id || null,
+          sub_architect_ids: subIds,
+          project_work: t.project_work || "",
+          current_stage: t.current_stage || "",
+          project_type: t.project_type || "",
+          start_date: t.start_date || "",
+          end_date: t.end_date || t.deadline || "",
+          status: t.status || "Active",
+        };
+
+        if (match) {
+          const { error: upErr } = await supabase
+            .from("projects")
+            .update(projectRow)
+            .eq("id", match.id);
+
+          if (upErr) throw upErr;
+          updatedCount++;
+        } else {
+          const insertPayload = {
+            ...projectRow,
+            org_id: orgId,
+          };
+          const { error: insErr } = await supabase
+            .from("projects")
+            .insert(insertPayload);
+
+          if (insErr) throw insErr;
+          createdCount++;
+        }
+      }
+
+      return { updatedCount, createdCount, total: templateProjects.length };
+    },
+    onSuccess: () => {
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["projects-db-columns-check"] });
+    },
   });
 
   const archiveProject = useMutation({
@@ -1022,9 +1584,20 @@ export function useProjects() {
   return {
     projects: query.data ?? null,
     isLoading: query.isLoading,
+    isDbMigrationRequired: Boolean(checkColumnsQuery.data),
+    refetchDbSchema: () => checkColumnsQuery.refetch(),
     createProject: (payload) => createProject.mutateAsync(payload),
-    updateProject: (id, payload) =>
-      updateProject.mutateAsync({ id, ...payload }),
+    updateProject: (idOrPayload, maybePayload) => {
+      if (typeof idOrPayload === "object" && idOrPayload !== null) {
+        return updateProject.mutateAsync(idOrPayload);
+      }
+      return updateProject.mutateAsync({ id: idOrPayload, ...(maybePayload || {}) });
+    },
+    updateProjectStageAndDeadline: (payload) =>
+      updateProjectStageAndDeadline.mutateAsync(payload),
+    deleteProject: (id) => deleteProject.mutateAsync(id),
+    batchImportProjects: (payload) => batchImportProjects.mutateAsync(payload),
+    syncExcelProjectsWithDb: (payload) => syncExcelProjectsWithDb.mutateAsync(payload),
     archiveProject: (id, archived) =>
       archiveProject.mutateAsync({ id, archived }),
   };
@@ -1038,7 +1611,7 @@ export function useOrgWorkLogs() {
       const { data, error } = await supabase
         .from("work_logs")
         .select(
-          "id, employee_id, project_id, date, profiles!work_logs_employee_id_fkey(name, role, title)",
+          "id, employee_id, project_id, date, entry_text, hours_spent, work_type, created_at, profiles!work_logs_employee_id_fkey(name, role, title, email)",
         )
         .order("date", { ascending: false });
       if (error) throw error;
@@ -1052,6 +1625,7 @@ export function useOrgWorkLogs() {
           ...e,
           employeeName: e.profiles?.name,
           employeeRole: e.profiles?.role,
+          employeeEmail: e.profiles?.email,
         }));
     },
     staleTime: 1000 * 60 * 3, // 3 minutes cache
@@ -1443,9 +2017,50 @@ export function useOrganization(orgId) {
     },
   });
 
+  const updateProjectConfig = useMutation({
+    mutationFn: async (projectConfig) => {
+      if (!orgId) throw new Error("Organization ID is required.");
+      const currentOfficeHours = query.data?.office_hours || {};
+      const currentSettings = query.data?.settings || {};
+
+      const newOfficeHours = {
+        ...currentOfficeHours,
+        projectConfig,
+      };
+      const newSettings = {
+        ...currentSettings,
+        projectConfig,
+      };
+
+      try {
+        const { error } = await supabase
+          .from("organizations")
+          .update({ office_hours: newOfficeHours, settings: newSettings })
+          .eq("id", orgId);
+        if (error) {
+          const { error: err2 } = await supabase
+            .from("organizations")
+            .update({ office_hours: newOfficeHours })
+            .eq("id", orgId);
+          if (err2) throw err2;
+        }
+      } catch (err) {
+        const { error: err2 } = await supabase
+          .from("organizations")
+          .update({ office_hours: newOfficeHours })
+          .eq("id", orgId);
+        if (err2) throw err2;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: key });
+    },
+  });
+
   return {
     organization: query.data,
     isLoading: query.isLoading,
     updateOfficeHours: (payload) => updateOfficeHours.mutateAsync(payload),
+    updateProjectConfig: (payload) => updateProjectConfig.mutateAsync(payload),
   };
 }

@@ -285,7 +285,7 @@ export function TodaysWork({
               <option value="">No tag</option>
               {activeProjects.map((project) => (
                 <option key={project.id} value={project.id}>
-                  {project.name}
+                  {project.name}{project.current_stage ? ` • [${project.current_stage}]` : ""}
                 </option>
               ))}
             </select>
@@ -330,12 +330,12 @@ export function TodaysWork({
           <select
             value={workProjectId}
             onChange={(e) => setWorkProjectId(e.target.value)}
-            className="bg-transparent text-xs rounded-full px-3 py-2 outline-none text-text-muted w-28 sm:w-32 shrink-0 cursor-pointer font-medium"
+            className="bg-transparent text-xs rounded-full px-3 py-2 outline-none text-text-muted w-28 sm:w-36 shrink-0 cursor-pointer font-medium truncate"
           >
             <option value="">No tag</option>
             {activeProjects.map((project) => (
               <option key={project.id} value={project.id}>
-                {project.name}
+                {project.name}{project.current_stage ? ` • [${project.current_stage}]` : ""}
               </option>
             ))}
           </select>
@@ -376,6 +376,27 @@ export function TodaysWork({
           {editingWorkId ? <Check size={15} /> : <Plus size={15} />}
         </button>
       </div>
+
+      {/* Selected Project Milestone Context */}
+      {workProjectId && (() => {
+        const sel = activeProjects.find((p) => p.id === workProjectId);
+        if (!sel || (!sel.current_stage && !sel.deadline)) return null;
+        return (
+          <div className="flex items-center gap-2 mb-4 -mt-2 px-1 text-[11px] text-text-muted">
+            <span className="font-medium text-text">Project Milestone:</span>
+            {sel.current_stage && (
+              <span className="px-2 py-0.5 rounded-md bg-surface-muted border border-border-light font-semibold text-text">
+                {sel.current_stage}
+              </span>
+            )}
+            {sel.deadline && (
+              <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 font-medium">
+                Target: {sel.deadline}
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Entries — timeline feed */}
       {todayWorkLogs.length === 0 ? (

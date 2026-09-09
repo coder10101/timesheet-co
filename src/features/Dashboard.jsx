@@ -24,27 +24,32 @@ export function Dashboard({ me, onLogout }) {
 
   const employeeDesktopTabs = [
     {
-      to: "overview",
+      to: "/overview",
       label: "Overview",
       icon: <LayoutDashboard size={17} />,
     },
     {
-      to: "attendance",
+      to: "/attendance",
       label: "Attendance",
       icon: <Clock3 size={17} />,
     },
     {
-      to: "worklog",
+      to: "/worklog",
       label: "Work Log",
       icon: <Briefcase size={17} />,
     },
     {
-      to: "leave",
+      to: "/projects",
+      label: "Projects",
+      icon: <FolderKanban size={17} />,
+    },
+    {
+      to: "/leave",
       label: "Leave",
       icon: <CalendarCheck size={17} />,
     },
     {
-      to: "calendar",
+      to: "/calendar",
       label: "Calendar",
       icon: <CalendarDays size={17} />,
     },
@@ -53,17 +58,17 @@ export function Dashboard({ me, onLogout }) {
   // Mobile Core 4 navigation for Employee (3 primary + More)
   const employeeMobilePrimary = [
     {
-      to: "overview",
+      to: "/overview",
       label: "Overview",
       icon: <LayoutDashboard size={20} />,
     },
     {
-      to: "attendance",
+      to: "/attendance",
       label: "Attendance",
       icon: <Clock3 size={20} />,
     },
     {
-      to: "worklog",
+      to: "/worklog",
       label: "Work Log",
       icon: <Briefcase size={20} />,
     },
@@ -72,13 +77,19 @@ export function Dashboard({ me, onLogout }) {
   // Items accessed via "More" bottom sheet on Mobile for Employee
   const employeeMobileMore = [
     {
-      to: "calendar",
+      to: "/projects",
+      label: "Projects & Tasks",
+      desc: "Initiatives, stages & deadlines",
+      icon: <FolderKanban size={18} />,
+    },
+    {
+      to: "/calendar",
       label: "Company Calendar",
       desc: "Holidays, shifts & monthly schedule",
       icon: <CalendarDays size={18} />,
     },
     {
-      to: "leave",
+      to: "/leave",
       label: "Leave & Balances",
       desc: "Quota balances, approvals & history",
       icon: <CalendarCheck size={18} />,
@@ -87,37 +98,37 @@ export function Dashboard({ me, onLogout }) {
 
   const adminDesktopTabs = [
     {
-      to: "overview",
+      to: "/overview",
       label: "Overview",
       icon: <LayoutDashboard size={17} />,
     },
     {
-      to: "attendance",
+      to: "/attendance",
       label: "Attendance",
       icon: <Clock3 size={17} />,
     },
     {
-      to: "leave-approvals",
+      to: "/leave-approvals",
       label: "Leave",
       icon: <CalendarCheck size={17} />,
     },
     {
-      to: "worklogs",
+      to: "/worklogs",
       label: "Work Logs",
       icon: <Briefcase size={17} />,
     },
     {
-      to: "projects",
+      to: "/projects",
       label: "Projects",
       icon: <FolderKanban size={17} />,
     },
     {
-      to: "team",
+      to: "/team",
       label: "Team",
       icon: <Users size={17} />,
     },
     {
-      to: "calendar",
+      to: "/calendar",
       label: "Calendar",
       icon: <CalendarDays size={17} />,
     },
@@ -126,17 +137,17 @@ export function Dashboard({ me, onLogout }) {
   // Mobile Core 4 items for Admin (3 primary + More)
   const adminMobilePrimary = [
     {
-      to: "overview",
+      to: "/overview",
       label: "Overview",
       icon: <LayoutDashboard size={20} />,
     },
     {
-      to: "attendance",
+      to: "/attendance",
       label: "Attendance",
       icon: <Clock3 size={20} />,
     },
     {
-      to: "leave-approvals",
+      to: "/leave-approvals",
       label: "Leave",
       icon: <CalendarCheck size={20} />,
     },
@@ -145,25 +156,25 @@ export function Dashboard({ me, onLogout }) {
   // Items accessed via "More" bottom sheet on Mobile for Admin
   const adminMobileMore = [
     {
-      to: "worklogs",
+      to: "/worklogs",
       label: "Work Logs",
       desc: "Team accomplishments & hours",
       icon: <Briefcase size={18} />,
     },
     {
-      to: "projects",
+      to: "/projects",
       label: "Projects",
       desc: "Project registry & allocations",
       icon: <FolderKanban size={18} />,
     },
     {
-      to: "team",
+      to: "/team",
       label: "Team",
       desc: "Staff directory & employee roster",
       icon: <Users size={18} />,
     },
     {
-      to: "calendar",
+      to: "/calendar",
       label: "Calendar",
       desc: "Holidays, shifts & schedule",
       icon: <CalendarDays size={18} />,
@@ -173,7 +184,8 @@ export function Dashboard({ me, onLogout }) {
   const isEmployeeMoreActive =
     !isAdmin &&
     (location.pathname.includes("leave") ||
-      location.pathname.includes("calendar"));
+      location.pathname.includes("calendar") ||
+      location.pathname.includes("projects"));
 
   const isAdminMoreActive =
     isAdmin &&
