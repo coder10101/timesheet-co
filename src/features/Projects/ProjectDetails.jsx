@@ -38,8 +38,6 @@ import { useOfficeHours } from "../../constants/officeHours";
 import {
   getProjectConfig,
   getDeadlineUrgency,
-  STAGE_PIPELINES,
-  getNextStage,
   getStageDefaultProgress,
   STATUS_OPTIONS,
   formatProjectDateNepali,
@@ -47,10 +45,17 @@ import {
   normalizeDateToISO,
   getInitials,
   getProjectTypeBadgeClass,
+  ASSIGNED_ROLES,
+  getArchitectAssignedRole,
+  getAssignedRoleBadgeClass,
+  getAssignedRoleBadgeText,
+  TRACK_STAGES,
+  calculateOverallProgress,
 } from "../../constants/projectPresets";
 import { getEmployeeColor } from "../../constants/colors";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
 import { todayISO } from "../../utils/workTime";
+import { formatWorkLogEntryText } from "../../utils/workType";
 
 const getActivityMeta = (type) => {
   switch (type) {
@@ -137,8 +142,19 @@ export function ProjectDetails({ me }) {
   const [editStage, setEditStage] = useState("");
   const [editStatus, setEditStatus] = useState("Active");
   const [editProgress, setEditProgress] = useState(0);
+  const [editDesignStage, setEditDesignStage] = useState("");
+  const [editDesignProgress, setEditDesignProgress] = useState(0);
+  const [editSiteStage, setEditSiteStage] = useState("");
+  const [editSiteProgress, setEditSiteProgress] = useState(0);
+  const [editHasDesign, setEditHasDesign] = useState(true);
+  const [editHasSite, setEditHasSite] = useState(true);
   const [editStartDate, setEditStartDate] = useState("");
   const [editDeadline, setEditDeadline] = useState("");
+  const [editLeadId, setEditLeadId] = useState("");
+  const [editLeadRole, setEditLeadRole] = useState("Design");
+  const [editSelectedSubIds, setEditSelectedSubIds] = useState([]);
+  const [editSubRoles, setEditSubRoles] = useState({});
+  const [editCustomSubText, setEditCustomSubText] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Quick Log Work Form State
@@ -148,6 +164,15 @@ export function ProjectDetails({ me }) {
   const [logText, setLogText] = useState("");
   const [isSavingLog, setIsSavingLog] = useState(false);
   const [logFeedback, setLogFeedback] = useState(null);
+
+  // Filtered employees roster excluding admins
+  const assignableEmployees = useMemo(() => {
+    if (!employees || !Array.isArray(employees)) return [];
+    return employees.filter((e) => {
+      const r = (e.role || "").toLowerCase();
+      return r !== "admin" && r !== "superadmin";
+    });
+  }, [employees]);
 
   // Find project
   const project = useMemo(() => {
@@ -162,11 +187,9 @@ export function ProjectDetails({ me }) {
     const decodedTarget = String(decodedId).trim().toLowerCase();
     return (
       projects.find((p) => String(p.id).toLowerCase() === targetStr) ||
-      projects.find(
-        (p) =>
-          (p.name || "").trim().toLowerCase() === decodedTarget ||
-          (p.name || "").trim().toLowerCase() === targetStr
-      ) ||
+      projects.find((p) => String(p.id).toLowerCase() === decodedTarget) ||
+      projects.find((p) => (p.name || "").toLowerCase() === targetStr) ||
+      projects.find((p) => (p.name || "").toLowerCase() === decodedTarget) ||
       null
     );
   }, [projects, projectId]);
@@ -184,37 +207,91 @@ export function ProjectDetails({ me }) {
       );
       if (found) return found;
     }
-    if (project.lead_architect) {
+    if (project.lead_architect && !/^[0-9a-f-]{36}$/i.test(project.lead_architect)) {
       return { name: project.lead_architect, role: "Lead Architect" };
     }
     return null;
   }, [project?.lead_architect_id, project?.lead_architect, employees]);
 
-  // Sub-Architects / Contributors resolution
+  // Sub-Architects / Contributors resolution with assigned scope
   const subArchitects = useMemo(() => {
     if (!project) return [];
     const list = [];
-    if (Array.isArray(project.sub_architect_ids) && employees) {
+    const seen = new Set();
+
+    // 1. Team members selected by ID
+    if (Array.isArray(project.sub_architect_ids)) {
       project.sub_architect_ids.forEach((id) => {
-        const found = employees.find((e) => e.id === id);
-        if (found && !list.some((x) => x.id === found.id)) list.push(found);
+        const found = employees?.find((e) => e.id === id);
+        const metaName = project.sub_architect_names?.[id];
+        const assignedRole = project.sub_architect_roles?.[id] || "Design";
+        let name = found?.name || metaName || "";
+        if (!name && !/^[0-9a-f-]{36}$/i.test(id)) {
+          name = id;
+        } else if (!name) {
+          name = "Team Member";
+        }
+        if (!seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          if (found) {
+            list.push({ ...found, assignedRole, isExternal: false });
+          } else {
+            list.push({ id, name, role: "Sub-Architect", assignedRole, isExternal: false });
+          }
+        }
       });
     }
-    if (list.length === 0 && project.sub_architects) {
+
+    // 2. Additional / External Collaborators text
+    if (project.sub_architects) {
       const names = String(project.sub_architects)
-        .split(",")
+        .split(/[,;/+]/)
         .map((s) => s.trim())
         .filter(Boolean);
       names.forEach((n) => {
-        const found = employees?.find(
-          (e) => e.name?.toLowerCase() === n.toLowerCase()
-        );
-        if (found && !list.some((x) => x.id === found.id)) list.push(found);
-        else list.push({ name: n, role: "Sub-Architect" });
+        if (!seen.has(n.toLowerCase())) {
+          seen.add(n.toLowerCase());
+          const found = employees?.find(
+            (e) => e.name?.toLowerCase() === n.toLowerCase()
+          );
+          if (found) {
+            const assignedRole = project.sub_architect_roles?.[found.id] || "Design";
+            list.push({ ...found, assignedRole, isExternal: false });
+          } else {
+            list.push({ name: n, role: "External Collaborator", assignedRole: "Design", isExternal: true });
+          }
+        }
       });
     }
     return list;
-  }, [project?.sub_architect_ids, project?.sub_architects, employees]);
+  }, [project?.sub_architect_ids, project?.sub_architect_roles, project?.sub_architects, employees]);
+
+  // Categorize architects by Design vs Site streams
+  const designArchitects = useMemo(() => {
+    const list = [];
+    if (leadArchitect && (project?.lead_architect_role === "Design" || project?.lead_architect_role === "Both" || !project?.lead_architect_role)) {
+      list.push({ ...leadArchitect, isLead: true });
+    }
+    subArchitects.forEach((sub) => {
+      if (sub.assignedRole === "Design" || sub.assignedRole === "Both") {
+        list.push({ ...sub, isLead: false });
+      }
+    });
+    return list;
+  }, [leadArchitect, project?.lead_architect_role, subArchitects]);
+
+  const siteArchitects = useMemo(() => {
+    const list = [];
+    if (leadArchitect && (project?.lead_architect_role === "Site" || project?.lead_architect_role === "Both")) {
+      list.push({ ...leadArchitect, isLead: true });
+    }
+    subArchitects.forEach((sub) => {
+      if (sub.assignedRole === "Site" || sub.assignedRole === "Both") {
+        list.push({ ...sub, isLead: false });
+      }
+    });
+    return list;
+  }, [leadArchitect, project?.lead_architect_role, subArchitects]);
 
   // Project Work Logs
   const projectLogs = useMemo(() => {
@@ -286,7 +363,7 @@ export function ProjectDetails({ me }) {
     return set.size;
   }, [projectLogs]);
 
-  // Contributor breakdown
+  // Contributor breakdown with Desk (Design) and Site hours
   const contributorStats = useMemo(() => {
     const map = {};
     projectLogs.forEach((l) => {
@@ -297,13 +374,22 @@ export function ProjectDetails({ me }) {
           name: l.employeeName || "Unknown",
           role: l.employeeRole || "Team Member",
           hours: 0,
+          deskHours: 0,
+          siteHours: 0,
           entriesCount: 0,
           lastActive: l.date,
         };
       }
-      map[key].hours += parseFloat(l.hours_spent) || 0;
+      const hrs = parseFloat(l.hours_spent) || 0;
+      const type = (l.work_type || "desk").toLowerCase();
+      map[key].hours += hrs;
+      if (type === "site") {
+        map[key].siteHours += hrs;
+      } else {
+        map[key].deskHours += hrs;
+      }
       map[key].entriesCount += 1;
-      if (l.date > map[key].lastActive) {
+      if (l.date && (!map[key].lastActive || l.date > map[key].lastActive)) {
         map[key].lastActive = l.date;
       }
     });
@@ -376,36 +462,97 @@ export function ProjectDetails({ me }) {
     return getDeadlineUrgency(project.end_date || project.deadline, project.status);
   }, [project]);
 
-  // Pipeline stages
-  const pipelineStages = useMemo(() => {
-    // Base pipeline: Concept -> Design -> Site -> Handover
-    const defaultPipeline = ["Concept", "Design", "Site", "Handover"];
-    const current = project?.current_stage;
-    if (!current) return defaultPipeline;
+  // Determine current logged-in user's assigned scope on this project
+  const myAssignedRole = useMemo(() => {
+    if (!me || !project) return "Design";
+    return getArchitectAssignedRole(project, me.id);
+  }, [me?.id, project]);
 
-    // If current is in standard pipeline, return standard
-    if (defaultPipeline.some((s) => s.toLowerCase() === current.toLowerCase())) {
-      return defaultPipeline;
+  const handleOpenLogModal = () => {
+    if (myAssignedRole === "Site") {
+      setLogType("site");
+    } else {
+      setLogType("desk");
     }
-    // If current is in config stages, use first 4-5 stages
-    if (config.stages && config.stages.length) {
-      const idx = config.stages.indexOf(current);
-      if (idx !== -1) {
-        return config.stages.slice(0, Math.max(4, idx + 2));
-      }
-    }
-    return [current, "Design", "Site", "Handover"];
-  }, [project, config.stages]);
+    setLogFeedback(null);
+    setShowLogModal(true);
+  };
 
   // Open edit modal helper
   const handleOpenEdit = () => {
     if (!project) return;
     setEditStage(project.current_stage || "");
+    setEditDesignStage(project.design_stage || "");
+    const dp =
+      project.design_progress !== undefined && project.design_progress !== null
+        ? Number(project.design_progress)
+        : project.lead_architect_role === "Site"
+        ? 0
+        : Number(project.progress) || 0;
+    const sp =
+      project.site_progress !== undefined && project.site_progress !== null
+        ? Number(project.site_progress)
+        : project.lead_architect_role === "Site"
+        ? Number(project.progress) || 0
+        : 0;
+
+    setEditDesignProgress(dp);
+    setEditSiteStage(project.site_stage || "");
+    setEditSiteProgress(sp);
+
+    const hasD = project.has_design !== false && project.hasDesign !== false;
+    const hasS = project.has_site !== false && project.hasSite !== false;
+    setEditHasDesign(hasD);
+    setEditHasSite(hasS);
+
+    const initialOverall = calculateOverallProgress({
+      designProgress: dp,
+      siteProgress: sp,
+      hasDesign: hasD,
+      hasSite: hasS,
+    });
+
     setEditStatus(project.status || "Active");
-    setEditProgress(project.progress || getStageDefaultProgress(project.current_stage, project.status));
+    setEditProgress(initialOverall);
     setEditStartDate(project.start_date ? normalizeDateToISO(project.start_date) : "");
     setEditDeadline(project.end_date || project.deadline ? normalizeDateToISO(project.end_date || project.deadline) : "");
+    setEditLeadId(project.lead_architect_id || "");
+    setEditLeadRole(project.lead_architect_role || "Design");
+    setEditSubRoles(
+      typeof project.sub_architect_roles === "object" && project.sub_architect_roles !== null
+        ? { ...project.sub_architect_roles }
+        : {}
+    );
+
+    const subIds = Array.isArray(project.sub_architect_ids) ? [...project.sub_architect_ids] : [];
+    const unmappedSubs = [];
+    if (project.sub_architects) {
+      const parts = String(project.sub_architects)
+        .split(/[,;/+]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      parts.forEach((subName) => {
+        const matchedEmp = employees?.find(
+          (e) => e.name?.toLowerCase() === subName.toLowerCase()
+        );
+        if (matchedEmp) {
+          if (!subIds.includes(matchedEmp.id)) {
+            subIds.push(matchedEmp.id);
+          }
+        } else {
+          unmappedSubs.push(subName);
+        }
+      });
+    }
+    setEditSelectedSubIds(subIds);
+    setEditCustomSubText(unmappedSubs.join(", "));
     setShowEditModal(true);
+  };
+
+  const toggleEditSubEmp = (empId) => {
+    setEditSelectedSubIds((prev) =>
+      prev.includes(empId) ? prev.filter((id) => id !== empId) : [...prev, empId]
+    );
   };
 
   // Save edit
@@ -492,62 +639,65 @@ export function ProjectDetails({ me }) {
         });
       }
 
-      await updateProjectStageAndDeadline({
-        id: project.id,
-        currentStage: editStage,
+      const leadEmp = assignableEmployees.find((e) => e.id === editLeadId);
+
+      const computedOverall = calculateOverallProgress({
+        designProgress: editHasDesign ? Number(editDesignProgress) || 0 : 0,
+        siteProgress: editHasSite ? Number(editSiteProgress) || 0 : 0,
+        hasDesign: editHasDesign,
+        hasSite: editHasSite,
+      });
+
+      let synthesizedStage = "";
+      if (editHasDesign && editHasSite && editDesignStage && editSiteStage) {
+        synthesizedStage = `🎨 ${editDesignStage} + 🏗️ ${editSiteStage}`;
+      } else if (editHasDesign && editDesignStage) {
+        synthesizedStage = `🎨 ${editDesignStage}`;
+      } else if (editHasSite && editSiteStage) {
+        synthesizedStage = `🏗️ ${editSiteStage}`;
+      } else {
+        synthesizedStage = editStage;
+      }
+
+      const subNamesMap = {};
+      (isAdmin ? editSelectedSubIds : (project.sub_architect_ids || [])).forEach((id) => {
+        const emp = employees?.find((e) => e.id === id);
+        if (emp?.name) subNamesMap[id] = emp.name;
+        else if (project.sub_architect_names?.[id]) subNamesMap[id] = project.sub_architect_names[id];
+      });
+
+      await updateProject(project.id, {
+        current_stage: synthesizedStage,
+        design_stage: editHasDesign ? editDesignStage : "",
+        design_progress: editHasDesign ? Number(editDesignProgress) || 0 : 0,
+        site_stage: editHasSite ? editSiteStage : "",
+        site_progress: editHasSite ? Number(editSiteProgress) || 0 : 0,
+        has_design: editHasDesign,
+        has_site: editHasSite,
+        hasDesign: editHasDesign,
+        hasSite: editHasSite,
+        end_date: editDeadline,
         deadline: editDeadline,
-        endDate: editDeadline,
-        progress: Number(editProgress),
-        status: editStatus,
+        start_date: editStartDate,
+        progress: computedOverall,
+        status: isAdmin ? editStatus : project.status,
+        lead_architect_id: isAdmin ? (editLeadId || null) : project.lead_architect_id,
+        lead_architect: isAdmin ? (leadEmp ? leadEmp.name : (editLeadId ? project.lead_architect : "")) : project.lead_architect,
+        lead_architect_role: isAdmin ? editLeadRole : project.lead_architect_role,
+        sub_architect_ids: isAdmin ? editSelectedSubIds : project.sub_architect_ids,
+        sub_architect_roles: isAdmin ? editSubRoles : project.sub_architect_roles,
+        sub_architect_names: subNamesMap,
+        sub_architects: isAdmin ? editCustomSubText.trim() : project.sub_architects,
         actor: { id: me?.id, name: me?.name, role: me?.role },
         activityRecords: activities,
       });
 
-      if (editStartDate !== (project.start_date || "")) {
-        await updateProject(project.id, {
-          start_date: editStartDate,
-          actor: { id: me?.id, name: me?.name, role: me?.role },
-        });
-      }
       setShowEditModal(false);
     } catch (err) {
       console.error("Error updating project:", err);
       alert("Failed to save changes: " + (err.message || "Unknown error"));
     } finally {
       setIsSavingEdit(false);
-    }
-  };
-
-  // Advance stage helper
-  const handleAdvanceStage = async () => {
-    if (!project) return;
-    const next = getNextStage(project.current_stage);
-    if (!next) return;
-    const nextProgress = getStageDefaultProgress(next);
-    const nextStatus = next === "Completed" ? "Completed" : project.status;
-    const activityRecord = {
-      id: `act_${Date.now()}_advance`,
-      type: "stage_change",
-      title: `Stage advanced to ${next}`,
-      description: `Pipeline progressed from "${project.current_stage || "Concept"}" to "${next}"`,
-      old_value: project.current_stage || "",
-      new_value: next,
-      user_id: me?.id || null,
-      user_name: me?.name || "Team Member",
-      user_role: me?.role || "Project Lead",
-      created_at: new Date().toISOString(),
-    };
-    try {
-      await updateProjectStageAndDeadline({
-        id: project.id,
-        currentStage: next,
-        progress: nextProgress,
-        status: nextStatus,
-        actor: { id: me?.id, name: me?.name, role: me?.role },
-        activityRecords: [activityRecord],
-      });
-    } catch (err) {
-      console.error("Error advancing stage:", err);
     }
   };
 
@@ -559,8 +709,13 @@ export function ProjectDetails({ me }) {
     setLogFeedback(null);
 
     try {
+      const formattedText = formatWorkLogEntryText(
+        logText.trim(),
+        logType,
+        `${logHours}h`
+      );
       await userWorkLogs.addEntry({
-        text: logText.trim(),
+        text: formattedText,
         date: logDate || todayISO(),
         projectId: project.id,
         workType: logType,
@@ -610,10 +765,6 @@ export function ProjectDetails({ me }) {
       </div>
     );
   }
-
-  const currentStageIndex = pipelineStages.findIndex(
-    (s) => s.toLowerCase() === (project.current_stage || "").toLowerCase()
-  );
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 fade-in pb-12">
@@ -695,26 +846,28 @@ export function ProjectDetails({ me }) {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-          <button
-            onClick={() => setShowLogModal(true)}
-            className="h-9 inline-flex items-center gap-1.5 px-3.5 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-primary/95 transition-all shadow-xs cursor-pointer active:scale-95"
-          >
-            <Plus size={15} />
-            <span>Log Work</span>
-          </button>
+          {!isAdmin && (
+            <button
+              onClick={handleOpenLogModal}
+              className="h-9 inline-flex items-center gap-1.5 px-3.5 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-primary/95 transition-all shadow-xs cursor-pointer active:scale-95"
+            >
+              <Plus size={15} />
+              <span>Log Work</span>
+            </button>
+          )}
           {canEdit && (
             <button
               onClick={handleOpenEdit}
               className="h-9 inline-flex items-center gap-1.5 px-3.5 bg-white border border-border hover:bg-surface-muted rounded-xl text-xs font-semibold text-text transition-all shadow-2xs cursor-pointer active:scale-95"
             >
               <Pencil size={13} className="text-text-muted" />
-              <span>Edit Details</span>
+              <span>{isAdmin ? "Edit Details" : "Update Stage & Deadline"}</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* 2. UNIFIED PROJECT SNAPSHOT & STAGE PROGRESSION CARD */}
+      {/* 2. UNIFIED PROJECT SNAPSHOT CARD */}
       <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4">
         {/* 4 KPI METRIC TILES */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -726,23 +879,69 @@ export function ProjectDetails({ me }) {
               </span>
               <Layers size={14} className="text-primary" />
             </div>
-            <div className="flex items-baseline justify-between gap-1">
-              <span className="text-sm sm:text-base font-bold text-text truncate">
-                {project.current_stage || "Not Set"}
-              </span>
-              <span className="text-xs font-bold text-primary font-mono">
-                {project.progress ?? getStageDefaultProgress(project.current_stage, project.status)}%
-              </span>
+            <div className="flex items-baseline justify-between gap-1 flex-wrap">
+              {project.current_stage ? (
+                <div className="flex flex-wrap items-center gap-1">
+                  {project.current_stage
+                    .split(/[,+/&]/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .map((stg, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-white text-text border border-border-light shadow-2xs"
+                      >
+                        {stg}
+                      </span>
+                    ))}
+                </div>
+              ) : (
+                <span className="text-sm sm:text-base font-bold text-text-muted">
+                  Not Set
+                </span>
+              )}
+              {(() => {
+                const hasD = Boolean(project.design_stage || project.lead_architect_role === "Design" || project.lead_architect_role === "Both" || Number(project.design_progress) > 0);
+                const hasS = Boolean(project.site_stage || project.lead_architect_role === "Site" || project.lead_architect_role === "Both" || Number(project.site_progress) > 0);
+                const pPct = (hasD || hasS)
+                  ? calculateOverallProgress({
+                      designProgress: project.design_progress,
+                      siteProgress: project.site_progress,
+                      hasDesign: hasD,
+                      hasSite: hasS,
+                      manualProgress: project.progress,
+                    })
+                  : (project.progress ?? getStageDefaultProgress(project.current_stage, project.status));
+                return (
+                  <span className="text-xs font-bold text-primary font-mono shrink-0">
+                    {pPct}%
+                  </span>
+                );
+              })()}
             </div>
-            {canEdit && getNextStage(project.current_stage) && (
-              <button
-                onClick={handleAdvanceStage}
-                className="w-full mt-1 inline-flex items-center justify-center gap-1 text-[10px] font-bold text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/15 py-1 px-2 rounded-lg transition-colors cursor-pointer"
-              >
-                <span>Advance to {getNextStage(project.current_stage)}</span>
-                <ChevronRight size={11} />
-              </button>
-            )}
+            <div className="w-full bg-slate-200/80 rounded-full h-1.5 overflow-hidden mt-2">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    (() => {
+                      const hasD = Boolean(project.design_stage || project.lead_architect_role === "Design" || project.lead_architect_role === "Both" || Number(project.design_progress) > 0);
+                      const hasS = Boolean(project.site_stage || project.lead_architect_role === "Site" || project.lead_architect_role === "Both" || Number(project.site_progress) > 0);
+                      return (hasD || hasS)
+                        ? calculateOverallProgress({
+                            designProgress: project.design_progress,
+                            siteProgress: project.site_progress,
+                            hasDesign: hasD,
+                            hasSite: hasS,
+                            manualProgress: project.progress,
+                          })
+                        : (project.progress ?? getStageDefaultProgress(project.current_stage, project.status));
+                    })()
+                  )}%`,
+                }}
+              />
+            </div>
           </div>
 
           {/* Tile 2: Start Date (Nepali BS) */}
@@ -797,71 +996,106 @@ export function ProjectDetails({ me }) {
           </div>
         </div>
 
-        {/* PIPELINE PROGRESSION TRACK */}
-        <div className="pt-2 space-y-2 border-t border-border-light">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-bold text-text text-xs">Stage Progression Track</span>
-            <span className="text-[11px] text-text-muted font-mono">
-              Overall: {project.progress ?? getStageDefaultProgress(project.current_stage, project.status)}%
+        {/* DUAL-TRACK EXECUTION STREAMS (DESIGN & SITE) */}
+        <div className="pt-3 border-t border-border-light space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+              <Layers size={13} className="text-primary" />
+              Active Execution Tracks (Design vs Site)
             </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-text font-mono">
+                Composite: {(() => {
+                  const hasD = Boolean(project.design_stage || project.lead_architect_role === "Design" || project.lead_architect_role === "Both" || Number(project.design_progress) > 0);
+                  const hasS = Boolean(project.site_stage || project.lead_architect_role === "Site" || project.lead_architect_role === "Both" || Number(project.site_progress) > 0);
+                  return (hasD || hasS)
+                    ? calculateOverallProgress({
+                        designProgress: project.design_progress,
+                        siteProgress: project.site_progress,
+                        hasDesign: hasD,
+                        hasSite: hasS,
+                        manualProgress: project.progress,
+                      })
+                    : (project.progress ?? 0);
+                })()}%
+              </span>
+            </div>
           </div>
 
-          {/* Connected Steps */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
-            {pipelineStages.map((stageName, idx) => {
-              const isPassed = currentStageIndex !== -1 && idx < currentStageIndex;
-              const isCurrent =
-                currentStageIndex !== -1
-                  ? idx === currentStageIndex
-                  : stageName.toLowerCase() === (project.current_stage || "").toLowerCase();
-
-              return (
-                <div
-                  key={stageName}
-                  className={`p-2.5 rounded-xl border flex items-center gap-2.5 transition-all ${
-                    isCurrent
-                      ? "bg-primary-light/40 border-primary/40 ring-1 ring-primary/20 shadow-2xs"
-                      : isPassed
-                      ? "bg-success-light/40 border-success/30 text-text"
-                      : "bg-surface-muted border-border-light text-text-muted opacity-80"
-                  }`}
-                >
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      isCurrent
-                        ? "bg-primary text-white shadow-xs"
-                        : isPassed
-                        ? "bg-success text-white"
-                        : "bg-surface border border-border text-text-muted"
-                    }`}
-                  >
-                    {isPassed ? <Check size={12} strokeWidth={2.5} /> : idx + 1}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-xs font-bold truncate ${isCurrent ? "text-primary" : "text-text"}`}>
-                      {stageName}
-                    </p>
-                    <span className="text-[10px] text-text-muted block truncate">
-                      {isCurrent ? "Active Stage" : isPassed ? "Completed" : "Upcoming"}
-                    </span>
-                  </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* 1. Design Track */}
+            <div className="p-3.5 bg-surface-muted/60 rounded-xl border border-border-light space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 shrink-0">
+                    🎨 Design Track
+                  </span>
+                  <span className="text-xs font-bold text-text truncate">
+                    {project.design_stage || (project.lead_architect_role !== "Site" && project.current_stage ? project.current_stage : "Design Development")}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
+                <span className="text-xs font-bold text-primary font-mono shrink-0">
+                  {project.design_progress ?? (project.lead_architect_role !== "Site" ? project.progress ?? 0 : 0)}%
+                </span>
+              </div>
+              <div className="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.max(
+                        0,
+                        project.design_progress ?? (project.lead_architect_role !== "Site" ? project.progress ?? 0 : 0)
+                      )
+                    )}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-text-muted">
+                <span className="truncate max-w-[200px]" title={designArchitects.map((a) => a.name).join(", ")}>
+                  Assigned: {designArchitects.length > 0 ? designArchitects.map((a) => a.name).join(", ") : "Unassigned"}
+                </span>
+                <span className="shrink-0 font-medium">Office / Desk</span>
+              </div>
+            </div>
 
-          {/* Overall Progress Bar */}
-          <div className="w-full bg-surface-muted rounded-full h-1.5 overflow-hidden mt-2 border border-border-light">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-500"
-              style={{
-                width: `${Math.min(
-                  100,
-                  project.progress ??
-                    getStageDefaultProgress(project.current_stage, project.status)
-                )}%`,
-              }}
-            />
+            {/* 2. Site Track */}
+            <div className="p-3.5 bg-surface-muted/60 rounded-xl border border-border-light space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20 shrink-0">
+                    🏗️ Site Track
+                  </span>
+                  <span className="text-xs font-bold text-text truncate">
+                    {project.site_stage || (project.lead_architect_role === "Site" ? project.current_stage || "Site Execution" : "Site Execution")}
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-amber-600 font-mono shrink-0">
+                  {project.site_progress ?? (project.lead_architect_role === "Site" ? project.progress ?? 0 : 0)}%
+                </span>
+              </div>
+              <div className="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.max(
+                        0,
+                        project.site_progress ?? (project.lead_architect_role === "Site" ? project.progress ?? 0 : 0)
+                      )
+                    )}%`,
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-text-muted">
+                <span className="truncate max-w-[200px]" title={siteArchitects.map((a) => a.name).join(", ")}>
+                  Assigned: {siteArchitects.length > 0 ? siteArchitects.map((a) => a.name).join(", ") : "Unassigned"}
+                </span>
+                <span className="shrink-0 font-medium">Field / Construction</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -924,14 +1158,16 @@ export function ProjectDetails({ me }) {
               </div>
 
               {/* Add Log Quick Button */}
-              <button
-                type="button"
-                onClick={() => setShowLogModal(true)}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/95 transition-all shadow-xs cursor-pointer active:scale-95"
-              >
-                <Plus size={13} />
-                <span>Log Entry</span>
-              </button>
+              {!isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleOpenLogModal}
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-primary text-white rounded-lg text-xs font-semibold hover:bg-primary/95 transition-all shadow-xs cursor-pointer active:scale-95"
+                >
+                  <Plus size={13} />
+                  <span>Log Entry</span>
+                </button>
+              )}
             </div>
 
             {/* TAB CONTENT */}
@@ -999,7 +1235,7 @@ export function ProjectDetails({ me }) {
                             : "text-text-muted hover:text-text"
                         }`}
                       >
-                        Desk
+                        Desk (Design)
                       </button>
                       <button
                         type="button"
@@ -1057,7 +1293,7 @@ export function ProjectDetails({ me }) {
                                     ) : (
                                       <Building2 size={10} />
                                     )}
-                                    {log.work_type || "desk"}
+                                    {log.work_type === "site" ? "Site" : "Desk (Design)"}
                                   </span>
                                 </div>
 
@@ -1100,13 +1336,15 @@ export function ProjectDetails({ me }) {
                           ? "No work log entries match the selected filters."
                           : "No work logs have been submitted for this project yet."}
                       </p>
-                      <button
-                        onClick={() => setShowLogModal(true)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-primary/95 transition-all shadow-xs cursor-pointer"
-                      >
-                        <Plus size={14} />
-                        <span>Log First Work Entry</span>
-                      </button>
+                      {!isAdmin && (
+                        <button
+                          onClick={handleOpenLogModal}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:bg-primary/95 transition-all shadow-xs cursor-pointer"
+                        >
+                          <Plus size={14} />
+                          <span>Log First Work Entry</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1312,6 +1550,12 @@ export function ProjectDetails({ me }) {
                             ? Math.round((c.hours / totalHours) * 100)
                             : 0;
                         const avatarColor = getEmployeeColor(c.id, c.name);
+                        const focusTag =
+                          c.deskHours > 0 && c.siteHours > 0
+                            ? "Design & Site"
+                            : c.siteHours > 0
+                            ? "Site Execution"
+                            : "Design / Desk";
 
                         return (
                           <div
@@ -1327,11 +1571,24 @@ export function ProjectDetails({ me }) {
                                   {getInitials(c.name)}
                                 </div>
                                 <div className="min-w-0">
-                                  <h4 className="text-xs font-bold text-text truncate">
-                                    {c.name}
-                                  </h4>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <h4 className="text-xs font-bold text-text truncate">
+                                      {c.name}
+                                    </h4>
+                                    <span
+                                      className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold ${
+                                        focusTag === "Site Execution"
+                                          ? "bg-amber-500/15 text-amber-900 border border-amber-500/30"
+                                          : focusTag === "Design & Site"
+                                          ? "bg-purple-100 text-purple-800 border border-purple-200"
+                                          : "bg-blue-50 text-blue-700 border border-blue-200"
+                                      }`}
+                                    >
+                                      {focusTag}
+                                    </span>
+                                  </div>
                                   <span className="text-[10px] text-text-muted block truncate">
-                                    {c.role} • {c.entriesCount} entries
+                                    {c.role} • {c.entriesCount} {c.entriesCount === 1 ? "entry" : "entries"}
                                   </span>
                                 </div>
                               </div>
@@ -1346,17 +1603,31 @@ export function ProjectDetails({ me }) {
                               </div>
                             </div>
 
-                            {/* Effort bar */}
-                            <div className="space-y-1">
-                              <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
-                                <div
-                                  className="h-full bg-primary rounded-full transition-all"
-                                  style={{ width: `${percentOfTotal}%` }}
-                                />
-                              </div>
+                            {/* Effort breakdown */}
+                            <div className="space-y-1.5 pt-1 border-t border-border-light/60">
                               <div className="flex justify-between text-[10px] text-text-muted">
-                                <span>Active Contributor</span>
+                                <span>
+                                  Desk: <strong className="text-text font-mono">{c.deskHours.toFixed(1)}h</strong>
+                                  {" • "}
+                                  Site: <strong className="text-text font-mono">{c.siteHours.toFixed(1)}h</strong>
+                                </span>
                                 <span>Last: {formatProjectDateNepali(c.lastActive)}</span>
+                              </div>
+                              <div className="w-full bg-border rounded-full h-1.5 overflow-hidden flex">
+                                {c.hours > 0 && (
+                                  <>
+                                    <div
+                                      className="h-full bg-primary transition-all"
+                                      style={{ width: `${(c.deskHours / c.hours) * 100}%` }}
+                                      title={`Desk: ${c.deskHours.toFixed(1)}h`}
+                                    />
+                                    <div
+                                      className="h-full bg-amber-500 transition-all"
+                                      style={{ width: `${(c.siteHours / c.hours) * 100}%` }}
+                                      title={`Site: ${c.siteHours.toFixed(1)}h`}
+                                    />
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1407,10 +1678,15 @@ export function ProjectDetails({ me }) {
                 >
                   {getInitials(leadArchitect?.name) || "LA"}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-text truncate">
-                    {leadArchitect?.name || "Unassigned"}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <p className="text-xs font-bold text-text truncate">
+                      {leadArchitect?.name || "Unassigned"}
+                    </p>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${getAssignedRoleBadgeClass(project.lead_architect_role || "Design")}`}>
+                      {getAssignedRoleBadgeText(project.lead_architect_role || "Design")}
+                    </span>
+                  </div>
                   <span className="text-[10px] text-text-muted block truncate">
                     {leadArchitect?.title || leadArchitect?.role || "Project Lead"}
                   </span>
@@ -1425,29 +1701,47 @@ export function ProjectDetails({ me }) {
               </span>
               {subArchitects.length > 0 ? (
                 <div className="space-y-2">
-                  {subArchitects.map((sub, idx) => (
-                    <div
-                      key={sub.id || sub.name || idx}
-                      className="p-2.5 rounded-xl bg-surface-muted border border-border-light flex items-center gap-2.5"
-                    >
+                  {subArchitects.map((sub, idx) => {
+                    const isExt = Boolean(sub.isExternal);
+                    return (
                       <div
-                        className="w-7 h-7 rounded-full text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
-                        style={{
-                          backgroundColor: getEmployeeColor(sub.id, sub.name),
-                        }}
+                        key={sub.id || sub.name || idx}
+                        className={`p-2.5 rounded-xl border flex items-center gap-2.5 ${
+                          isExt
+                            ? "bg-amber-50/50 border-amber-200/80"
+                            : "bg-surface-muted border-border-light"
+                        }`}
                       >
-                        {getInitials(sub.name)}
+                        <div
+                          className="w-7 h-7 rounded-full text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-2xs"
+                          style={{
+                            backgroundColor: isExt ? "#D97706" : getEmployeeColor(sub.id, sub.name),
+                          }}
+                        >
+                          {getInitials(sub.name)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <p className="text-xs font-semibold text-text truncate">
+                              {sub.name}
+                            </p>
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                isExt
+                                  ? "bg-amber-100 text-amber-800 border-amber-200 font-bold"
+                                  : getAssignedRoleBadgeClass(sub.assignedRole || "Design")
+                              }`}
+                            >
+                              {isExt ? "External" : getAssignedRoleBadgeText(sub.assignedRole || "Design")}
+                            </span>
+                          </div>
+                          <span className="text-[9px] text-text-muted block truncate">
+                            {isExt ? "External Collaborator / Contractor" : (sub.role || "Team Contributor")}
+                          </span>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-semibold text-text truncate">
-                          {sub.name}
-                        </p>
-                        <span className="text-[9px] text-text-muted block truncate">
-                          {sub.role || "Team Contributor"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-xs text-text-muted italic py-2">
@@ -1457,46 +1751,42 @@ export function ProjectDetails({ me }) {
             </div>
           </div>
 
-          {/* PROJECT SPECIFICATIONS CARD */}
+          {/* PROJECT TIMELINE & METADATA CARD */}
           <div className="bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3">
             <div className="flex items-center gap-2 pb-2 border-b border-border-light">
               <FolderKanban size={15} className="text-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-text">
-                Project Overview
+                Project Timeline & Info
               </h3>
             </div>
 
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-border-light/60">
-                <span className="text-text-muted">Scope / Work</span>
-                <span className="font-semibold text-text">{project.project_work || "—"}</span>
+                <span className="text-text-muted">Start Date (BS)</span>
+                <span className="font-semibold text-text">{formatProjectDateNepali(project.start_date)}</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-border-light/60">
-                <span className="text-text-muted">Project Type</span>
-                <span className="font-semibold text-text">{project.project_type || "—"}</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-border-light/60">
-                <span className="text-text-muted">Status</span>
-                <span className="font-semibold text-text">{project.status || "Active"}</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-border-light/60">
-                <span className="text-text-muted">Current Stage</span>
-                <span className="font-semibold text-primary">{project.current_stage || "—"}</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-border-light/60">
-                <span className="text-text-muted">Target Deadline</span>
+                <span className="text-text-muted">Target Deadline (BS)</span>
                 <span className="font-semibold text-text">{formatProjectDateNepali(project.end_date || project.deadline)}</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-border-light/60">
-                <span className="text-text-muted">Total Logs</span>
-                <span className="font-semibold font-mono text-text">{projectLogs.length} entries</span>
+                <span className="text-text-muted">Active Contributors</span>
+                <span className="font-semibold text-text">{uniqueContributors} {uniqueContributors === 1 ? "member" : "members"}</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-border-light/60">
+                <span className="text-text-muted">Created Date</span>
+                <span className="font-semibold text-text">{formatProjectDateNepali(project.created_at || project.date_added)}</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-border-light/60">
+                <span className="text-text-muted">Last Updated</span>
+                <span className="font-semibold text-text">{formatProjectDateNepali(project.updated_at || project.last_updated || project.created_at)}</span>
               </div>
               <div className="flex items-center justify-between py-1">
                 <span className="text-text-muted">Latest Activity</span>
                 <button
                   type="button"
                   onClick={() => setActiveTab("activity")}
-                  className="font-semibold text-primary hover:underline truncate max-w-[130px] text-right cursor-pointer"
+                  className="font-semibold text-primary hover:underline truncate max-w-[150px] text-right cursor-pointer"
                   title={latestActivity?.title || "View activity"}
                 >
                   {latestActivity?.title || "—"}
@@ -1518,7 +1808,7 @@ export function ProjectDetails({ me }) {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-text">
-                    Edit Project Progress & Timeline
+                    {isAdmin ? "Edit Project Details" : "Update Stage & Deadline"}
                   </h3>
                   <p className="text-[11px] text-text-muted">
                     {project.name}
@@ -1534,86 +1824,300 @@ export function ProjectDetails({ me }) {
             </div>
 
             <div className="space-y-4">
-              {/* CURRENT STAGE */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-text block">
-                  Current Pipeline Stage
-                </label>
-                <select
-                  value={editStage}
-                  onChange={(e) => setEditStage(e.target.value)}
-                  className="w-full text-xs font-medium px-3 py-2 bg-surface-muted border border-border rounded-xl focus:bg-white focus:outline-hidden focus:border-primary text-text cursor-pointer"
+              {/* DUAL-TRACK STAGES & PROGRESS (DESIGN & SITE) */}
+              <div className="p-3.5 rounded-2xl bg-surface-muted/60 border border-border-light space-y-4">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
+                  Dual-Track Execution Streams (Design vs Site)
+                </span>
+
+                {/* 1. Design Track */}
+                <div
+                  className={`p-3 bg-white rounded-xl border transition-all ${
+                    editHasDesign
+                      ? "border-border shadow-2xs"
+                      : "border-border/60 bg-slate-50/70 opacity-70"
+                  }`}
                 >
-                  <option value="">Select Stage...</option>
-                  {(config.stages || []).map((st) => (
-                    <option key={st} value={st}>
-                      {st}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={editHasDesign}
+                        onClick={() => {
+                          if (editHasDesign && !editHasSite) return;
+                          const next = !editHasDesign;
+                          setEditHasDesign(next);
+                          setEditProgress(
+                            calculateOverallProgress({
+                              designProgress: next ? editDesignProgress : 0,
+                              siteProgress: editHasSite ? editSiteProgress : 0,
+                              hasDesign: next,
+                              hasSite: editHasSite,
+                            })
+                          );
+                        }}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          editHasDesign ? "bg-primary" : "bg-slate-300"
+                        }`}
+                        title={
+                          editHasDesign && !editHasSite
+                            ? "At least one track must remain enabled"
+                            : "Toggle Design Track"
+                        }
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                            editHasDesign ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs font-bold text-primary flex items-center gap-1">
+                        <span>🎨</span> Design Track Stage
+                      </span>
+                    </div>
+                    {editHasDesign ? (
+                      <span className="text-xs font-mono font-bold text-primary">
+                        {editDesignProgress}%
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
 
-              {/* PROJECT STATUS */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-text block">
-                  Project Status
-                </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {STATUS_OPTIONS.map((st) => (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => setEditStatus(st)}
-                      className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                        editStatus === st
-                          ? "bg-primary text-white border-primary shadow-xs"
-                          : "bg-surface-muted text-text-muted border-border hover:bg-white hover:text-text"
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
+                  {editHasDesign && (
+                    <div className="space-y-2.5 pt-2">
+                      <input
+                        type="text"
+                        list="design-stages-list"
+                        value={editDesignStage}
+                        onChange={(e) => setEditDesignStage(e.target.value)}
+                        placeholder="e.g. 3D Modelling & Renders..."
+                        className="w-full text-xs font-medium px-3 py-2 bg-surface-muted border border-border rounded-xl focus:bg-white focus:outline-hidden focus:border-primary text-text"
+                      />
+                      <datalist id="design-stages-list">
+                        {TRACK_STAGES.design.map((st) => (
+                          <option key={st} value={st} />
+                        ))}
+                      </datalist>
+
+                      <div className="flex flex-wrap gap-1">
+                        {TRACK_STAGES.design.map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setEditDesignStage(st)}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                              editDesignStage === st
+                                ? "bg-primary text-white border-primary shadow-2xs font-bold"
+                                : "bg-surface-muted border-border text-text-muted hover:bg-white hover:text-text"
+                            }`}
+                          >
+                            {st}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1 pt-1">
+                        <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
+                          <span>Design Progress</span>
+                          <span className="font-mono font-bold text-primary">
+                            {editDesignProgress}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="5"
+                          value={editDesignProgress}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setEditDesignProgress(val);
+                            setEditProgress(
+                              calculateOverallProgress({
+                                designProgress: val,
+                                siteProgress: editHasSite ? editSiteProgress : 0,
+                                hasDesign: true,
+                                hasSite: editHasSite,
+                              })
+                            );
+                          }}
+                          className="w-full accent-primary cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Site Track */}
+                <div
+                  className={`p-3 bg-white rounded-xl border transition-all ${
+                    editHasSite
+                      ? "border-border shadow-2xs"
+                      : "border-border/60 bg-slate-50/70 opacity-70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={editHasSite}
+                        onClick={() => {
+                          if (editHasSite && !editHasDesign) return;
+                          const next = !editHasSite;
+                          setEditHasSite(next);
+                          setEditProgress(
+                            calculateOverallProgress({
+                              designProgress: editHasDesign ? editDesignProgress : 0,
+                              siteProgress: next ? editSiteProgress : 0,
+                              hasDesign: editHasDesign,
+                              hasSite: next,
+                            })
+                          );
+                        }}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          editHasSite ? "bg-amber-600" : "bg-slate-300"
+                        }`}
+                        title={
+                          editHasSite && !editHasDesign
+                            ? "At least one track must remain enabled"
+                            : "Toggle Site Track"
+                        }
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                            editHasSite ? "translate-x-4" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs font-bold text-amber-700 flex items-center gap-1">
+                        <span>🏗️</span> Site Track Stage
+                      </span>
+                    </div>
+                    {editHasSite ? (
+                      <span className="text-xs font-mono font-bold text-amber-600">
+                        {editSiteProgress}%
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-slate-400 uppercase">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
+
+                  {editHasSite && (
+                    <div className="space-y-2.5 pt-2">
+                      <input
+                        type="text"
+                        list="site-stages-list"
+                        value={editSiteStage}
+                        onChange={(e) => setEditSiteStage(e.target.value)}
+                        placeholder="e.g. Substructure & Foundation..."
+                        className="w-full text-xs font-medium px-3 py-2 bg-surface-muted border border-border rounded-xl focus:bg-white focus:outline-hidden focus:border-amber-600 text-text"
+                      />
+                      <datalist id="site-stages-list">
+                        {TRACK_STAGES.site.map((st) => (
+                          <option key={st} value={st} />
+                        ))}
+                      </datalist>
+
+                      <div className="flex flex-wrap gap-1">
+                        {TRACK_STAGES.site.map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setEditSiteStage(st)}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                              editSiteStage === st
+                                ? "bg-amber-600 text-white border-amber-600 shadow-2xs font-bold"
+                                : "bg-surface-muted border-border text-text-muted hover:bg-white hover:text-text"
+                            }`}
+                          >
+                            {st}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="space-y-1 pt-1">
+                        <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
+                          <span>Site Execution Progress</span>
+                          <span className="font-mono font-bold text-amber-600">
+                            {editSiteProgress}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="5"
+                          value={editSiteProgress}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setEditSiteProgress(val);
+                            setEditProgress(
+                              calculateOverallProgress({
+                                designProgress: editHasDesign ? editDesignProgress : 0,
+                                siteProgress: val,
+                                hasDesign: editHasDesign,
+                                hasSite: true,
+                              })
+                            );
+                          }}
+                          className="w-full accent-amber-600 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Overall Composite Progress */}
+                <div className="p-3 bg-white rounded-xl border border-border space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-text">Overall Composite Progress</span>
+                    <span className="text-primary font-mono">{editProgress}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={editProgress}
+                    onChange={(e) => setEditProgress(Number(e.target.value))}
+                    className="w-full accent-primary cursor-pointer"
+                  />
+                  <p className="text-[10px] text-text-muted">
+                    Auto-computed from Design ({editDesignProgress}%) and Site ({editSiteProgress}%) progress.
+                  </p>
                 </div>
               </div>
 
-              {/* PROGRESS SLIDER */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-text">Completion Progress</span>
-                  <span className="text-primary font-mono">{editProgress}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={editProgress}
-                  onChange={(e) => setEditProgress(Number(e.target.value))}
-                  className="w-full accent-primary cursor-pointer"
-                />
-              </div>
-
-              {/* NEPALI CALENDAR: START DATE */}
+              {/* START DATE */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-text block">
-                  Start Date (Nepali Calendar)
+                  Start Date
                 </label>
                 <NepaliDatePicker
                   value={normalizeDateToISO(editStartDate)}
                   onChange={(iso) => setEditStartDate(iso)}
-                  placeholder="Select Nepali start date..."
+                  placeholder="Select start date..."
                 />
               </div>
 
-              {/* NEPALI CALENDAR: TARGET DEADLINE */}
+              {/* TARGET DEADLINE */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-text block">
-                  Target Deadline (Nepali Calendar)
+                  Target Deadline
                 </label>
                 <NepaliDatePicker
                   value={normalizeDateToISO(editDeadline)}
                   onChange={(iso) => setEditDeadline(iso)}
-                  placeholder="Select Nepali target deadline..."
+                  placeholder="Select target deadline..."
                   dropUp={true}
                 />
                 {editDeadline && (
@@ -1622,6 +2126,191 @@ export function ProjectDetails({ me }) {
                   </div>
                 )}
               </div>
+
+              {/* TEAM ROLE ASSIGNMENTS (ADMIN ONLY) */}
+              {isAdmin ? (
+                <div className="pt-2 border-t border-border-light space-y-4">
+                  <label className="text-xs font-bold text-text block">
+                    Team Member Scopes (Design vs Site)
+                  </label>
+
+                  {/* 1. Lead Architect Selection & Scope */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
+                      {config.leadLabel || "Lead Architect"} (Project Lead)
+                    </label>
+                    <select
+                      value={editLeadId}
+                      onChange={(e) => setEditLeadId(e.target.value)}
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-medium text-text bg-white border border-border rounded-xl outline-none focus:border-primary cursor-pointer transition-all"
+                    >
+                      <option value="">-- Select {config.leadLabel || "Lead Architect"} --</option>
+                      {assignableEmployees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Lead Assigned Scope */}
+                    <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-surface-muted border border-border-light">
+                      <span className="text-[11px] font-semibold text-text-muted">
+                        Lead Assigned Scope:
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {ASSIGNED_ROLES.map((r) => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => setEditLeadRole(r.id)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                              editLeadRole === r.id
+                                ? r.id === "Site"
+                                  ? "bg-amber-600 border-amber-600 text-white shadow-2xs font-bold"
+                                  : r.id === "Both"
+                                  ? "bg-purple-600 border-purple-600 text-white shadow-2xs font-bold"
+                                  : r.id === "BOQ"
+                                  ? "bg-emerald-600 border-emerald-600 text-white shadow-2xs font-bold"
+                                  : "bg-primary border-primary text-white shadow-2xs font-bold"
+                                : "bg-white border-border text-text-muted hover:text-text"
+                            }`}
+                          >
+                            <span className="mr-1">{r.icon}</span>
+                            <span>{r.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Sub-Architects Roster Selection & Scopes */}
+                  <div className="space-y-2 pt-1 border-t border-border-light">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
+                          {config.subLeadLabel || "Sub-Architects"} (Team Members)
+                        </label>
+                        <p className="text-[11px] text-text-muted mt-0.5">
+                          Click team members to add or remove them from this project:
+                        </p>
+                      </div>
+                      {editSelectedSubIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setEditSelectedSubIds([])}
+                          className="text-[11px] text-rose-500 hover:text-rose-700 font-semibold cursor-pointer"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-1.5 bg-surface-muted/60 rounded-xl border border-border-light">
+                      {assignableEmployees.map((emp) => {
+                        const isSelected = editSelectedSubIds.includes(emp.id);
+                        return (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => toggleEditSubEmp(emp.id)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-primary text-white shadow-xs font-semibold"
+                                : "bg-white text-text border border-border hover:border-primary/40 hover:bg-surface-muted"
+                            }`}
+                          >
+                            {isSelected ? (
+                              <Check size={12} className="text-white" />
+                            ) : (
+                              <Plus size={12} className="text-text-muted" />
+                            )}
+                            <span>{emp.name}</span>
+                            {isSelected && <X size={12} className="opacity-70 ml-0.5" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Sub-Architects Assigned Scopes */}
+                    {editSelectedSubIds.length > 0 && (
+                      <div className="p-3 rounded-2xl bg-white border border-border space-y-2 mt-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
+                          {config.subLeadLabel || "Sub-Architect"} Assigned Scopes
+                        </span>
+                        <div className="divide-y divide-border-light">
+                          {editSelectedSubIds.map((subId) => {
+                            const emp = employees?.find((e) => e.id === subId);
+                            const name = emp ? emp.name : subId;
+                            const curRole = editSubRoles[subId] || "Design";
+
+                            return (
+                              <div key={subId} className="py-2 flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-text truncate">{name}</p>
+                                  <span className="text-[10px] text-text-muted">
+                                    {config.subLeadLabel || "Team Member"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {ASSIGNED_ROLES.map((r) => (
+                                    <button
+                                      key={r.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setEditSubRoles((prev) => ({
+                                          ...prev,
+                                          [subId]: r.id,
+                                        }))
+                                      }
+                                      className={`px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                                        curRole === r.id
+                                          ? r.id === "Site"
+                                            ? "bg-amber-600 border-amber-600 text-white shadow-2xs font-bold"
+                                            : r.id === "Both"
+                                            ? "bg-purple-600 border-purple-600 text-white shadow-2xs font-bold"
+                                            : r.id === "BOQ"
+                                            ? "bg-emerald-600 border-emerald-600 text-white shadow-2xs font-bold"
+                                            : "bg-primary border-primary text-white shadow-2xs font-bold"
+                                          : "bg-surface-muted border-border text-text-muted hover:bg-white hover:text-text"
+                                      }`}
+                                    >
+                                      <span className="mr-1">{r.icon}</span>
+                                      <span>{r.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Additional / External Collaborators */}
+                  <div className="pt-2 border-t border-border-light space-y-1">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
+                      Additional / External Collaborators (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Metal Facade Works, Site Contractor, Consultant..."
+                      value={editCustomSubText}
+                      onChange={(e) => setEditCustomSubText(e.target.value)}
+                      className="w-full h-10 px-3.5 text-xs sm:text-sm font-normal text-text bg-white border border-border rounded-xl outline-none placeholder:text-text-muted/60 focus:border-primary transition-all"
+                    />
+                    <p className="text-[10px] text-text-muted">
+                      External specialists, contractors, or consultants not in the employee roster.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-3 border-t border-border-light text-center">
+                  <p className="text-[11px] text-text-muted italic">
+                    Project team assignments and scopes are managed by organization administrators.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -1639,7 +2328,7 @@ export function ProjectDetails({ me }) {
                 disabled={isSavingEdit}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-white rounded-xl hover:bg-primary/95 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
               >
-                {isSavingEdit ? "Saving..." : "Save Changes"}
+                {isSavingEdit ? "Saving..." : (isAdmin ? "Save Changes" : "Save Updates")}
               </button>
             </div>
           </div>
@@ -1693,7 +2382,7 @@ export function ProjectDetails({ me }) {
               {/* DATE PICKER */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-text block">
-                  Date (Nepali Calendar)
+                  Date
                 </label>
                 <NepaliDatePicker
                   value={normalizeDateToISO(logDate)}
@@ -1734,7 +2423,7 @@ export function ProjectDetails({ me }) {
                           : "bg-surface-muted text-text-muted border-border hover:bg-white hover:text-text"
                       }`}
                     >
-                      Desk
+                      Desk (Design)
                     </button>
                     <button
                       type="button"

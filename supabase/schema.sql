@@ -104,9 +104,17 @@ returns boolean as $$
   );
 $$ language sql security definer stable;
 
+create or replace function get_auth_org_id()
+returns uuid as $$
+  select org_id from profiles where id = auth.uid() limit 1;
+$$ language sql security definer stable;
+
 -- ---------- profiles ----------
 create policy "read own profile" on profiles
   for select using (id = auth.uid());
+
+create policy "org members read org profiles" on profiles
+  for select using (org_id = get_auth_org_id());
 
 create policy "admins read org profiles" on profiles
   for select using (is_org_admin(org_id));
@@ -227,7 +235,19 @@ create table if not exists projects (
   project_type text,
   start_date text,
   end_date text,
+  deadline text,
   progress integer default 0,
+  lead_architect text,
+  lead_architect_role text default 'Design',
+  sub_architect_ids jsonb default '[]'::jsonb,
+  sub_architect_roles jsonb default '{}'::jsonb,
+  sub_architect_names jsonb default '{}'::jsonb,
+  sub_architects text,
+  design_stage text,
+  design_progress integer default 0,
+  site_stage text,
+  site_progress integer default 0,
+  activity_history jsonb default '[]'::jsonb,
   updated_at timestamptz default now(),
   created_at timestamptz default now()
 );

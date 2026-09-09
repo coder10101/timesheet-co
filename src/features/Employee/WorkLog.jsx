@@ -45,6 +45,11 @@ import {
   formatWorkLogEntryText,
 } from "../../utils/workType";
 import { useOfficeHours } from "../../constants/officeHours";
+import {
+  getArchitectAssignedRole,
+  getAssignedRoleBadgeClass,
+  getAssignedRoleBadgeText,
+} from "../../constants/projectPresets";
 
 export function EmployeeWorklog({ me }) {
   const officeHours = useOfficeHours();
@@ -232,6 +237,20 @@ export function EmployeeWorklog({ me }) {
     setTimeout(() => {
       textareaRef.current?.focus();
     }, 100);
+  };
+
+  const handleProjectChange = (newProjId) => {
+    setProjectId(newProjId);
+    if (!newProjId) return;
+    const targetProj = projectMap.get(newProjId);
+    if (targetProj) {
+      const assignedRole = getArchitectAssignedRole(targetProj, me?.id);
+      if (assignedRole === "Site") {
+        setWorkType("site");
+      } else if (assignedRole === "Design") {
+        setWorkType("desk");
+      }
+    }
   };
 
   const resetForm = () => {
@@ -530,7 +549,7 @@ export function EmployeeWorklog({ me }) {
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <select
                 value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
+                onChange={(e) => handleProjectChange(e.target.value)}
                 className="h-10 flex-1 sm:flex-initial sm:w-44 bg-white border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary shadow-2xs cursor-pointer truncate"
               >
                 <option value="">No Project</option>
@@ -540,6 +559,17 @@ export function EmployeeWorklog({ me }) {
                   </option>
                 ))}
               </select>
+
+              {projectId && projectMap.get(projectId) && (
+                <span
+                  className={`hidden sm:inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold border shrink-0 ${getAssignedRoleBadgeClass(
+                    getArchitectAssignedRole(projectMap.get(projectId), me?.id)
+                  )}`}
+                  title={`Your assigned scope on this project: ${getArchitectAssignedRole(projectMap.get(projectId), me?.id)}`}
+                >
+                  {getAssignedRoleBadgeText(getArchitectAssignedRole(projectMap.get(projectId), me?.id))}
+                </span>
+              )}
 
               {/* Mobile Action Buttons */}
               <div className="flex sm:hidden items-center gap-1.5 shrink-0">

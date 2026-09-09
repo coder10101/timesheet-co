@@ -1,11 +1,17 @@
 import { todayISO } from "../utils/workTime";
-import { isoToBS, bsDateToISO, NEPALI_MONTHS, getTodayBS } from "../utils/nepaliCalendar";
+import {
+  isoToBS,
+  bsDateToISO,
+  NEPALI_MONTHS,
+  getTodayBS,
+} from "../utils/nepaliCalendar";
 
 export const PROJECT_PRESETS = {
   architecture: {
     id: "architecture",
     name: "Architecture & Design",
-    description: "Tailored for architectural firms, interior designers, and construction consultants.",
+    description:
+      "Tailored for architectural firms, interior designers, and construction consultants.",
     leadLabel: "Architect",
     subLeadLabel: "Sub-Architect",
     workLabel: "Project Work",
@@ -17,7 +23,6 @@ export const PROJECT_PRESETS = {
       "Detail Drawing",
       "Renderings",
       "BOQ",
-      "Plinth Level",
       "Construction Ongoing",
       "Site Work",
       "Interior",
@@ -34,12 +39,13 @@ export const PROJECT_PRESETS = {
       "Office / Institutional",
       "Renovation",
     ],
-    defaultTypes: ["Site", "Desk", "Site + Desk", "Interior", "Renovation", "Design"],
+    defaultTypes: ["Site", "Interior", "Renovation", "Design"],
   },
   software: {
     id: "software",
     name: "Software & Technology",
-    description: "Tailored for tech startups, software studios, and product engineering teams.",
+    description:
+      "Tailored for tech startups, software studios, and product engineering teams.",
     leadLabel: "Tech Lead",
     subLeadLabel: "Contributors",
     workLabel: "Module / Service",
@@ -69,7 +75,8 @@ export const PROJECT_PRESETS = {
   general: {
     id: "general",
     name: "General Business & Agency",
-    description: "Tailored for creative agencies, consultancies, and general project teams.",
+    description:
+      "Tailored for creative agencies, consultancies, and general project teams.",
     leadLabel: "Project Lead",
     subLeadLabel: "Team Members",
     workLabel: "Scope / Category",
@@ -108,7 +115,9 @@ export function getProjectConfig(orgSettings = {}) {
     workLabel: orgSettings.workLabel || preset.workLabel,
     stageLabel: orgSettings.stageLabel || preset.stageLabel,
     typeLabel: orgSettings.typeLabel || preset.typeLabel,
-    stages: orgSettings.stages?.length ? orgSettings.stages : preset.defaultStages,
+    stages: orgSettings.stages?.length
+      ? orgSettings.stages
+      : preset.defaultStages,
     workCategories: orgSettings.workCategories?.length
       ? orgSettings.workCategories
       : preset.defaultWorkCategories,
@@ -121,10 +130,17 @@ export function getProjectConfig(orgSettings = {}) {
  * Supports ISO (YYYY-MM-DD), BS dates (e.g. 2083/4/25 or 2083-04-25),
  * or slash dates (MM/DD/YYYY or DD/MM/YYYY).
  */
-export function getDeadlineUrgency(deadlineOrEndDateStr, projectStatus = "Active") {
+export function getDeadlineUrgency(
+  deadlineOrEndDateStr,
+  projectStatus = "Active",
+) {
   const normStatus = (projectStatus || "").trim().toLowerCase();
 
-  if (normStatus === "completed" || normStatus === "complete" || normStatus === "100%") {
+  if (
+    normStatus === "completed" ||
+    normStatus === "complete" ||
+    normStatus === "100%"
+  ) {
     return {
       type: "completed",
       daysLeft: null,
@@ -270,7 +286,6 @@ export const STAGE_PIPELINES = {
   standard: ["Concept", "Design", "Site"],
   detailed: [
     "Site Planning",
-    "Plinth Level",
     "3D Modelling",
     "Detail Drawing",
     "Site Execution",
@@ -278,6 +293,75 @@ export const STAGE_PIPELINES = {
     "Handover",
   ],
 };
+
+/**
+ * Dual-Track Stage Pipelines for Architectural Projects:
+ * - Design Track: Office-based drawings, 3D modelling, approvals
+ * - Site Track: Field-based execution, foundations, structure, finishes
+ * - BOQ Track: Estimation & tendering
+ */
+export const TRACK_STAGES = {
+  design: [
+    "Concept & Schematic",
+    "3D Modelling & Renders",
+    "Municipal Drawings & Approval",
+    "Detailed Working Drawings",
+    "Interior & Joinery Details",
+  ],
+  site: [
+    "Setting Out & Excavation",
+    "Foundation & Substructure",
+    "Superstructure & Brickwork",
+    "MEP & Electrical Rough-in",
+    "Finishing & Painting",
+    "Site Handover",
+  ],
+  boq: ["Quantity Takeoff", "Rate Analysis & Estimation", "Final Tender BOQ"],
+};
+
+/**
+ * Calculates fair overall progress based on active Design & Site tracks.
+ */
+export function calculateOverallProgress({
+  designProgress,
+  siteProgress,
+  hasDesign,
+  hasSite,
+  manualProgress = null,
+} = {}) {
+  // Determine if design and site tracks are present/active
+  const hasD =
+    hasDesign !== undefined
+      ? Boolean(hasDesign)
+      : designProgress !== undefined && designProgress !== null;
+  const hasS =
+    hasSite !== undefined
+      ? Boolean(hasSite)
+      : siteProgress !== undefined && siteProgress !== null;
+
+  const d = Math.min(100, Math.max(0, Number(designProgress) || 0));
+  const s = Math.min(100, Math.max(0, Number(siteProgress) || 0));
+
+  // If both tracks are active: average them
+  if (hasD && hasS) {
+    return Math.round((d + s) / 2);
+  }
+  // If only design is active
+  if (hasD) return d;
+  // If only site is active
+  if (hasS) return s;
+
+  // Fallback to manualProgress if neither track is active
+  if (
+    manualProgress !== null &&
+    manualProgress !== undefined &&
+    !isNaN(Number(manualProgress))
+  ) {
+    return Math.min(100, Math.max(0, Number(manualProgress)));
+  }
+
+  return 0;
+}
 
 /**
  * Given a current stage, determines the next stage in the pipeline.
@@ -319,9 +403,10 @@ export function getStageDefaultProgress(stage, status) {
   if (!stage) return 20;
   const s = stage.trim().toLowerCase();
   if (s.includes("concept")) return 25;
-  if (s.includes("design") || s.includes("3d") || s.includes("modelling")) return 50;
+  if (s.includes("design") || s.includes("3d") || s.includes("modelling"))
+    return 50;
   if (s.includes("drawing") || s.includes("detail")) return 65;
-  if (s.includes("site") || s.includes("construction") || s.includes("plinth")) return 80;
+  if (s.includes("site") || s.includes("construction")) return 80;
   if (s.includes("finish") || s.includes("interior")) return 90;
   if (s.includes("handover") || s.includes("completed")) return 100;
   return 30;
@@ -424,7 +509,6 @@ export function normalizeDateToISO(dateStr) {
   return raw;
 }
 
-
 /**
  * Formats a timestamp into human-readable relative time ("Just now", "2h ago", "Yesterday", etc.)
  */
@@ -496,259 +580,60 @@ export function getProjectTypeBadgeClass(type) {
 }
 
 /**
- * Pre-parsed template data from user's Excel sheet
+ * Role options when assigning an architect to a project
  */
-export const EXCEL_TEMPLATE_PROJECTS = [
-  {
-    lead_architect: "Prabal",
-    name: "Tagal Residence",
-    project_work: "Residence",
-    current_stage: "Site Planning",
-    project_type: "Site",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Active",
-    color: "#63537E",
-  },
-  {
-    lead_architect: "Prabal",
-    name: "Attariya Timmure",
-    project_work: "Restaurant",
-    current_stage: "Plinth Level",
-    project_type: "Site",
-    sub_architects: "",
-    start_date: "",
-    end_date: "10",
-    status: "Active",
-    color: "#497833",
-  },
-  {
-    lead_architect: "Prabal",
-    name: "Mandikatar Residence",
-    project_work: "Residence",
-    current_stage: "Plinth",
-    project_type: "Site",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Active",
-    color: "#7A5A17",
-  },
-  {
-    lead_architect: "Aadesh",
-    name: "Birtamode BKS",
-    project_work: "Restaurant",
-    current_stage: "Construction ongoing, detail drawings",
-    project_type: "Site + Desk",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Active",
-    color: "#2563EB",
-  },
-  {
-    lead_architect: "Aadesh",
-    name: "BIRATNAGAR CAFETERIA",
-    project_work: "Restaurant",
-    current_stage: "3D Modelling",
-    project_type: "Design",
-    sub_architects: "",
-    start_date: "7/6",
-    end_date: "7/10",
-    status: "Active",
-    color: "#0D9488",
-  },
-  {
-    lead_architect: "Aadesh",
-    name: "Birtamode Residence",
-    project_work: "Residence",
-    current_stage: "Conceptual Drawings",
-    project_type: "Site + Desk",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Active",
-    color: "#7C3AED",
-  },
-  {
-    lead_architect: "Deepa",
-    name: "Manaslu Thakali",
-    project_work: "Restaurant",
-    current_stage: "Detail Drawing + Render",
-    project_type: "Desk",
-    sub_architects: "Unika",
-    start_date: "",
-    end_date: "",
-    status: "Ongoing",
-    color: "#EA580C",
-  },
-  {
-    lead_architect: "Deepa",
-    name: "Kritipur Residence",
-    project_work: "Residence",
-    current_stage: "Conceptual",
-    project_type: "Desk",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Ongoing",
-    color: "#63537E",
-  },
-  {
-    lead_architect: "Nischal",
-    name: "Teaching Rooftop",
-    project_work: "Restaurant",
-    current_stage: "Additional Work",
-    project_type: "Site Work",
-    sub_architects: "Metal Facade Works",
-    start_date: "",
-    end_date: "",
-    status: "Active",
-    color: "#497833",
-  },
-  {
-    lead_architect: "Nischal",
-    name: "Melung Thakali, Thamel",
-    project_work: "Restaurant",
-    current_stage: "Construction Work",
-    project_type: "Site Work",
-    sub_architects: "Furniture, Color and Tile",
-    start_date: "",
-    end_date: "",
-    status: "Active",
-    color: "#913030",
-  },
-  {
-    lead_architect: "Nischal",
-    name: "BKS Labim",
-    project_work: "Commercial",
-    current_stage: "Final Payment",
-    project_type: "Handover",
-    sub_architects: "Payment Remaining",
-    start_date: "",
-    end_date: "",
-    status: "Ongoing",
-    color: "#2563EB",
-  },
-  {
-    lead_architect: "Nischal",
-    name: "Inshape Baluwatar",
-    project_work: "Handover Complete",
-    current_stage: "Final Payment & Final Bill Submission",
-    project_type: "Desk",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Completed",
-    color: "#0D9488",
-  },
-  {
-    lead_architect: "Nischal",
-    name: "Yatra Lounge",
-    project_work: "Lounge",
-    current_stage: "Maintenance Work",
-    project_type: "Site Work",
-    sub_architects: "Complete",
-    start_date: "",
-    end_date: "",
-    status: "Completed",
-    color: "#7C3AED",
-  },
-  {
-    lead_architect: "Nischal",
-    name: "Timmure Durbar Marg",
-    project_work: "Restaurant",
-    current_stage: "Renovation",
-    project_type: "Site Work",
-    sub_architects: "Complete",
-    start_date: "",
-    end_date: "",
-    status: "Completed",
-    color: "#EA580C",
-  },
-  {
-    lead_architect: "Nischal",
-    name: "Jawalakhel Staff College",
-    project_work: "Restaurant",
-    current_stage: "Furniture Work",
-    project_type: "Site Work",
-    sub_architects: "19 Gatey Handover",
-    start_date: "",
-    end_date: "",
-    status: "Ongoing",
-    color: "#63537E",
-  },
-  {
-    lead_architect: "Bipna",
-    name: "Manaslu Thakali (Interior)",
-    project_work: "Restaurant",
-    current_stage: "BOQ",
-    project_type: "Design",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Ongoing",
-    color: "#497833",
-  },
-  {
-    lead_architect: "Som",
-    name: "Janakpur BKS",
-    project_work: "Restaurant",
-    current_stage: "Finishing Touch-up Works",
-    project_type: "Site Work",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Ongoing",
-    color: "#7A5A17",
-  },
-  {
-    lead_architect: "Som",
-    name: "Daddys' Kitchen - Teaching",
-    project_work: "Restaurant",
-    current_stage: "Site Work",
-    project_type: "Site Work",
-    sub_architects: "",
-    start_date: "2083/4/25",
-    end_date: "2083/5/14",
-    status: "60%",
-    color: "#2563EB",
-  },
-  {
-    lead_architect: "Som",
-    name: "Timmure Durbarmarg (Site)",
-    project_work: "Restaurant",
-    current_stage: "Site Work",
-    project_type: "Site Work",
-    sub_architects: "",
-    start_date: "2083/4/25",
-    end_date: "2083/5/14",
-    status: "70%",
-    color: "#0D9488",
-  },
-  {
-    lead_architect: "Unika",
-    name: "Biratnagar Cafe",
-    project_work: "Restaurant",
-    current_stage: "Detail Drawing",
-    project_type: "Interior",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Ongoing",
-    color: "#7C3AED",
-  },
-  {
-    lead_architect: "Unika",
-    name: "T3 Thakali",
-    project_work: "Banquet + Restaurant",
-    current_stage: "Concept Design",
-    project_type: "Design",
-    sub_architects: "",
-    start_date: "",
-    end_date: "",
-    status: "Active",
-    color: "#EA580C",
-  },
+export const ASSIGNED_ROLES = [
+  { id: "Design", label: "Design", fullLabel: "Design (Desk)", icon: "🎨" },
+  { id: "Site", label: "Site", fullLabel: "Site Execution", icon: "🏗️" },
+  { id: "BOQ", label: "BOQ", fullLabel: "BOQ & Estimation", icon: "📋" },
+  { id: "Both", label: "Both", fullLabel: "Design & Site", icon: "🔄" },
 ];
+
+/**
+ * Returns formatted badge text (e.g. "🎨 Design", "🏗️ Site", "📋 BOQ", "🔄 Both")
+ */
+export function getAssignedRoleBadgeText(role) {
+  const found = ASSIGNED_ROLES.find(
+    (r) => r.id.toLowerCase() === (role || "").toLowerCase(),
+  );
+  if (found) return `${found.icon} ${found.label}`;
+  return role || "🎨 Design";
+}
+
+/**
+ * Returns the assigned role for a given employee on a project.
+ * Priority:
+ * 1. If employee is lead architect -> project.lead_architect_role || "Design"
+ * 2. If employee has mapped sub_architect_roles -> project.sub_architect_roles[employeeId]
+ * 3. Fallback to "Design"
+ */
+export function getArchitectAssignedRole(project, employeeId) {
+  if (!project || !employeeId) return "Design";
+  if (
+    project.lead_architect_id &&
+    String(project.lead_architect_id) === String(employeeId)
+  ) {
+    return project.lead_architect_role || "Design";
+  }
+  if (project.sub_architect_roles && project.sub_architect_roles[employeeId]) {
+    return project.sub_architect_roles[employeeId];
+  }
+  return "Design";
+}
+
+/**
+ * Returns visual styling for an assigned role badge
+ */
+export function getAssignedRoleBadgeClass(role) {
+  const r = (role || "").toLowerCase();
+  if (r === "both" || (r.includes("site") && r.includes("design"))) {
+    return "bg-purple-50 text-purple-800 border-purple-200";
+  }
+  if (r.includes("site")) {
+    return "bg-amber-50 text-amber-900 border-amber-200";
+  }
+  if (r.includes("boq")) {
+    return "bg-emerald-50 text-emerald-800 border-emerald-200";
+  }
+  return "bg-slate-100 text-slate-700 border-slate-300/80";
+}

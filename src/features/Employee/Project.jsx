@@ -12,6 +12,7 @@ import {
   Table as TableIcon,
   ArrowRight,
   Clock,
+  Eye,
 } from "lucide-react";
 import {
   useProjects,
@@ -23,6 +24,8 @@ import {
   getProjectConfig,
   getDeadlineUrgency,
   STAGE_PIPELINES,
+  TRACK_STAGES,
+  calculateOverallProgress,
   getNextStage,
   getStageDefaultProgress,
   STATUS_OPTIONS,
@@ -31,8 +34,15 @@ import {
   normalizeDateToISO,
   getInitials,
   getProjectTypeBadgeClass,
+  ASSIGNED_ROLES,
+  getArchitectAssignedRole,
+  getAssignedRoleBadgeClass,
+  getAssignedRoleBadgeText,
 } from "../../constants/projectPresets";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
+import { QuickStageModal } from "../Projects/components/QuickStageModal";
+import { QuickDeadlineModal } from "../Projects/components/QuickDeadlineModal";
+import { ProjectTrackBadges, ProjectDeadlineBadge } from "../Projects/components/ProjectTrackBadges";
 
 export function EmployeeProjects({ me }) {
   const { projects, updateProjectStageAndDeadline } = useProjects();
@@ -59,8 +69,6 @@ export function EmployeeProjects({ me }) {
   // Quick edit modals
   const [quickStageProject, setQuickStageProject] = useState(null);
   const [quickDeadlineProject, setQuickDeadlineProject] = useState(null);
-  const [stageInput, setStageInput] = useState("");
-  const [deadlineInput, setDeadlineInput] = useState("");
   const [savingQuick, setSavingQuick] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
@@ -72,9 +80,13 @@ export function EmployeeProjects({ me }) {
   const getLeadName = (p) => {
     if (p.lead_architect_id) {
       const u = empMap.get(p.lead_architect_id);
-      if (u) return u.name || u.email;
+      if (u?.name) return u.name;
+      if (u?.email) return u.email;
     }
-    return p.lead_architect || "";
+    if (p.lead_architect && !/^[0-9a-f-]{36}$/i.test(p.lead_architect)) {
+      return p.lead_architect;
+    }
+    return "";
   };
 
   // Map employee stats and contributions
@@ -106,8 +118,15 @@ export function EmployeeProjects({ me }) {
         const current = contributorMap.get(e.employee_id) || {
           count: 0,
           name: e.employeeName,
+          siteHours: 0,
+          deskHours: 0,
         };
         current.count += 1;
+        if (e.work_type === "site" || (e.text && e.text.includes("[Site Visit]"))) {
+          current.siteHours += 1;
+        } else {
+          current.deskHours += 1;
+        }
         if (e.employeeName) current.name = e.employeeName;
         contributorMap.set(e.employee_id, current);
       });
@@ -120,6 +139,8 @@ export function EmployeeProjects({ me }) {
             name: emp?.name || cStat.name || "Team Member",
             employee: emp || null,
             logCount: cStat.count,
+            siteHours: cStat.siteHours,
+            deskHours: cStat.deskHours,
           };
         })
         .sort((a, b) => b.logCount - a.logCount);
@@ -143,38 +164,65 @@ export function EmployeeProjects({ me }) {
     return map;
   }, [projects, entries, empMap, me]);
 
-  // Helper to compute all Sub-Architects for a project
+  // Helper to compute all Sub-Architects for a project with their roles
   const getSubArchitectsList = (p) => {
     const stats = projectStats.get(p.id);
-    const names = new Set();
+    const result = [];
+    const seen = new Set();
 
+    // 1. Employee roster selections by ID
     if (Array.isArray(p.sub_architect_ids)) {
       p.sub_architect_ids.forEach((id) => {
         const emp = empMap.get(id);
-        if (emp?.name) names.add(emp.name);
+        const metaName = p.sub_architect_names?.[id];
+        let name = emp?.name || metaName || "";
+        if (!name && !/^[0-9a-f-]{36}$/i.test(id)) {
+          name = id;
+        } else if (!name) {
+          name = "Team Member";
+        }
+        if (!seen.has(name.toLowerCase())) {
+          seen.add(name.toLowerCase());
+          const role = p.sub_architect_roles?.[id] || "Design";
+          result.push({ id, name, role });
+        }
       });
     }
 
+    // 2. Custom sub-architect text if present (External Collaborators)
     if (p.sub_architects) {
       p.sub_architects
-        .split(",")
+        .split(/[,;/+]/)
         .map((s) => s.trim())
         .filter(Boolean)
-        .forEach((s) => names.add(s));
+        .forEach((s) => {
+          if (!seen.has(s.toLowerCase())) {
+            seen.add(s.toLowerCase());
+            result.push({ name: s, role: "Design", isExternal: true });
+          }
+        });
     }
 
+    // 3. Anyone who contributed in work logs for this project (excluding lead architect)
     const leadLower = getLeadName(p).trim().toLowerCase();
     const leadId = p.lead_architect_id;
     if (stats?.contributors) {
       stats.contributors.forEach((c) => {
         const cLower = (c.name || "").trim().toLowerCase();
-        if (c.id !== leadId && cLower !== leadLower) {
-          names.add(c.name);
+        if (c.id !== leadId && cLower !== leadLower && !seen.has(cLower)) {
+          seen.add(cLower);
+          const autoRole =
+            c.siteHours > 0 && c.deskHours > 0
+              ? "Both"
+              : c.siteHours > 0
+              ? "Site"
+              : "Design";
+          result.push({ id: c.id, name: c.name, role: autoRole });
         }
       });
     }
 
-    return Array.from(names);
+    return result;
   };
 
   // Filtered projects
@@ -215,42 +263,38 @@ export function EmployeeProjects({ me }) {
   }, [projects, tab, searchQuery, statusFilter, projectStats, empMap]);
 
   // Save Quick Stage
-  const handleSaveQuickStage = async () => {
+  const handleSaveStage = async (payload) => {
     if (config.allowEmployeeEdit === false) {
       alert("Employee editing has been disabled by your organization administrator.");
       return;
     }
-    if (!quickStageProject || !stageInput.trim()) return;
     setSavingQuick(true);
     try {
       await updateProjectStageAndDeadline({
-        id: quickStageProject.id,
-        currentStage: stageInput.trim(),
+        ...payload,
         actor: { id: me?.id, name: me?.name, role: me?.role },
       });
       setQuickStageProject(null);
-      setSuccessMsg("Stage updated successfully.");
+      setSuccessMsg("Stage and progress updated successfully.");
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e) {
       alert(e.message || "Failed to update stage.");
+      throw e;
     } finally {
       setSavingQuick(false);
     }
   };
 
   // Save Quick Deadline
-  const handleSaveQuickDeadline = async () => {
+  const handleSaveDeadline = async (payload) => {
     if (config.allowEmployeeEdit === false) {
       alert("Employee editing has been disabled by your organization administrator.");
       return;
     }
-    if (!quickDeadlineProject) return;
     setSavingQuick(true);
     try {
       await updateProjectStageAndDeadline({
-        id: quickDeadlineProject.id,
-        deadline: deadlineInput.trim(),
-        endDate: deadlineInput.trim(),
+        ...payload,
         actor: { id: me?.id, name: me?.name, role: me?.role },
       });
       setQuickDeadlineProject(null);
@@ -258,6 +302,7 @@ export function EmployeeProjects({ me }) {
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e) {
       alert(e.message || "Failed to update deadline.");
+      throw e;
     } finally {
       setSavingQuick(false);
     }
@@ -463,6 +508,7 @@ export function EmployeeProjects({ me }) {
                   <th className="py-3.5 px-3.5 whitespace-nowrap">Deadline</th>
                   <th className="py-3.5 px-3.5 whitespace-nowrap">Project Status</th>
                   <th className="py-3.5 px-3 whitespace-nowrap text-slate-400">Last Updated</th>
+                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -474,15 +520,25 @@ export function EmployeeProjects({ me }) {
                   const urgency = stats.urgency;
                   const leadName = getLeadName(p);
                   const subs = getSubArchitectsList(p);
-                  const nextStage = getNextStage(p.current_stage);
-                  const progressPct = typeof p.progress === "number" ? p.progress : getStageDefaultProgress(p.current_stage, stats.status);
+                  const hasD = Boolean(p.design_stage || p.lead_architect_role === "Design" || p.lead_architect_role === "Both" || Number(p.design_progress) > 0);
+                  const hasS = Boolean(p.site_stage || p.lead_architect_role === "Site" || p.lead_architect_role === "Both" || Number(p.site_progress) > 0);
+                  const progressPct = (hasD || hasS)
+                    ? calculateOverallProgress({
+                        designProgress: p.design_progress,
+                        siteProgress: p.site_progress,
+                        hasDesign: hasD,
+                        hasSite: hasS,
+                        manualProgress: p.progress,
+                      })
+                    : (typeof p.progress === "number" ? p.progress : getStageDefaultProgress(p.current_stage, stats.status));
+                  const myRole = getArchitectAssignedRole(p, me.id);
 
                   return (
                     <tr
                       key={p.id}
                       className="hover:bg-slate-50/70 transition-colors group"
                     >
-                      {/* 1. PROJECT LIST (WITH WORK & TYPE PILL BELOW) */}
+                      {/* 1. PROJECT LIST (WITH WORK, TYPE PILL, & ASSIGNED ROLE BELOW) */}
                       <td className="py-3.5 px-4 min-w-[220px]">
                         <div className="flex items-start gap-2.5">
                           <span
@@ -517,66 +573,91 @@ export function EmployeeProjects({ me }) {
                         </div>
                       </td>
 
-                      {/* 2. ARCHITECTS (INITIALS ONLY, FULL NAME ON HOVER, NORMAL COLORS) */}
-                      <td className="py-3.5 px-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 flex-wrap">
+                      {/* 2. ARCHITECTS & ASSIGNED SCOPE UNDER EMPLOYEE */}
+                      <td className="py-3.5 px-3.5">
+                        <div className="flex items-start gap-2.5 flex-wrap">
                           {leadName ? (
-                            <div className="relative inline-flex items-center group/arch">
+                            <div className="flex flex-col items-start gap-1 group/arch relative">
                               <span
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300/80 text-xs font-semibold cursor-pointer transition-colors hover:bg-slate-200/80"
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300/80 text-xs font-semibold cursor-pointer transition-colors hover:bg-slate-200/80"
                                 title={`Lead ${config.leadLabel}: ${leadName}`}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
                                 <span>{getInitials(leadName)}</span>
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Lead</span>
                               </span>
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/arch:flex items-center px-2 py-0.5 rounded-md bg-slate-900 text-white text-[10px] font-medium shadow-md whitespace-nowrap z-30 pointer-events-none">
-                                Lead {config.leadLabel}: {leadName}
+                              {/* Assigned Scope UNDER employee */}
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold border shadow-2xs ${getAssignedRoleBadgeClass(p.lead_architect_role || "Design")}`}
+                                title={`Lead Scope: ${p.lead_architect_role || "Design"}`}
+                              >
+                                {getAssignedRoleBadgeText(p.lead_architect_role || "Design")}
+                              </span>
+                              <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/arch:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 text-white text-[10px] font-medium shadow-md whitespace-nowrap z-30 pointer-events-none">
+                                <span>Lead {config.leadLabel}: {leadName}</span>
+                                <span className="text-slate-400 font-bold">• {p.lead_architect_role || "Design"}</span>
                               </div>
                             </div>
                           ) : (
                             <span className="text-slate-400 text-xs font-normal">—</span>
                           )}
 
-                          {subs.length > 0 && (
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {subs.map((s, idx) => (
-                                <div key={idx} className="relative inline-flex items-center group/sub">
+                          {subs.length > 0 &&
+                            subs.map((s, idx) => {
+                              const sName = typeof s === "object" ? s.name : s;
+                              const sRole = typeof s === "object" ? s.role : "Design";
+                              const isExt = Boolean(typeof s === "object" && s.isExternal);
+                              return (
+                                <div key={idx} className="flex flex-col items-start gap-1 group/sub relative">
                                   <span
-                                    className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-600 border border-slate-200 text-[11px] font-medium cursor-pointer transition-colors hover:bg-slate-100 hover:text-slate-900"
-                                    title={`Sub-${config.leadLabel}: ${s}`}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                                      isExt
+                                        ? "bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100"
+                                        : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                                    }`}
+                                    title={isExt ? `External Collaborator: ${sName}` : `Sub-${config.leadLabel}: ${sName}`}
                                   >
-                                    {getInitials(s)}
+                                    <span>{getInitials(sName)}</span>
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider ${isExt ? "text-amber-700" : "text-slate-400"}`}>
+                                      {isExt ? "Ext" : "Sub"}
+                                    </span>
                                   </span>
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/sub:flex items-center px-2 py-0.5 rounded-md bg-slate-900 text-white text-[10px] font-medium shadow-md whitespace-nowrap z-30 pointer-events-none">
-                                    Sub-{config.leadLabel}: {s}
+                                  {/* Assigned Scope or Ext badge UNDER employee */}
+                                  <span
+                                    className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold border shadow-2xs ${
+                                      isExt
+                                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                                        : getAssignedRoleBadgeClass(sRole)
+                                    }`}
+                                    title={isExt ? `External Collaborator: ${sName}` : `Sub Scope: ${sRole}`}
+                                  >
+                                    {isExt ? "External" : getAssignedRoleBadgeText(sRole)}
+                                  </span>
+                                  <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/sub:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 text-white text-[10px] font-medium shadow-md whitespace-nowrap z-30 pointer-events-none">
+                                    <span>{isExt ? "External Collaborator" : `Sub-${config.leadLabel}`}: {sName}</span>
+                                    {!isExt && <span className="text-slate-400 font-bold">• {sRole}</span>}
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                              );
+                            })}
                         </div>
                       </td>
 
-                      {/* 3. CURRENT STAGE */}
-                      <td className="py-3.5 px-3 whitespace-nowrap">
+                      {/* 3. CURRENT STAGE (SUPPORTS DUAL-TRACK & MULTI-STAGE TAGS) */}
+                      <td className="py-3.5 px-3">
                         <div className="flex items-center gap-1.5">
                           {config.allowEmployeeEdit !== false ? (
                             <button
-                              onClick={() => {
-                                setQuickStageProject(p);
-                                setStageInput(p.current_stage || "");
-                              }}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-white border border-slate-200 text-xs font-semibold text-slate-800 transition-all cursor-pointer shadow-2xs hover:border-slate-400"
+                              type="button"
+                              onClick={() => setQuickStageProject(p)}
+                              className="inline-flex items-center gap-1.5 p-1 rounded-lg hover:bg-slate-100 transition-all cursor-pointer group/stage text-left"
                               title="Click to update stage"
                             >
-                              <span>{p.current_stage || "Set Stage"}</span>
-                              <Pencil size={10} className="text-slate-400 opacity-60 shrink-0" />
+                              <ProjectTrackBadges project={p} compact={true} />
+                              <Pencil size={11} className="text-slate-400 group-hover/stage:text-primary transition-colors shrink-0" />
                             </button>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200/60 text-xs font-medium text-slate-700">
-                              {p.current_stage || "—"}
-                            </span>
+                            <ProjectTrackBadges project={p} compact={true} />
                           )}
                         </div>
                       </td>
@@ -590,46 +671,11 @@ export function EmployeeProjects({ me }) {
 
                       {/* 5. DEADLINE (NEPALI BS + URGENCY) */}
                       <td className="py-3.5 px-3.5 whitespace-nowrap">
-                        {config.allowEmployeeEdit !== false ? (
-                          <button
-                            onClick={() => {
-                              setQuickDeadlineProject(p);
-                              setDeadlineInput(p.end_date || p.deadline || "");
-                            }}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
-                              urgency.type === "delayed"
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : urgency.type === "urgent"
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                  : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
-                            }`}
-                            title="Click to update deadline"
-                          >
-                            <Calendar size={11} className="shrink-0 text-slate-400" />
-                            <span>
-                              {p.end_date || p.deadline
-                                ? `${formatProjectDateNepali(p.end_date || p.deadline)}${urgency.type === "delayed" || urgency.type === "urgent" ? ` (${urgency.label})` : ""}`
-                                : "Set Date"}
-                            </span>
-                          </button>
-                        ) : (
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${
-                              urgency.type === "delayed"
-                                ? "bg-rose-50 text-rose-700 border-rose-200"
-                                : urgency.type === "urgent"
-                                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                                  : "bg-slate-50 text-slate-700 border-slate-200"
-                            }`}
-                          >
-                            <Calendar size={11} className="shrink-0 text-slate-400" />
-                            <span>
-                              {p.end_date || p.deadline
-                                ? `${formatProjectDateNepali(p.end_date || p.deadline)}${urgency.type === "delayed" || urgency.type === "urgent" ? ` (${urgency.label})` : ""}`
-                                : "No Deadline"}
-                            </span>
-                          </span>
-                        )}
+                        <ProjectDeadlineBadge
+                          deadline={p.end_date || p.deadline}
+                          status={p.status}
+                          onClick={config.allowEmployeeEdit !== false ? () => setQuickDeadlineProject(p) : undefined}
+                        />
                       </td>
 
                       {/* 6. PROJECT STATUS & PROGRESS */}
@@ -667,6 +713,16 @@ export function EmployeeProjects({ me }) {
                               style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
                             />
                           </div>
+                          {(p.design_stage || p.site_stage || Number(p.design_progress) > 0 || Number(p.site_progress) > 0) && (
+                            <div className="flex items-center gap-1.5 text-[9px] font-semibold text-slate-500 pt-0.5">
+                              {(p.design_stage || Number(p.design_progress) > 0) && (
+                                <span className="text-indigo-700 bg-indigo-50 px-1 rounded">🎨 {p.design_progress ?? 0}%</span>
+                              )}
+                              {(p.site_stage || Number(p.site_progress) > 0) && (
+                                <span className="text-amber-800 bg-amber-50 px-1 rounded">🏗️ {p.site_progress ?? 0}%</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -675,6 +731,19 @@ export function EmployeeProjects({ me }) {
                         <div className="flex items-center gap-1" title={p.updated_at || p.created_at || ""}>
                           <Clock size={11} className="shrink-0 text-slate-300" />
                           <span>{formatRelativeTime(p.updated_at || p.created_at)}</span>
+                        </div>
+                      </td>
+
+                      {/* 8. ACTIONS */}
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
+                          <Link
+                            to={`/projects/${p.id}`}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-colors cursor-pointer"
+                            title="View Project Overview & Work Logs"
+                          >
+                            <Eye size={14} />
+                          </Link>
                         </div>
                       </td>
                     </tr>
@@ -695,8 +764,17 @@ export function EmployeeProjects({ me }) {
             };
             const urgency = stats.urgency;
             const leadName = getLeadName(p);
-            const nextStage = getNextStage(p.current_stage);
-            const progressPct = typeof p.progress === "number" ? p.progress : getStageDefaultProgress(p.current_stage, stats.status);
+            const hasD = Boolean(p.design_stage || p.lead_architect_role === "Design" || p.lead_architect_role === "Both" || Number(p.design_progress) > 0);
+            const hasS = Boolean(p.site_stage || p.lead_architect_role === "Site" || p.lead_architect_role === "Both" || Number(p.site_progress) > 0);
+            const progressPct = (hasD || hasS)
+              ? calculateOverallProgress({
+                  designProgress: p.design_progress,
+                  siteProgress: p.site_progress,
+                  hasDesign: hasD,
+                  hasSite: hasS,
+                  manualProgress: p.progress,
+                })
+              : (typeof p.progress === "number" ? p.progress : getStageDefaultProgress(p.current_stage, stats.status));
 
             return (
               <div
@@ -752,34 +830,20 @@ export function EmployeeProjects({ me }) {
 
                   <div className="pt-1 flex flex-col gap-2">
                     {/* CURRENT STAGE */}
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-[11px] text-slate-500 font-medium">{config.stageLabel}:</span>
+                    <div className="flex items-start justify-between text-xs">
+                      <span className="text-[11px] text-slate-500 font-medium shrink-0 pt-0.5">{config.stageLabel}:</span>
                       <div className="flex items-center gap-1">
                         {config.allowEmployeeEdit !== false ? (
                           <button
-                            onClick={() => {
-                              setQuickStageProject(p);
-                              setStageInput(p.current_stage || "");
-                            }}
-                            className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200/70 text-slate-700 font-semibold text-xs truncate max-w-[130px]"
+                            type="button"
+                            onClick={() => setQuickStageProject(p)}
+                            className="text-left cursor-pointer"
                             title="Click to update stage"
                           >
-                            {p.current_stage || "Set Stage"}
+                            <ProjectTrackBadges project={p} compact={true} />
                           </button>
                         ) : (
-                          <span className="px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200/70 text-slate-700 font-medium text-xs truncate max-w-[130px]">
-                            {p.current_stage || "—"}
-                          </span>
-                        )}
-
-                        {nextStage && p.status !== "Completed" && config.allowEmployeeEdit !== false && (
-                          <button
-                            onClick={(e) => handleAdvanceStage(p, e)}
-                            className="px-1.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-[10px] border border-slate-200"
-                            title={`Advance to ${nextStage}`}
-                          >
-                            ➔ {nextStage}
-                          </button>
+                          <ProjectTrackBadges project={p} compact={true} />
                         )}
                       </div>
                     </div>
@@ -787,33 +851,17 @@ export function EmployeeProjects({ me }) {
                     {/* DEADLINE */}
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-[11px] text-slate-500 font-medium">Deadline:</span>
-                      {config.allowEmployeeEdit !== false ? (
-                        <button
-                          onClick={() => {
-                            setQuickDeadlineProject(p);
-                            setDeadlineInput(p.end_date || p.deadline || "");
-                          }}
-                          className={`px-2.5 py-1 rounded-md border text-xs font-medium ${urgency.badgeClass}`}
-                        >
-                          {p.end_date || p.deadline
-                            ? formatProjectDateNepali(p.end_date || p.deadline)
-                            : "Set Date"}
-                        </button>
-                      ) : (
-                        <span
-                          className={`px-2.5 py-1 rounded-md border text-xs font-medium ${urgency.badgeClass}`}
-                        >
-                          {p.end_date || p.deadline
-                            ? formatProjectDateNepali(p.end_date || p.deadline)
-                            : "No Deadline"}
-                        </span>
-                      )}
+                      <ProjectDeadlineBadge
+                        deadline={p.end_date || p.deadline}
+                        status={p.status}
+                        onClick={config.allowEmployeeEdit !== false ? () => setQuickDeadlineProject(p) : undefined}
+                      />
                     </div>
 
                     {/* PROGRESS BAR */}
-                    <div className="space-y-1 pt-1">
+                    <div className="space-y-1.5 pt-1">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 font-medium">Progress</span>
+                        <span className="text-slate-500 font-medium">Overall Progress</span>
                         <span className="font-bold text-slate-800">{progressPct}%</span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -830,6 +878,28 @@ export function EmployeeProjects({ me }) {
                           style={{ width: `${Math.min(100, Math.max(0, progressPct))}%` }}
                         />
                       </div>
+                      {(p.design_stage || p.site_stage) && (
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100/80 text-[10px]">
+                          <div className="bg-indigo-50/70 p-1.5 rounded-md border border-indigo-100">
+                            <div className="flex justify-between text-indigo-900 font-semibold mb-0.5">
+                              <span>🎨 Design</span>
+                              <span>{p.design_progress ?? 0}%</span>
+                            </div>
+                            <div className="w-full h-1 bg-indigo-200/60 rounded-full overflow-hidden">
+                              <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${p.design_progress ?? 0}%` }} />
+                            </div>
+                          </div>
+                          <div className="bg-amber-50/70 p-1.5 rounded-md border border-amber-100">
+                            <div className="flex justify-between text-amber-900 font-semibold mb-0.5">
+                              <span>🏗️ Site</span>
+                              <span>{p.site_progress ?? 0}%</span>
+                            </div>
+                            <div className="w-full h-1 bg-amber-200/60 rounded-full overflow-hidden">
+                              <div className="h-full bg-amber-600 rounded-full" style={{ width: `${p.site_progress ?? 0}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -841,9 +911,12 @@ export function EmployeeProjects({ me }) {
                         {config.leadLabel}:
                       </span>
                       {leadName ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs truncate max-w-[160px]">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs truncate max-w-[170px]">
                           <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
                           <span className="truncate">{leadName}</span>
+                          <span className={`px-1 py-0.1 rounded text-[8px] font-bold ${getAssignedRoleBadgeClass(p.lead_architect_role || "Design")}`}>
+                            {p.lead_architect_role || "Design"}
+                          </span>
                         </span>
                       ) : (
                         <span className="text-xs text-slate-400 font-normal">Unassigned</span>
@@ -864,15 +937,33 @@ export function EmployeeProjects({ me }) {
                           {config.subLeadLabel}:
                         </span>
                         <div className="flex flex-wrap gap-1">
-                          {subs.slice(0, 3).map((s, idx) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-50 text-[10px] text-slate-700 font-medium border border-slate-200/80 truncate max-w-[120px]"
-                              title={s}
-                            >
-                              {s}
-                            </span>
-                          ))}
+                          {subs.slice(0, 3).map((s, idx) => {
+                            const sName = typeof s === "object" ? s.name : s;
+                            const sRole = typeof s === "object" ? s.role : "Design";
+                            const isExt = Boolean(typeof s === "object" && s.isExternal);
+                            return (
+                              <span
+                                key={idx}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border truncate max-w-[130px] ${
+                                  isExt
+                                    ? "bg-amber-50 text-amber-900 border-amber-200"
+                                    : "bg-slate-50 text-slate-700 border-slate-200/80"
+                                }`}
+                                title={isExt ? `External Collaborator: ${sName}` : `${sName} (${sRole})`}
+                              >
+                                <span className="truncate">{sName}</span>
+                                <span
+                                  className={`px-1 py-0.1 rounded text-[8px] font-semibold ${
+                                    isExt
+                                      ? "bg-amber-100 text-amber-800"
+                                      : getAssignedRoleBadgeClass(sRole)
+                                  }`}
+                                >
+                                  {isExt ? "Ext" : sRole}
+                                </span>
+                              </span>
+                            );
+                          })}
                           {subs.length > 3 && (
                             <span className="text-[10px] text-slate-400 font-medium self-center">
                               +{subs.length - 3}
@@ -892,198 +983,23 @@ export function EmployeeProjects({ me }) {
         </div>
       )}
 
-      {/* QUICK STAGE UPDATE MODAL */}
-      {quickStageProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 fade-in">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Update {config.stageLabel}
-                </h3>
-                <p className="text-xs text-slate-500 truncate max-w-[280px]">
-                  Project: <span className="font-semibold text-slate-800">{quickStageProject.name}</span>
-                </p>
-              </div>
-              <button
-                onClick={() => setQuickStageProject(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
+      {/* Shared Quick Stage Modal */}
+      <QuickStageModal
+        isOpen={Boolean(quickStageProject)}
+        onClose={() => setQuickStageProject(null)}
+        project={quickStageProject}
+        onSave={handleSaveStage}
+        saving={savingQuick}
+      />
 
-            <div className="space-y-4">
-              {/* STAGE PIPELINE (CONCEPT -> DESIGN -> SITE) */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    Core Stage Pipeline
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-medium">Click to select</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {STAGE_PIPELINES.standard.map((step, idx) => {
-                    const isCurrent = stageInput.toLowerCase() === step.toLowerCase();
-                    return (
-                      <button
-                        key={step}
-                        type="button"
-                        onClick={() => setStageInput(step)}
-                        className={`px-2 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer text-center flex flex-col items-center justify-center gap-0.5 ${
-                          isCurrent
-                            ? "bg-primary text-white shadow-xs"
-                            : "bg-white border border-slate-200 text-slate-700 hover:border-primary/50"
-                        }`}
-                      >
-                        <span className="text-[9px] opacity-70">Step {idx + 1}</span>
-                        <span>{step}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* SELECT FROM ALL CONFIGURED STAGES */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 block">
-                  Or choose from all stages:
-                </label>
-                <select
-                  value={stageInput}
-                  onChange={(e) => setStageInput(e.target.value)}
-                  className="w-full h-10 px-3 text-xs sm:text-sm font-normal text-slate-800 bg-white border border-slate-300 rounded-xl outline-none focus:border-primary"
-                >
-                  <optgroup label="Standard Pipeline">
-                    {STAGE_PIPELINES.standard.map((s) => (
-                      <option key={`std-${s}`} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                    <option value="Completed">Completed / Handover</option>
-                  </optgroup>
-                  <optgroup label="Detailed & Domain Stages">
-                    {config.stages
-                      .filter((s) => !STAGE_PIPELINES.standard.includes(s) && s !== "Completed")
-                      .map((s) => (
-                        <option key={`cfg-${s}`} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                  </optgroup>
-                </select>
-              </div>
-
-              {/* CUSTOM STAGE INPUT */}
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-600 block">
-                  Custom Stage Name (optional)
-                </label>
-                <input
-                  type="text"
-                  value={stageInput}
-                  onChange={(e) => setStageInput(e.target.value)}
-                  placeholder="e.g. Municipal Approval..."
-                  className="w-full h-9 px-3 text-xs text-slate-700 bg-white border border-slate-300 rounded-xl outline-none focus:border-primary"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setQuickStageProject(null)}
-                  className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={savingQuick || !stageInput.trim()}
-                  onClick={handleSaveQuickStage}
-                  className="px-4 py-2 text-xs font-semibold bg-primary text-white rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
-                >
-                  {savingQuick ? "Saving..." : "Update Stage"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* QUICK DEADLINE UPDATE MODAL */}
-      {quickDeadlineProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 shadow-xl space-y-4 fade-in my-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Update Deadline</h3>
-                <p className="text-xs text-slate-500 truncate max-w-[240px]">
-                  Project: <span className="font-semibold text-slate-800">{quickDeadlineProject.name}</span>
-                </p>
-              </div>
-              <button
-                onClick={() => setQuickDeadlineProject(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 block">
-                  Target Deadline (Nepali BS Calendar)
-                </label>
-                <NepaliDatePicker
-                  value={normalizeDateToISO(deadlineInput)}
-                  onChange={(iso) => setDeadlineInput(iso)}
-                  placeholder="Select deadline date..."
-                  dropUp={true}
-                />
-              </div>
-
-              {deadlineInput && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
-                      Formatted Date
-                    </span>
-                    <span className="text-xs font-bold text-slate-800">
-                      {formatProjectDateNepali(deadlineInput)}
-                    </span>
-                  </div>
-                  {(() => {
-                    const urg = getDeadlineUrgency(deadlineInput);
-                    return (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${urg.badgeClass}`}>
-                        {urg.label}
-                      </span>
-                    );
-                  })()}
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setQuickDeadlineProject(null)}
-                  className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:text-slate-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={savingQuick}
-                  onClick={handleSaveQuickDeadline}
-                  className="px-4 py-2 text-xs font-semibold bg-primary text-white rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
-                >
-                  {savingQuick ? "Saving..." : "Save Deadline"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Shared Quick Deadline Modal */}
+      <QuickDeadlineModal
+        isOpen={Boolean(quickDeadlineProject)}
+        onClose={() => setQuickDeadlineProject(null)}
+        project={quickDeadlineProject}
+        onSave={handleSaveDeadline}
+        saving={savingQuick}
+      />
     </div>
   );
 }
