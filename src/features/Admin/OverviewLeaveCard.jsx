@@ -73,6 +73,7 @@ export function OverviewLeaveCard({ requests, employees, onDecide, actingId }) {
             const maxQuota = r.type === "Sick" ? 6 : 24;
             const stats = calculateEmployeeLeaveStats(requests, r.employee_id, r.type, maxQuota);
             const remainingDays = stats.remaining;
+            const emp = (employees || []).find((e) => e.id === r.employee_id);
 
             return (
               <div
