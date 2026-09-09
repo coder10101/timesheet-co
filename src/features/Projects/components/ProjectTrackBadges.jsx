@@ -21,17 +21,17 @@ export function ProjectTrackBadges({ project, compact = false }) {
     return (
       <div className="flex flex-wrap items-center gap-1.5 text-xs">
         {hasDesign && dStage && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-rose-50 text-rose-700 border border-rose-200/80">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-[#63537E]/10 text-[#514366] border border-[#63537E]/25">
             <span>🎨</span>
             <span className="truncate max-w-[120px]">{dStage}</span>
-            <span className="text-rose-500 font-bold ml-0.5">{dProg}%</span>
+            <span className="text-[#63537E] font-bold ml-0.5">{dProg}%</span>
           </span>
         )}
         {hasSite && sStage && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-amber-50 text-amber-800 border border-amber-200/80">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium bg-teal-50 text-teal-900 border border-teal-200/80">
             <span>🏗️</span>
             <span className="truncate max-w-[120px]">{sStage}</span>
-            <span className="text-amber-600 font-bold ml-0.5">{sProg}%</span>
+            <span className="text-teal-700 font-bold ml-0.5">{sProg}%</span>
           </span>
         )}
         {!dStage && !sStage && project.current_stage && (
@@ -47,13 +47,13 @@ export function ProjectTrackBadges({ project, compact = false }) {
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         {hasDesign && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium bg-rose-50 text-rose-800 border border-rose-200">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium bg-[#63537E]/10 text-[#514366] border border-[#63537E]/25">
             <span className="text-sm">🎨</span>
             <span>Design: <strong className="font-semibold">{dStage || "In Planning"}</strong> ({dProg}%)</span>
           </span>
         )}
         {hasSite && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium bg-amber-50 text-amber-900 border border-amber-200">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium bg-teal-50 text-teal-900 border border-teal-200/80">
             <span className="text-sm">🏗️</span>
             <span>Site: <strong className="font-semibold">{sStage || "Not Started"}</strong> ({sProg}%)</span>
           </span>

@@ -1357,26 +1357,26 @@ export function AdminProjects({ me }) {
                         Number(p.design_progress) > 0 ||
                         Number(p.site_progress) > 0) && (
                         <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100/80 text-[10px]">
-                          <div className="bg-indigo-50/70 p-1.5 rounded-md border border-indigo-100">
-                            <div className="flex justify-between text-indigo-900 font-semibold mb-0.5">
+                          <div className="bg-[#63537E]/10 p-1.5 rounded-md border border-[#63537E]/20">
+                            <div className="flex justify-between text-[#514366] font-semibold mb-0.5">
                               <span>🎨 Design</span>
                               <span>{p.design_progress ?? 0}%</span>
                             </div>
-                            <div className="w-full h-1 bg-indigo-200/60 rounded-full overflow-hidden">
+                            <div className="w-full h-1 bg-[#63537E]/15 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-indigo-600 rounded-full"
+                                className="h-full bg-[#63537E] rounded-full"
                                 style={{ width: `${p.design_progress ?? 0}%` }}
                               />
                             </div>
                           </div>
-                          <div className="bg-amber-50/70 p-1.5 rounded-md border border-amber-100">
-                            <div className="flex justify-between text-amber-900 font-semibold mb-0.5">
+                          <div className="bg-teal-50 p-1.5 rounded-md border border-teal-200/80">
+                            <div className="flex justify-between text-teal-900 font-semibold mb-0.5">
                               <span>🏗️ Site</span>
                               <span>{p.site_progress ?? 0}%</span>
                             </div>
-                            <div className="w-full h-1 bg-amber-200/60 rounded-full overflow-hidden">
+                            <div className="w-full h-1 bg-teal-100 rounded-full overflow-hidden">
                               <div
-                                className="h-full bg-amber-600 rounded-full"
+                                className="h-full bg-teal-600 rounded-full"
                                 style={{ width: `${p.site_progress ?? 0}%` }}
                               />
                             </div>
@@ -1500,6 +1500,7 @@ export function AdminProjects({ me }) {
         project={quickStageProject}
         onSave={handleSaveStage}
         saving={savingQuick}
+        isAdmin={true}
       />
 
       {/* Shared Quick Deadline Modal */}

@@ -54,6 +54,7 @@ import {
 } from "../../constants/projectPresets";
 import { getEmployeeColor } from "../../constants/colors";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
+import { StageSelectDropdown } from "./components/StageSelectDropdown";
 import { todayISO } from "../../utils/workTime";
 import { formatWorkLogEntryText } from "../../utils/workType";
 
@@ -1064,20 +1065,20 @@ export function ProjectDetails({ me }) {
             <div className="p-3.5 bg-surface-muted/60 rounded-xl border border-border-light space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-700 border border-amber-500/20 shrink-0">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-900 border border-teal-200/80 shrink-0">
                     🏗️ Site Track
                   </span>
                   <span className="text-xs font-bold text-text truncate">
                     {project.site_stage || (project.lead_architect_role === "Site" ? project.current_stage || "Site Execution" : "Site Execution")}
                   </span>
                 </div>
-                <span className="text-xs font-bold text-amber-600 font-mono shrink-0">
+                <span className="text-xs font-bold text-teal-800 font-mono shrink-0">
                   {project.site_progress ?? (project.lead_architect_role === "Site" ? project.progress ?? 0 : 0)}%
                 </span>
               </div>
               <div className="w-full bg-slate-200/80 rounded-full h-2 overflow-hidden">
                 <div
-                  className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                  className="h-full bg-teal-600 rounded-full transition-all duration-300"
                   style={{
                     width: `${Math.min(
                       100,
@@ -1284,7 +1285,7 @@ export function ProjectDetails({ me }) {
                                   <span
                                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                                       log.work_type === "site"
-                                        ? "bg-amber-500/15 text-amber-900 border border-amber-500/30"
+                                        ? "bg-teal-50 text-teal-900 border border-teal-200/80"
                                         : "bg-surface-muted text-text border border-border-light"
                                     }`}
                                   >
@@ -1578,7 +1579,7 @@ export function ProjectDetails({ me }) {
                                     <span
                                       className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold ${
                                         focusTag === "Site Execution"
-                                          ? "bg-amber-500/15 text-amber-900 border border-amber-500/30"
+                                          ? "bg-teal-50 text-teal-900 border border-teal-200/80"
                                           : focusTag === "Design & Site"
                                           ? "bg-purple-100 text-purple-800 border border-purple-200"
                                           : "bg-blue-50 text-blue-700 border border-blue-200"
@@ -1622,7 +1623,7 @@ export function ProjectDetails({ me }) {
                                       title={`Desk: ${c.deskHours.toFixed(1)}h`}
                                     />
                                     <div
-                                      className="h-full bg-amber-500 transition-all"
+                                      className="h-full bg-teal-600 transition-all"
                                       style={{ width: `${(c.siteHours / c.hours) * 100}%` }}
                                       title={`Site: ${c.siteHours.toFixed(1)}h`}
                                     />
@@ -1799,9 +1800,10 @@ export function ProjectDetails({ me }) {
 
       {/* 4. EDIT PROJECT STAGE & DEADLINE MODAL */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl shadow-xl border border-border max-w-lg w-full p-6 space-y-5 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border-light pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-xl border border-border max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Fixed Header */}
+            <div className="flex items-center justify-between border-b border-border-light px-6 py-4 bg-surface-subtle/50 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                   <Pencil size={16} />
@@ -1823,7 +1825,8 @@ export function ProjectDetails({ me }) {
               </button>
             </div>
 
-            <div className="space-y-4">
+            {/* Scrollable Body */}
+            <div className="p-6 space-y-4 flex-1 overflow-y-auto">
               {/* DUAL-TRACK STAGES & PROGRESS (DESIGN & SITE) */}
               <div className="p-3.5 rounded-2xl bg-surface-muted/60 border border-border-light space-y-4">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-text-muted block">
@@ -1873,12 +1876,12 @@ export function ProjectDetails({ me }) {
                           }`}
                         />
                       </button>
-                      <span className="text-xs font-bold text-primary flex items-center gap-1">
+                      <span className="text-xs font-bold text-[#514366] flex items-center gap-1">
                         <span>🎨</span> Design Track Stage
                       </span>
                     </div>
                     {editHasDesign ? (
-                      <span className="text-xs font-mono font-bold text-primary">
+                      <span className="text-xs font-mono font-bold text-[#63537E]">
                         {editDesignProgress}%
                       </span>
                     ) : (
@@ -1890,41 +1893,18 @@ export function ProjectDetails({ me }) {
 
                   {editHasDesign && (
                     <div className="space-y-2.5 pt-2">
-                      <input
-                        type="text"
-                        list="design-stages-list"
+                      <StageSelectDropdown
+                        track="design"
                         value={editDesignStage}
-                        onChange={(e) => setEditDesignStage(e.target.value)}
-                        placeholder="e.g. 3D Modelling & Renders..."
-                        className="w-full text-xs font-medium px-3 py-2 bg-surface-muted border border-border rounded-xl focus:bg-white focus:outline-hidden focus:border-primary text-text"
+                        onChange={setEditDesignStage}
+                        stages={TRACK_STAGES.design}
+                        placeholder="Select milestone..."
                       />
-                      <datalist id="design-stages-list">
-                        {TRACK_STAGES.design.map((st) => (
-                          <option key={st} value={st} />
-                        ))}
-                      </datalist>
-
-                      <div className="flex flex-wrap gap-1">
-                        {TRACK_STAGES.design.map((st) => (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => setEditDesignStage(st)}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                              editDesignStage === st
-                                ? "bg-primary text-white border-primary shadow-2xs font-bold"
-                                : "bg-surface-muted border-border text-text-muted hover:bg-white hover:text-text"
-                            }`}
-                          >
-                            {st}
-                          </button>
-                        ))}
-                      </div>
 
                       <div className="space-y-1 pt-1">
                         <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
                           <span>Design Progress</span>
-                          <span className="font-mono font-bold text-primary">
+                          <span className="font-mono font-bold text-[#63537E]">
                             {editDesignProgress}%
                           </span>
                         </div>
@@ -1946,7 +1926,7 @@ export function ProjectDetails({ me }) {
                               })
                             );
                           }}
-                          className="w-full accent-primary cursor-pointer"
+                          className="w-full h-2 bg-[#63537E]/20 rounded-lg appearance-none cursor-pointer accent-[#63537E]"
                         />
                       </div>
                     </div>
@@ -1981,7 +1961,7 @@ export function ProjectDetails({ me }) {
                           );
                         }}
                         className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                          editHasSite ? "bg-amber-600" : "bg-slate-300"
+                          editHasSite ? "bg-teal-700" : "bg-slate-300"
                         }`}
                         title={
                           editHasSite && !editHasDesign
@@ -1996,12 +1976,12 @@ export function ProjectDetails({ me }) {
                           }`}
                         />
                       </button>
-                      <span className="text-xs font-bold text-amber-700 flex items-center gap-1">
+                      <span className="text-xs font-bold text-teal-950 flex items-center gap-1">
                         <span>🏗️</span> Site Track Stage
                       </span>
                     </div>
                     {editHasSite ? (
-                      <span className="text-xs font-mono font-bold text-amber-600">
+                      <span className="text-xs font-mono font-bold text-teal-800">
                         {editSiteProgress}%
                       </span>
                     ) : (
@@ -2013,41 +1993,18 @@ export function ProjectDetails({ me }) {
 
                   {editHasSite && (
                     <div className="space-y-2.5 pt-2">
-                      <input
-                        type="text"
-                        list="site-stages-list"
+                      <StageSelectDropdown
+                        track="site"
                         value={editSiteStage}
-                        onChange={(e) => setEditSiteStage(e.target.value)}
-                        placeholder="e.g. Substructure & Foundation..."
-                        className="w-full text-xs font-medium px-3 py-2 bg-surface-muted border border-border rounded-xl focus:bg-white focus:outline-hidden focus:border-amber-600 text-text"
+                        onChange={setEditSiteStage}
+                        stages={TRACK_STAGES.site}
+                        placeholder="Select milestone..."
                       />
-                      <datalist id="site-stages-list">
-                        {TRACK_STAGES.site.map((st) => (
-                          <option key={st} value={st} />
-                        ))}
-                      </datalist>
-
-                      <div className="flex flex-wrap gap-1">
-                        {TRACK_STAGES.site.map((st) => (
-                          <button
-                            key={st}
-                            type="button"
-                            onClick={() => setEditSiteStage(st)}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                              editSiteStage === st
-                                ? "bg-amber-600 text-white border-amber-600 shadow-2xs font-bold"
-                                : "bg-surface-muted border-border text-text-muted hover:bg-white hover:text-text"
-                            }`}
-                          >
-                            {st}
-                          </button>
-                        ))}
-                      </div>
 
                       <div className="space-y-1 pt-1">
                         <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
                           <span>Site Execution Progress</span>
-                          <span className="font-mono font-bold text-amber-600">
+                          <span className="font-mono font-bold text-teal-800">
                             {editSiteProgress}%
                           </span>
                         </div>
@@ -2069,7 +2026,7 @@ export function ProjectDetails({ me }) {
                               })
                             );
                           }}
-                          className="w-full accent-amber-600 cursor-pointer"
+                          className="w-full h-2 bg-teal-200/70 rounded-lg appearance-none cursor-pointer accent-teal-700"
                         />
                       </div>
                     </div>
@@ -2166,7 +2123,7 @@ export function ProjectDetails({ me }) {
                             className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                               editLeadRole === r.id
                                 ? r.id === "Site"
-                                  ? "bg-amber-600 border-amber-600 text-white shadow-2xs font-bold"
+                                  ? "bg-teal-700 border-teal-700 text-white shadow-2xs font-bold"
                                   : r.id === "Both"
                                   ? "bg-purple-600 border-purple-600 text-white shadow-2xs font-bold"
                                   : r.id === "BOQ"
@@ -2265,7 +2222,7 @@ export function ProjectDetails({ me }) {
                                       className={`px-2 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
                                         curRole === r.id
                                           ? r.id === "Site"
-                                            ? "bg-amber-600 border-amber-600 text-white shadow-2xs font-bold"
+                                            ? "bg-teal-700 border-teal-700 text-white shadow-2xs font-bold"
                                             : r.id === "Both"
                                             ? "bg-purple-600 border-purple-600 text-white shadow-2xs font-bold"
                                             : r.id === "BOQ"
@@ -2314,7 +2271,7 @@ export function ProjectDetails({ me }) {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 border-t border-border-light pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border-light px-6 py-3.5 bg-surface-subtle/50 shrink-0">
               <button
                 type="button"
                 onClick={() => setShowEditModal(false)}

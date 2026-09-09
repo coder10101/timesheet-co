@@ -556,7 +556,7 @@ export function getProjectTypeBadgeClass(type) {
     return "bg-teal-50 text-teal-700 border-teal-200/80";
   }
   if (t.includes("site")) {
-    return "bg-amber-50 text-amber-800 border-amber-200/80";
+    return "bg-teal-50 text-teal-900 border-teal-200/80";
   }
   if (t.includes("desk")) {
     return "bg-sky-50 text-sky-700 border-sky-200/80";
@@ -568,7 +568,7 @@ export function getProjectTypeBadgeClass(type) {
     return "bg-orange-50 text-orange-800 border-orange-200/80";
   }
   if (t.includes("design")) {
-    return "bg-rose-50 text-rose-700 border-rose-200/80";
+    return "bg-[#63537E]/10 text-[#514366] border-[#63537E]/25";
   }
   if (t.includes("residence") || t.includes("residential")) {
     return "bg-emerald-50 text-emerald-700 border-emerald-200/80";
@@ -630,7 +630,10 @@ export function getAssignedRoleBadgeClass(role) {
     return "bg-purple-50 text-purple-800 border-purple-200";
   }
   if (r.includes("site")) {
-    return "bg-amber-50 text-amber-900 border-amber-200";
+    return "bg-teal-50 text-teal-900 border-teal-200/80";
+  }
+  if (r.includes("design")) {
+    return "bg-[#63537E]/10 text-[#514366] border-[#63537E]/25";
   }
   if (r.includes("boq")) {
     return "bg-emerald-50 text-emerald-800 border-emerald-200";

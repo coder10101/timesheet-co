@@ -8,6 +8,7 @@ import {
   normalizeDateToISO,
 } from "../../../constants/projectPresets";
 import { NepaliDatePicker } from "../../../components/NepaliDatePicker";
+import { StageSelectDropdown } from "./StageSelectDropdown";
 import {
   X,
   Check,
@@ -254,19 +255,19 @@ export function ProjectFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="bg-white rounded-3xl shadow-2xl border border-border w-full max-w-2xl overflow-hidden animate-scale-up my-8">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border bg-surface-subtle/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-border w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-scale-up">
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-subtle/50 shrink-0">
           <div className="flex items-center gap-3">
             <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs"
               style={{ backgroundColor: color }}
             >
               <Briefcase className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-text-primary">
+              <h2 className="text-base sm:text-lg font-bold text-text-primary">
                 {isEditing ? `Edit "${project.name}"` : "Create New Project"}
               </h2>
               <p className="text-xs text-text-muted">
@@ -277,16 +278,16 @@ export function ProjectFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors"
+            className="p-1.5 rounded-xl text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+        {/* Scrollable Form Body */}
+        <form id="project-form-modal" onSubmit={handleSubmit} className="p-6 space-y-5 flex-1 overflow-y-auto">
           {error && (
-            <div className="flex items-center gap-2.5 p-3.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-2xl">
+            <div className="flex items-center gap-2.5 p-3.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -323,7 +324,7 @@ export function ProjectFormModal({
                       key={c}
                       type="button"
                       onClick={() => setColor(c)}
-                      className={`w-6 h-6 rounded-full transition-transform ${
+                      className={`w-6 h-6 rounded-full transition-transform cursor-pointer ${
                         color === c ? "scale-125 ring-2 ring-offset-2 ring-primary" : "hover:scale-110"
                       }`}
                       style={{ backgroundColor: c }}
@@ -336,12 +337,12 @@ export function ProjectFormModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1">
-                  Work Category (e.g. Residence, Hospitality)
+                  Work Category
                 </label>
                 <input
                   type="text"
                   list="work-categories-list"
-                  placeholder="e.g. Residence, Commercial..."
+                  placeholder="e.g. Residence, Hospitality..."
                   value={projectWork}
                   onChange={(e) => setProjectWork(e.target.value)}
                   className="w-full text-sm font-medium px-3.5 py-2 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -385,18 +386,18 @@ export function ProjectFormModal({
               <Users className="w-4 h-4 text-primary" /> 2. Team Architecture & Responsibilities
             </h3>
 
-            {/* Lead Architect */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
+            {/* Lead Architect & Scope */}
+            <div className="space-y-3">
+              <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1">
                   Lead Architect
                 </label>
                 <select
                   value={leadArchitectId}
                   onChange={(e) => setLeadArchitectId(e.target.value)}
-                  className="w-full text-sm font-medium px-3.5 py-2.5 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full text-sm font-medium px-3.5 py-2.5 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
                 >
-                  <option value="">Unassigned</option>
+                  <option value="">-- Unassigned --</option>
                   {assignableEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.role || "Architect"})
@@ -406,24 +407,41 @@ export function ProjectFormModal({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1">
-                  Lead Focus
+                <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                  Lead Assigned Scope
                 </label>
-                <div className="grid grid-cols-2 gap-1 pt-0.5">
-                  {ASSIGNED_ROLES.slice(0, 2).map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setLeadArchitectRole(r.id)}
-                      className={`px-2 py-2 rounded-xl text-xs font-semibold border transition-all text-center ${
-                        leadArchitectRole === r.id
-                          ? "bg-primary text-white border-primary shadow-sm"
-                          : "bg-white text-text-secondary border-border hover:bg-surface-muted"
-                      }`}
-                    >
-                      <span>{r.icon} {r.label}</span>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {ASSIGNED_ROLES.map((r) => {
+                    const isSelected = leadArchitectRole === r.id;
+                    const roleClasses =
+                      r.id === "Design"
+                        ? isSelected
+                          ? "bg-[#63537E] text-white border-[#63537E] shadow-xs"
+                          : "bg-[#63537E]/5 text-[#514366] border-[#63537E]/25 hover:bg-[#63537E]/10"
+                        : r.id === "Site"
+                        ? isSelected
+                          ? "bg-teal-700 text-white border-teal-700 shadow-xs"
+                          : "bg-teal-50 text-teal-900 border-teal-200/80 hover:bg-teal-100/60"
+                        : r.id === "BOQ"
+                        ? isSelected
+                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                          : "bg-emerald-50 text-emerald-900 border-emerald-200/80 hover:bg-emerald-100/60"
+                        : isSelected
+                        ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                        : "bg-purple-50 text-purple-900 border-purple-200/80 hover:bg-purple-100/60";
+
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setLeadArchitectRole(r.id)}
+                        className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${roleClasses}`}
+                      >
+                        <span className="text-sm">{r.icon}</span>
+                        <span>{r.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -441,7 +459,7 @@ export function ProjectFormModal({
                       key={emp.id}
                       type="button"
                       onClick={() => handleToggleSubEmp(emp.id)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                         isSelected
                           ? "bg-primary text-white font-semibold shadow-xs"
                           : "bg-surface-subtle text-text-secondary border border-border hover:bg-surface-muted"
@@ -469,20 +487,36 @@ export function ProjectFormModal({
                           {emp?.name || sId}
                         </span>
                         <div className="flex items-center gap-1">
-                          {ASSIGNED_ROLES.map((r) => (
-                            <button
-                              key={r.id}
-                              type="button"
-                              onClick={() => handleSetSubRole(sId, r.id)}
-                              className={`px-2 py-0.5 rounded-lg text-xs font-medium transition-all ${
-                                currentRole === r.id
-                                  ? "bg-primary text-white"
-                                  : "bg-surface-subtle text-text-muted hover:bg-surface-muted"
-                              }`}
-                            >
-                              <span>{r.icon} {r.label}</span>
-                            </button>
-                          ))}
+                          {ASSIGNED_ROLES.map((r) => {
+                            const isSelected = currentRole === r.id;
+                            const subRoleClasses =
+                              r.id === "Design"
+                                ? isSelected
+                                  ? "bg-[#63537E] text-white border-[#63537E] shadow-xs"
+                                  : "bg-[#63537E]/5 text-[#514366] border-[#63537E]/25 hover:bg-[#63537E]/10"
+                                : r.id === "Site"
+                                ? isSelected
+                                  ? "bg-teal-700 text-white border-teal-700 shadow-xs"
+                                  : "bg-teal-50 text-teal-900 border-teal-200/80 hover:bg-teal-100/60"
+                                : r.id === "BOQ"
+                                ? isSelected
+                                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                                  : "bg-emerald-50 text-emerald-900 border-emerald-200/80 hover:bg-emerald-100/60"
+                                : isSelected
+                                ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                                : "bg-purple-50 text-purple-900 border-purple-200/80 hover:bg-purple-100/60";
+
+                            return (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => handleSetSubRole(sId, r.id)}
+                                className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${subRoleClasses}`}
+                              >
+                                <span>{r.icon} {r.label}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -525,9 +559,9 @@ export function ProjectFormModal({
                   if (hasDesign && !hasSite) return;
                   setHasDesign(!hasDesign);
                 }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all ${
+                className={`flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                   hasDesign
-                    ? "bg-rose-50/70 border-rose-300 text-rose-900 shadow-sm"
+                    ? "bg-[#63537E]/10 border-[#63537E]/30 text-[#514366] shadow-xs"
                     : "bg-white border-border text-text-muted hover:bg-surface-muted"
                 }`}
               >
@@ -540,7 +574,7 @@ export function ProjectFormModal({
                 </div>
                 <div
                   className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    hasDesign ? "bg-rose-600 border-rose-600 text-white" : "border-border bg-white"
+                    hasDesign ? "bg-[#63537E] border-[#63537E] text-white" : "border-border bg-white"
                   }`}
                 >
                   {hasDesign && <Check className="w-3 h-3 stroke-[3]" />}
@@ -553,9 +587,9 @@ export function ProjectFormModal({
                   if (hasSite && !hasDesign) return;
                   setHasSite(!hasSite);
                 }}
-                className={`flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all ${
+                className={`flex items-center justify-between p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                   hasSite
-                    ? "bg-amber-50/70 border-amber-300 text-amber-900 shadow-sm"
+                    ? "bg-teal-50/80 border-teal-300 text-teal-950 shadow-xs"
                     : "bg-white border-border text-text-muted hover:bg-surface-muted"
                 }`}
               >
@@ -568,7 +602,7 @@ export function ProjectFormModal({
                 </div>
                 <div
                   className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    hasSite ? "bg-amber-600 border-amber-600 text-white" : "border-border bg-white"
+                    hasSite ? "bg-teal-700 border-teal-700 text-white" : "border-border bg-white"
                   }`}
                 >
                   {hasSite && <Check className="w-3 h-3 stroke-[3]" />}
@@ -578,27 +612,27 @@ export function ProjectFormModal({
 
             {/* Design Controls */}
             {hasDesign && (
-              <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/30 space-y-3 animate-fade-in">
+              <div className="p-4 rounded-xl border border-[#63537E]/20 bg-[#63537E]/5 space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
-                    <span>🎨</span> Design Stage Milestone
+                  <span className="text-xs font-bold text-[#514366] flex items-center gap-1.5">
+                    <span>🎨</span> Design Track
                   </span>
-                  <span className="text-xs font-bold text-rose-700 font-mono">{designProgress}%</span>
+                  <span className="text-xs font-bold text-[#63537E] font-mono">{designProgress}%</span>
                 </div>
-                <input
-                  type="text"
-                  list="form-design-stages"
+
+                <StageSelectDropdown
+                  track="design"
                   value={designStage}
-                  onChange={(e) => setDesignStage(e.target.value)}
-                  placeholder="Select or enter design stage..."
-                  className="w-full text-xs font-medium rounded-lg border border-rose-200 bg-white px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-rose-400"
+                  onChange={setDesignStage}
+                  stages={TRACK_STAGES.design}
+                  placeholder="Select milestone..."
                 />
-                <datalist id="form-design-stages">
-                  {TRACK_STAGES.design.map((st) => (
-                    <option key={st} value={st} />
-                  ))}
-                </datalist>
-                <div>
+
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
+                    <span>Progress</span>
+                    <span className="font-mono font-bold text-[#63537E]">{designProgress}%</span>
+                  </div>
                   <input
                     type="range"
                     min="0"
@@ -606,7 +640,7 @@ export function ProjectFormModal({
                     step="5"
                     value={designProgress}
                     onChange={(e) => setDesignProgress(Number(e.target.value))}
-                    className="w-full h-2 bg-rose-200 rounded-lg appearance-none cursor-pointer accent-rose-600"
+                    className="w-full h-2 bg-[#63537E]/20 rounded-lg appearance-none cursor-pointer accent-[#63537E]"
                   />
                 </div>
               </div>
@@ -614,27 +648,27 @@ export function ProjectFormModal({
 
             {/* Site Controls */}
             {hasSite && (
-              <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/30 space-y-3 animate-fade-in">
+              <div className="p-4 rounded-xl border border-teal-200/80 bg-teal-50/40 space-y-3 animate-fade-in">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                    <span>🏗️</span> Site Stage Milestone
+                  <span className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
+                    <span>🏗️</span> Site Track
                   </span>
-                  <span className="text-xs font-bold text-amber-800 font-mono">{siteProgress}%</span>
+                  <span className="text-xs font-bold text-teal-800 font-mono">{siteProgress}%</span>
                 </div>
-                <input
-                  type="text"
-                  list="form-site-stages"
+
+                <StageSelectDropdown
+                  track="site"
                   value={siteStage}
-                  onChange={(e) => setSiteStage(e.target.value)}
-                  placeholder="Select or enter site stage..."
-                  className="w-full text-xs font-medium rounded-lg border border-amber-200 bg-white px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  onChange={setSiteStage}
+                  stages={TRACK_STAGES.site}
+                  placeholder="Select milestone..."
                 />
-                <datalist id="form-site-stages">
-                  {TRACK_STAGES.site.map((st) => (
-                    <option key={st} value={st} />
-                  ))}
-                </datalist>
-                <div>
+
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
+                    <span>Progress</span>
+                    <span className="font-mono font-bold text-teal-800">{siteProgress}%</span>
+                  </div>
                   <input
                     type="range"
                     min="0"
@@ -642,7 +676,7 @@ export function ProjectFormModal({
                     step="5"
                     value={siteProgress}
                     onChange={(e) => setSiteProgress(Number(e.target.value))}
-                    className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
+                    className="w-full h-2 bg-teal-200/70 rounded-lg appearance-none cursor-pointer accent-teal-700"
                   />
                 </div>
               </div>
@@ -705,9 +739,9 @@ export function ProjectFormModal({
                     key={st}
                     type="button"
                     onClick={() => setStatus(st)}
-                    className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-all text-center ${
+                    className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-all text-center cursor-pointer ${
                       status === st
-                        ? "bg-primary text-white border-primary shadow-sm"
+                        ? "bg-primary text-white border-primary shadow-xs"
                         : "bg-white text-text-secondary border-border hover:bg-surface-muted"
                     }`}
                   >
@@ -717,35 +751,36 @@ export function ProjectFormModal({
               </div>
             </div>
           </div>
-
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 text-sm font-medium rounded-xl text-text-secondary hover:bg-surface-muted transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 shadow-md transition-all"
-            >
-              {saving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>{isEditing ? "Save Changes" : "Create Project"}</span>
-                </>
-              )}
-            </button>
-          </div>
         </form>
+
+        {/* Fixed Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-3.5 border-t border-border bg-surface-subtle/40 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 text-sm font-medium rounded-xl text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="project-form-modal"
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 shadow-xs transition-all cursor-pointer"
+          >
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                <span>{isEditing ? "Save Changes" : "Create Project"}</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

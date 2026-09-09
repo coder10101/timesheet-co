@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { TRACK_STAGES, calculateOverallProgress, STATUS_OPTIONS } from "../../../constants/projectPresets";
+import { StageSelectDropdown } from "./StageSelectDropdown";
 import { X, Check, AlertCircle, Layers, Sliders, CheckCircle2 } from "lucide-react";
 
-export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
+export function QuickStageModal({ isOpen, onClose, project, onSave, saving, isAdmin = false }) {
   const [hasDesign, setHasDesign] = useState(true);
   const [hasSite, setHasSite] = useState(true);
 
@@ -73,7 +74,7 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
         compositeStage = customStage;
       }
 
-      await onSave({
+      const savePayload = {
         id: project.id,
         currentStage: compositeStage,
         designStage: hasDesign ? designStage : "",
@@ -85,9 +86,14 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
         has_design: hasDesign,
         has_site: hasSite,
         progress: compositeProgress,
-        status: compositeProgress >= 100 ? "Completed" : status,
-      });
+      };
 
+      // Only administrators can modify overall project status
+      if (isAdmin) {
+        savePayload.status = compositeProgress >= 100 ? "Completed" : status;
+      }
+
+      await onSave(savePayload);
       onClose();
     } catch (err) {
       setError(err.message || "Failed to update project stage");
@@ -95,16 +101,18 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl border border-border w-full max-w-lg overflow-hidden animate-scale-up my-8">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-subtle/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-xl border border-border w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden animate-scale-up">
+        {/* Fixed Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface-subtle/50 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-primary/10 text-primary">
               <Layers className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-text-primary">Update Project Stage & Progress</h3>
+              <h3 className="font-bold text-text-primary">
+                {isAdmin ? "Update Project Stage & Progress" : "Update Project Stage"}
+              </h3>
               <p className="text-xs text-text-muted truncate max-w-[280px]">
                 {project.name}
               </p>
@@ -113,14 +121,14 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors"
+            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-muted transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSave} className="p-6 space-y-5">
+        {/* Scrollable Form Body */}
+        <form id="quick-stage-form" onSubmit={handleSave} className="p-6 space-y-5 flex-1 overflow-y-auto">
           {error && (
             <div className="flex items-center gap-2 p-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -137,9 +145,9 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
               <button
                 type="button"
                 onClick={() => handleToggleDesign(!hasDesign)}
-                className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
+                className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
                   hasDesign
-                    ? "bg-rose-50/70 border-rose-300 text-rose-900 shadow-sm"
+                    ? "bg-[#63537E]/10 border-[#63537E]/30 text-[#514366] shadow-xs"
                     : "bg-surface-muted/50 border-border text-text-muted hover:bg-surface-muted"
                 }`}
               >
@@ -152,7 +160,7 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
                 </div>
                 <div
                   className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    hasDesign ? "bg-rose-600 border-rose-600 text-white" : "border-border bg-white"
+                    hasDesign ? "bg-[#63537E] border-[#63537E] text-white" : "border-border bg-white"
                   }`}
                 >
                   {hasDesign && <Check className="w-3 h-3 stroke-[3]" />}
@@ -162,9 +170,9 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
               <button
                 type="button"
                 onClick={() => handleToggleSite(!hasSite)}
-                className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
+                className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all cursor-pointer ${
                   hasSite
-                    ? "bg-amber-50/70 border-amber-300 text-amber-900 shadow-sm"
+                    ? "bg-teal-50/80 border-teal-300 text-teal-950 shadow-xs"
                     : "bg-surface-muted/50 border-border text-text-muted hover:bg-surface-muted"
                 }`}
               >
@@ -177,7 +185,7 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
                 </div>
                 <div
                   className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    hasSite ? "bg-amber-600 border-amber-600 text-white" : "border-border bg-white"
+                    hasSite ? "bg-teal-700 border-teal-700 text-white" : "border-border bg-white"
                   }`}
                 >
                   {hasSite && <Check className="w-3 h-3 stroke-[3]" />}
@@ -188,26 +196,27 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
 
           {/* Design Track Controls */}
           {hasDesign && (
-            <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/30 space-y-3 animate-fade-in">
+            <div className="p-4 rounded-xl border border-[#63537E]/20 bg-[#63537E]/5 space-y-3 animate-fade-in">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
-                  <span>🎨</span> Design Stage
+                <span className="text-xs font-bold text-[#514366] flex items-center gap-1.5">
+                  <span>🎨</span> Design Track
                 </span>
-                <span className="text-xs font-bold text-rose-700">{designProgress}%</span>
+                <span className="text-xs font-bold text-[#63537E] font-mono">{designProgress}%</span>
               </div>
-              <select
+
+              <StageSelectDropdown
+                track="design"
                 value={designStage}
-                onChange={(e) => setDesignStage(e.target.value)}
-                className="w-full text-xs font-medium rounded-lg border border-rose-200 bg-white px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-rose-400"
-              >
-                <option value="">Select design milestone...</option>
-                {TRACK_STAGES.design.map((st) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))}
-              </select>
-              <div>
+                onChange={setDesignStage}
+                stages={TRACK_STAGES.design}
+                placeholder="Select milestone..."
+              />
+
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
+                  <span>Progress</span>
+                  <span className="font-mono font-bold text-[#63537E]">{designProgress}%</span>
+                </div>
                 <input
                   type="range"
                   min="0"
@@ -215,7 +224,7 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
                   step="5"
                   value={designProgress}
                   onChange={(e) => setDesignProgress(Number(e.target.value))}
-                  className="w-full h-2 bg-rose-200 rounded-lg appearance-none cursor-pointer accent-rose-600"
+                  className="w-full h-2 bg-[#63537E]/20 rounded-lg appearance-none cursor-pointer accent-[#63537E]"
                 />
               </div>
             </div>
@@ -223,26 +232,27 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
 
           {/* Site Track Controls */}
           {hasSite && (
-            <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/30 space-y-3 animate-fade-in">
+            <div className="p-4 rounded-xl border border-teal-200/80 bg-teal-50/40 space-y-3 animate-fade-in">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                  <span>🏗️</span> Site Stage
+                <span className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
+                  <span>🏗️</span> Site Track
                 </span>
-                <span className="text-xs font-bold text-amber-800">{siteProgress}%</span>
+                <span className="text-xs font-bold text-teal-800 font-mono">{siteProgress}%</span>
               </div>
-              <select
+
+              <StageSelectDropdown
+                track="site"
                 value={siteStage}
-                onChange={(e) => setSiteStage(e.target.value)}
-                className="w-full text-xs font-medium rounded-lg border border-amber-200 bg-white px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-amber-400"
-              >
-                <option value="">Select site milestone...</option>
-                {TRACK_STAGES.site.map((st) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))}
-              </select>
-              <div>
+                onChange={setSiteStage}
+                stages={TRACK_STAGES.site}
+                placeholder="Select milestone..."
+              />
+
+              <div className="space-y-1 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
+                  <span>Progress</span>
+                  <span className="font-mono font-bold text-teal-800">{siteProgress}%</span>
+                </div>
                 <input
                   type="range"
                   min="0"
@@ -250,7 +260,7 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
                   step="5"
                   value={siteProgress}
                   onChange={(e) => setSiteProgress(Number(e.target.value))}
-                  className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-600"
+                  className="w-full h-2 bg-teal-200/70 rounded-lg appearance-none cursor-pointer accent-teal-700"
                 />
               </div>
             </div>
@@ -286,60 +296,63 @@ export function QuickStageModal({ isOpen, onClose, project, onSave, saving }) {
             </div>
           </div>
 
-          {/* Status Picker */}
-          <div>
-            <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
-              Project Status
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {STATUS_OPTIONS.map((st) => {
-                const isSelected = status === st;
-                return (
-                  <button
-                    key={st}
-                    type="button"
-                    onClick={() => setStatus(st)}
-                    className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-all text-center ${
-                      isSelected
-                        ? "bg-primary text-white border-primary shadow-sm"
-                        : "bg-white text-text-secondary border-border hover:bg-surface-muted"
-                    }`}
-                  >
-                    {st}
-                  </button>
-                );
-              })}
+          {/* Status Picker - Only visible to Admins */}
+          {isAdmin && (
+            <div>
+              <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">
+                Project Status
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {STATUS_OPTIONS.map((st) => {
+                  const isSelected = status === st;
+                  return (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setStatus(st)}
+                      className={`px-3 py-2 text-xs font-semibold rounded-xl border transition-all text-center cursor-pointer ${
+                        isSelected
+                          ? "bg-primary text-white border-primary shadow-xs"
+                          : "bg-white text-text-secondary border-border hover:bg-surface-muted"
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium rounded-xl text-text-secondary hover:bg-surface-muted transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 shadow-sm transition-all"
-            >
-              {saving ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Save Progress</span>
-                </>
-              )}
-            </button>
-          </div>
+          )}
         </form>
+
+        {/* Fixed Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-3.5 border-t border-border bg-surface-subtle/40 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium rounded-xl text-text-secondary hover:bg-surface-muted transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="quick-stage-form"
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 shadow-xs transition-all cursor-pointer"
+          >
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                <span>Save Progress</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
