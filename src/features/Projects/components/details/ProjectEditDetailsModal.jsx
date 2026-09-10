@@ -87,7 +87,7 @@ export function ProjectEditDetailsModal({
     );
     setEditLeadId(project.lead_architect_id || "");
     setEditLeadRole(project.lead_architect_role || "Design");
-    setEditPaymentStatus(project.payment_status || "Paid");
+    setEditPaymentStatus(project.payment_status || "");
     setEditPaymentRemaining(project.payment_remaining || "");
     setEditSubRoles(
       typeof project.sub_architect_roles === "object" &&
