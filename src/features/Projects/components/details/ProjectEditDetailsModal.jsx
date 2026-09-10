@@ -38,7 +38,7 @@ export function ProjectEditDetailsModal({
   const [editSelectedSubIds, setEditSelectedSubIds] = useState([]);
   const [editSubRoles, setEditSubRoles] = useState({});
   const [editCustomSubText, setEditCustomSubText] = useState("");
-  const [editPaymentStatus, setEditPaymentStatus] = useState("Paid");
+  const [editPaymentStatus, setEditPaymentStatus] = useState("");
   const [editPaymentRemaining, setEditPaymentRemaining] = useState("");
 
   useEffect(() => {
