@@ -331,6 +331,18 @@ export function useProjects() {
           deadline: targetEndDate,
           status: p.status ?? meta.status ?? (p.archived ? "Completed" : "Active"),
           progress: effectiveProgress,
+          payment_status:
+            p.payment_status ??
+            meta.payment_status ??
+            detail.payment_status ??
+            (p.payment_remaining || meta.payment_remaining || detail.payment_remaining
+              ? "Payment Remaining"
+              : ""),
+          payment_remaining:
+            p.payment_remaining ??
+            meta.payment_remaining ??
+            detail.payment_remaining ??
+            "",
           activity_history:
             Array.isArray(detail.activity_history) && detail.activity_history.length > 0
               ? detail.activity_history
@@ -405,6 +417,8 @@ export function useProjects() {
         sub_architect_roles: fields.sub_architect_roles || {},
         sub_architect_names: fields.sub_architect_names || {},
         external_collaborators: fields.external_collaborators || "",
+        payment_status: fields.payment_status || "",
+        payment_remaining: fields.payment_remaining || "",
         activity_history: fields.activity_history || [],
         updated_at: new Date().toISOString(),
       };

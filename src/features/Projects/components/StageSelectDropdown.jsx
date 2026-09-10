@@ -16,6 +16,7 @@ export function StageSelectDropdown({
   track = "design", // "design" | "site"
   disabled = false,
   placeholder = "Select milestone...",
+  hideLabel = false,
 }) {
   const isCustomInitially = Boolean(value && !stages.includes(value));
   const [isCustom, setIsCustom] = useState(isCustomInitially);
@@ -69,7 +70,7 @@ export function StageSelectDropdown({
             {icon && <span>{icon}</span>}
             <span>{label}</span>
           </label>
-        ) : (
+        ) : hideLabel ? null : (
           <span className="text-[11px] font-medium text-text-muted">
             Stage Milestone:
           </span>

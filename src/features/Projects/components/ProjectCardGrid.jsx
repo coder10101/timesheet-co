@@ -129,6 +129,16 @@ export function ProjectCardGrid({
                   >
                     {currentStatus}
                   </button>
+                  {(p.payment_remaining ||
+                    p.payment_status === "Payment Remaining") && (
+                    <span
+                      className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs shrink-0 flex items-center gap-0.5"
+                      title={`Payment Remaining: ${p.payment_remaining || "Pending"}`}
+                    >
+                      <span>💳</span>
+                      <span>{p.payment_remaining ? `₨ ${p.payment_remaining}` : "Due"}</span>
+                    </span>
+                  )}
                   {isAdmin && (
                     <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                       <button

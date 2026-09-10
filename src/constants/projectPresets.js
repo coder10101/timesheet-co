@@ -552,6 +552,9 @@ export function getInitials(name) {
 export function getProjectTypeBadgeClass(type) {
   if (!type) return "bg-slate-100 text-slate-600 border-slate-200";
   const t = String(type).trim().toLowerCase();
+  if ((t.includes("design") && t.includes("site")) || t === "both" || t.includes("both")) {
+    return "bg-purple-50 text-purple-900 border-purple-200/80";
+  }
   if (t.includes("site") && t.includes("desk")) {
     return "bg-teal-50 text-teal-700 border-teal-200/80";
   }

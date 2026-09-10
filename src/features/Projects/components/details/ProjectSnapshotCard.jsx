@@ -92,6 +92,15 @@ export function ProjectSnapshotCard({
               style={{ width: `${overallProgress}%` }}
             />
           </div>
+          {(project.payment_remaining ||
+            project.payment_status === "Payment Remaining") && (
+            <div className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100/60 px-1.5 py-0.5 rounded border border-amber-200/80 truncate">
+              <span>💳</span>
+              <span className="truncate">
+                Payment Due{project.payment_remaining ? `: ₨ ${project.payment_remaining}` : ""}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Tile 2: Start Date */}

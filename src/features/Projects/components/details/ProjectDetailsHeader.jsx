@@ -78,6 +78,20 @@ export function ProjectDetailsHeader({
                 {project.project_type}
               </span>
             )}
+
+            {/* Payment Remaining Badge */}
+            {(project.payment_remaining ||
+              project.payment_status === "Payment Remaining") && (
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs"
+                title={`Payment Remaining: ${project.payment_remaining || "Pending"}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <span>
+                  💳 Payment Due{project.payment_remaining ? `: ₨ ${project.payment_remaining}` : ""}
+                </span>
+              </span>
+            )}
           </div>
         </div>
 

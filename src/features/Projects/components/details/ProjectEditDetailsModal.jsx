@@ -38,6 +38,8 @@ export function ProjectEditDetailsModal({
   const [editSelectedSubIds, setEditSelectedSubIds] = useState([]);
   const [editSubRoles, setEditSubRoles] = useState({});
   const [editCustomSubText, setEditCustomSubText] = useState("");
+  const [editPaymentStatus, setEditPaymentStatus] = useState("Paid");
+  const [editPaymentRemaining, setEditPaymentRemaining] = useState("");
 
   useEffect(() => {
     if (!isOpen || !project) return;
@@ -85,6 +87,8 @@ export function ProjectEditDetailsModal({
     );
     setEditLeadId(project.lead_architect_id || "");
     setEditLeadRole(project.lead_architect_role || "Design");
+    setEditPaymentStatus(project.payment_status || "Paid");
+    setEditPaymentRemaining(project.payment_remaining || "");
     setEditSubRoles(
       typeof project.sub_architect_roles === "object" &&
         project.sub_architect_roles !== null
@@ -275,9 +279,7 @@ export function ProjectEditDetailsModal({
             ? project.lead_architect
             : ""
         : project.lead_architect,
-      lead_architect_role: isAdmin
-        ? editLeadRole
-        : project.lead_architect_role,
+      lead_architect_role: isAdmin ? editLeadRole : project.lead_architect_role,
       sub_architect_ids: isAdmin
         ? editSelectedSubIds
         : project.sub_architect_ids,
@@ -286,6 +288,14 @@ export function ProjectEditDetailsModal({
       sub_architects: isAdmin
         ? editCustomSubText.trim()
         : project.sub_architects,
+      payment_status: isAdmin ? editPaymentStatus : project.payment_status,
+      payment_remaining:
+        (isAdmin ? editPaymentStatus : project.payment_status) ===
+        "Payment Remaining"
+          ? isAdmin
+            ? editPaymentRemaining.trim()
+            : project.payment_remaining
+          : "",
       activityRecords: activities,
     });
   };
@@ -443,7 +453,9 @@ export function ProjectEditDetailsModal({
                       setEditHasSite(next);
                       setEditProgress(
                         calculateOverallProgress({
-                          designProgress: editHasDesign ? editDesignProgress : 0,
+                          designProgress: editHasDesign
+                            ? editDesignProgress
+                            : 0,
                           siteProgress: next ? editSiteProgress : 0,
                           hasDesign: editHasDesign,
                           hasSite: next,
@@ -509,7 +521,9 @@ export function ProjectEditDetailsModal({
                         setEditSiteProgress(val);
                         setEditProgress(
                           calculateOverallProgress({
-                            designProgress: editHasDesign ? editDesignProgress : 0,
+                            designProgress: editHasDesign
+                              ? editDesignProgress
+                              : 0,
                             siteProgress: val,
                             hasDesign: editHasDesign,
                             hasSite: true,
@@ -641,7 +655,8 @@ export function ProjectEditDetailsModal({
                       {config.subLeadLabel || "Sub-Architects"} (Team Members)
                     </label>
                     <p className="text-[11px] text-text-muted mt-0.5">
-                      Click team members to add or remove them from this project:
+                      Click team members to add or remove them from this
+                      project:
                     </p>
                   </div>
                   {editSelectedSubIds.length > 0 && (
@@ -761,6 +776,106 @@ export function ProjectEditDetailsModal({
                   employee roster.
                 </p>
               </div>
+
+              {/* 4. Whole-Project Payment Tracking */}
+              <div className="pt-3 border-t border-border-light space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                    <span>💳</span> Whole-Project Payment Status
+                  </label>
+                  {editPaymentStatus === "Payment Remaining" && (
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      Payment Due
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editPaymentStatus === "Paid") {
+                        setEditPaymentStatus("");
+                      } else {
+                        setEditPaymentStatus("Paid");
+                        setEditPaymentRemaining("");
+                      }
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      editPaymentStatus === "Paid"
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
+                        : "bg-white text-text-secondary border-border hover:bg-surface-muted"
+                    }`}
+                  >
+                    <Check size={14} />
+                    <span>Paid in Full</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editPaymentStatus === "Payment Remaining") {
+                        setEditPaymentStatus("");
+                        setEditPaymentRemaining("");
+                      } else {
+                        setEditPaymentStatus("Payment Remaining");
+                      }
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      editPaymentStatus === "Payment Remaining"
+                        ? "bg-amber-600 text-white border-amber-600 shadow-2xs"
+                        : "bg-amber-50/60 text-amber-900 border-amber-200/80 hover:bg-amber-100/60"
+                    }`}
+                  >
+                    <span>⚠️</span>
+                    <span>Payment Remaining</span>
+                  </button>
+                </div>
+
+                {editPaymentStatus === "Payment Remaining" && (
+                  <div className="p-3 bg-amber-50/50 border border-amber-200/80 rounded-xl space-y-2 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-amber-950">
+                        Remaining Amount (₨) or Note
+                      </label>
+                      <span className="text-[10px] text-amber-700">
+                        e.g. 50,000 or Final 20%
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="e.g. 50,000, 150,000, or Final 20% due on handover"
+                      value={editPaymentRemaining}
+                      onChange={(e) => setEditPaymentRemaining(e.target.value)}
+                      className="w-full text-xs font-medium px-3 py-2 bg-white border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-text placeholder:text-text-muted"
+                    />
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-amber-800 font-medium">
+                        Suggestions:
+                      </span>
+                      {[
+                        "50,000",
+                        "100,000",
+                        "Final 20% Due",
+                        "Advance Cleared",
+                      ].map((sug) => (
+                        <button
+                          key={sug}
+                          type="button"
+                          onClick={() => setEditPaymentRemaining(sug)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                            editPaymentRemaining === sug
+                              ? "bg-amber-600 text-white border-amber-600 font-semibold"
+                              : "bg-white text-amber-900 border-amber-200 hover:bg-amber-100/60"
+                          }`}
+                        >
+                          {sug}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="pt-3 border-t border-border-light text-center">
@@ -787,11 +902,7 @@ export function ProjectEditDetailsModal({
             disabled={saving}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-white rounded-xl hover:bg-primary/95 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
           >
-            {saving
-              ? "Saving..."
-              : isAdmin
-                ? "Save Changes"
-                : "Save Updates"}
+            {saving ? "Saving..." : isAdmin ? "Save Changes" : "Save Updates"}
           </button>
         </div>
       </div>

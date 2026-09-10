@@ -25,15 +25,34 @@ import {
 } from "lucide-react";
 
 export const PRESET_COLORS = [
-  "#63537E", // Indigo-plum
-  "#497833", // Olive forest
-  "#7A5A17", // Amber ochre
-  "#913030", // Crimson rust
-  "#3E8F18", // Emerald leaf
-  "#514366", // Slate violet
-  "#2563eb", // Blue
-  "#0891b2", // Cyan
-  "#d97706", // Amber
+  "#63537E", // Studio Plum (Brand Primary)
+  "#2F7275", // Blueprint Teal (Site Track)
+  "#2E6B56", // Forest Emerald (BOQ & Growth)
+  "#3A6888", // Ocean Slate (Architecture & Commercial)
+  "#D97706", // Warm Amber (Warm Ochre)
+  "#80486D", // Deep Mulberry (Hospitality & Interior)
+  "#2563EB", // Cobalt Blue (Structural)
+  "#9E4732", // Terracotta (Earthy Brick)
+  "#475569", // Graphite Slate (Structure Neutral)
+  "#4D7C0F", // Olive Sage (Landscape & Eco)
+];
+
+export const PRESET_COLOR_LABELS = {
+  "#63537E": "Studio Plum",
+  "#2F7275": "Blueprint Teal",
+  "#2E6B56": "Forest Emerald",
+  "#3A6888": "Ocean Slate",
+  "#D97706": "Warm Amber",
+  "#80486D": "Deep Mulberry",
+  "#2563EB": "Cobalt Blue",
+  "#9E4732": "Terracotta",
+  "#475569": "Graphite Slate",
+  "#4D7C0F": "Olive Sage",
+};
+
+export const LEAD_ASSIGNED_ROLES = [
+  { id: "Design", label: "Design", icon: "🎨" },
+  { id: "Site", label: "Site", icon: "🏗️" },
 ];
 
 export function ProjectFormModal({
@@ -71,9 +90,14 @@ export function ProjectFormModal({
 
   // Categorization & Dates
   const [projectWork, setProjectWork] = useState("");
-  const [projectType, setProjectType] = useState("");
+  const [projectType, setProjectType] = useState("Design");
+  const [isCustomType, setIsCustomType] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [deadline, setDeadline] = useState("");
+
+  // Payment Tracking
+  const [paymentStatus, setPaymentStatus] = useState("Payment Remaining");
+  const [paymentRemaining, setPaymentRemaining] = useState("");
 
   const [error, setError] = useState("");
 
@@ -98,24 +122,61 @@ export function ProjectFormModal({
       setLeadArchitectId(project.lead_architect_id || "");
       setLeadArchitectRole(project.lead_architect_role || "Design");
 
-      setSelectedSubIds(Array.isArray(project.sub_architect_ids) ? project.sub_architect_ids : []);
+      setSelectedSubIds(
+        Array.isArray(project.sub_architect_ids)
+          ? project.sub_architect_ids
+          : [],
+      );
       setSubArchitectRoles(
-        typeof project.sub_architect_roles === "object" && project.sub_architect_roles !== null
+        typeof project.sub_architect_roles === "object" &&
+          project.sub_architect_roles !== null
           ? project.sub_architect_roles
-          : {}
+          : {},
       );
       setExternalCollaborators(
-        project.external_collaborators || project.sub_architects || ""
+        project.external_collaborators || project.sub_architects || "",
       );
 
       setProjectWork(project.project_work || "");
-      setProjectType(project.project_type || "");
+
+      const rawType = (project.project_type || "").trim();
+      const lowerType = rawType.toLowerCase();
+      if (lowerType === "design") {
+        setProjectType("Design");
+        setIsCustomType(false);
+      } else if (
+        lowerType === "site work" ||
+        lowerType === "site" ||
+        lowerType === "site execution"
+      ) {
+        setProjectType("Site Work");
+        setIsCustomType(false);
+      } else if (
+        (lowerType.includes("design") && lowerType.includes("site")) ||
+        lowerType === "both" ||
+        lowerType === "both (design & site)"
+      ) {
+        setProjectType("Both (Design & Site)");
+        setIsCustomType(false);
+      } else if (rawType) {
+        setProjectType(rawType);
+        setIsCustomType(true);
+      } else {
+        setProjectType("Design");
+        setIsCustomType(false);
+      }
 
       const rawEnd = project.end_date || project.deadline || "";
       setDeadline(normalizeDateToISO(rawEnd) || rawEnd);
 
       const rawStart = project.start_date || "";
       setStartDate(normalizeDateToISO(rawStart) || rawStart);
+
+      setPaymentStatus(
+        project.payment_status ||
+          (project.payment_remaining ? "Payment Remaining" : ""),
+      );
+      setPaymentRemaining(project.payment_remaining || "");
 
       setError("");
     } else {
@@ -134,9 +195,12 @@ export function ProjectFormModal({
       setSubArchitectRoles({});
       setExternalCollaborators("");
       setProjectWork("");
-      setProjectType("Interior");
+      setProjectType("Design");
+      setIsCustomType(false);
       setStartDate("");
       setDeadline("");
+      setPaymentStatus("Payment Remaining");
+      setPaymentRemaining("");
       setError("");
     }
   }, [project, isOpen]);
@@ -147,9 +211,35 @@ export function ProjectFormModal({
       (emp) =>
         (emp.role || "").toLowerCase() !== "admin" &&
         !emp.is_admin &&
-        (emp.role || "").toLowerCase() !== "administrator"
+        (emp.role || "").toLowerCase() !== "administrator",
     );
   }, [employees]);
+
+  // Lead role options: primarily Design and Site, preserving any existing non-standard role
+  const leadRoleOptions = useMemo(() => {
+    if (
+      leadArchitectRole &&
+      !LEAD_ASSIGNED_ROLES.some((r) => r.id === leadArchitectRole)
+    ) {
+      const extra = ASSIGNED_ROLES.find((r) => r.id === leadArchitectRole) || {
+        id: leadArchitectRole,
+        label: leadArchitectRole,
+        icon: "📌",
+      };
+      return [...LEAD_ASSIGNED_ROLES, extra];
+    }
+    return LEAD_ASSIGNED_ROLES;
+  }, [leadArchitectRole]);
+
+  // Color theme helpers
+  const isCustomColor = Boolean(
+    color &&
+    !PRESET_COLORS.some((c) => c.toLowerCase() === color.toLowerCase()),
+  );
+  const selectedColorLabel =
+    PRESET_COLOR_LABELS[color?.toUpperCase()] ||
+    PRESET_COLOR_LABELS[color] ||
+    (isCustomColor ? "Custom Color" : color);
 
   // Composite progress
   const compositeProgress = useMemo(() => {
@@ -187,6 +277,13 @@ export function ProjectFormModal({
     e?.preventDefault();
     if (!name.trim()) {
       setError("Project name is required.");
+      return;
+    }
+
+    if (isCustomType && !projectType.trim()) {
+      setError(
+        "Please enter a custom project type or select Design / Site Work / Both.",
+      );
       return;
     }
 
@@ -244,6 +341,12 @@ export function ProjectFormModal({
       start_date: startDate || "",
       end_date: deadline || "",
       deadline: deadline || "",
+      payment_status: paymentRemaining.trim()
+        ? "Payment Remaining"
+        : isEditing
+          ? paymentStatus
+          : "",
+      payment_remaining: paymentRemaining.trim(),
     };
 
     try {
@@ -285,7 +388,11 @@ export function ProjectFormModal({
         </div>
 
         {/* Scrollable Form Body */}
-        <form id="project-form-modal" onSubmit={handleSubmit} className="p-6 space-y-5 flex-1 overflow-y-auto">
+        <form
+          id="project-form-modal"
+          onSubmit={handleSubmit}
+          className="p-6 space-y-5 flex-1 overflow-y-auto"
+        >
           {error && (
             <div className="flex items-center gap-2.5 p-3.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -296,44 +403,99 @@ export function ProjectFormModal({
           {/* Section 1: Basic Info */}
           <div className="bg-surface-subtle/50 rounded-2xl p-4 border border-border space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
-              <Layers className="w-4 h-4 text-primary" /> 1. Project Identification
+              <Layers className="w-4 h-4 text-primary" /> 1. Project
+              Identification
             </h3>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-text-secondary mb-1">
-                  Project Name *
+            {/* Project Name */}
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1">
+                Project Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Kathmandu Luxury Villa"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full text-sm font-medium px-3.5 py-2.5 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+            </div>
+
+            {/* Color Theme Selector */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold text-text-secondary">
+                  Project Color Theme
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Kathmandu Luxury Villa"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full text-sm font-medium px-3.5 py-2.5 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white border border-border text-[11px] font-medium text-text-secondary shadow-2xs">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="font-semibold text-text-primary">
+                    {selectedColorLabel}
+                  </span>
+                  <span className="font-mono text-[10px] text-text-muted">
+                    ({color})
+                  </span>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1">
-                  Color Theme
-                </label>
-                <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                  {PRESET_COLORS.map((c) => (
+              <div className="flex items-center gap-2.5 flex-wrap p-2.5 bg-white rounded-xl border border-border">
+                {PRESET_COLORS.map((c) => {
+                  const isSelected = color.toLowerCase() === c.toLowerCase();
+                  const cLabel = PRESET_COLOR_LABELS[c] || c;
+                  return (
                     <button
                       key={c}
                       type="button"
                       onClick={() => setColor(c)}
-                      className={`w-6 h-6 rounded-full transition-transform cursor-pointer ${
-                        color === c ? "scale-125 ring-2 ring-offset-2 ring-primary" : "hover:scale-110"
+                      title={`${cLabel} (${c})`}
+                      className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
+                        isSelected
+                          ? "ring-2 ring-offset-2 ring-slate-800 scale-105"
+                          : "hover:scale-110 opacity-85 hover:opacity-100"
                       }`}
                       style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
+                    >
+                      {isSelected && (
+                        <Check className="w-4 h-4 text-white stroke-[3] drop-shadow-xs" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* Custom Color Picker Swatch */}
+                <label
+                  title={
+                    isCustomColor
+                      ? `Custom Color (${color})`
+                      : "Choose Custom Color"
+                  }
+                  className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer border-2 border-dashed ${
+                    isCustomColor
+                      ? "ring-2 ring-offset-2 ring-slate-800 scale-105 border-transparent shadow-2xs"
+                      : "border-slate-300 hover:border-slate-500 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:scale-105"
+                  }`}
+                  style={isCustomColor ? { backgroundColor: color } : {}}
+                >
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="sr-only"
+                  />
+                  {isCustomColor ? (
+                    <Check className="w-4 h-4 text-white stroke-[3] drop-shadow-xs" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                </label>
               </div>
             </div>
 
+            {/* Categorization: Work Category & Project Type */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div>
                 <label className="block text-xs font-semibold text-text-secondary mb-1">
@@ -345,7 +507,7 @@ export function ProjectFormModal({
                   placeholder="e.g. Residence, Hospitality..."
                   value={projectWork}
                   onChange={(e) => setProjectWork(e.target.value)}
-                  className="w-full text-sm font-medium px-3.5 py-2 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full text-sm font-medium px-3.5 py-2.5 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
                 <datalist id="work-categories-list">
                   <option value="Residence" />
@@ -358,24 +520,132 @@ export function ProjectFormModal({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-text-secondary mb-1">
-                  Project Type
-                </label>
-                <input
-                  type="text"
-                  list="project-types-list"
-                  placeholder="e.g. Interior, Site, Turnkey..."
-                  value={projectType}
-                  onChange={(e) => setProjectType(e.target.value)}
-                  className="w-full text-sm font-medium px-3.5 py-2 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
-                <datalist id="project-types-list">
-                  <option value="Design Only" />
-                  <option value="Site Execution" />
-                  <option value="Interior" />
-                  <option value="Renovation" />
-                  <option value="Turnkey" />
-                </datalist>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-text-secondary">
+                    Project Type *
+                  </label>
+                  {isCustomType && (
+                    <span className="text-[11px] font-semibold text-primary">
+                      Custom Type
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomType(false);
+                      setProjectType("Design");
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      !isCustomType && projectType === "Design"
+                        ? "bg-[#63537E] text-white border-[#63537E] shadow-xs"
+                        : "bg-[#63537E]/5 text-[#514366] border-[#63537E]/25 hover:bg-[#63537E]/10"
+                    }`}
+                  >
+                    <span className="text-sm">🎨</span>
+                    <span>Design</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomType(false);
+                      setProjectType("Site Work");
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      !isCustomType && projectType === "Site Work"
+                        ? "bg-teal-700 text-white border-teal-700 shadow-xs"
+                        : "bg-teal-50 text-teal-900 border-teal-200/80 hover:bg-teal-100/60"
+                    }`}
+                  >
+                    <span className="text-sm">🏗️</span>
+                    <span>Site Work</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomType(false);
+                      setProjectType("Both (Design & Site)");
+                      setHasDesign(true);
+                      setHasSite(true);
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      !isCustomType &&
+                      (projectType === "Both (Design & Site)" ||
+                        projectType === "Design & Site" ||
+                        projectType === "Both")
+                        ? "bg-purple-700 text-white border-purple-700 shadow-xs"
+                        : "bg-purple-50 text-purple-900 border-purple-200/80 hover:bg-purple-100/60"
+                    }`}
+                  >
+                    <span className="text-sm">🔄</span>
+                    <span>Both (Design & Site)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomType(true);
+                      if (
+                        projectType === "Design" ||
+                        projectType === "Site Work" ||
+                        projectType === "Both (Design & Site)" ||
+                        projectType === "Design & Site" ||
+                        projectType === "Both"
+                      ) {
+                        setProjectType("");
+                      }
+                    }}
+                    className={`flex items-center justify-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      isCustomType
+                        ? "bg-primary text-white border-primary shadow-xs"
+                        : "bg-white text-text-secondary border-border hover:bg-surface-muted"
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Custom</span>
+                  </button>
+                </div>
+
+                {isCustomType && (
+                  <div className="mt-2 space-y-1.5 animate-fade-in">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Enter custom type (e.g. Interior, Turnkey...)"
+                      value={projectType}
+                      onChange={(e) => setProjectType(e.target.value)}
+                      className="w-full text-xs font-medium px-3.5 py-2 bg-white border border-primary/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] text-text-muted">
+                        Suggestions:
+                      </span>
+                      {[
+                        "Interior",
+                        "Turnkey",
+                        "Renovation",
+                        "Architecture",
+                      ].map((sug) => (
+                        <button
+                          key={sug}
+                          type="button"
+                          onClick={() => setProjectType(sug)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                            projectType.toLowerCase() === sug.toLowerCase()
+                              ? "bg-primary text-white border-primary font-semibold"
+                              : "bg-white text-text-muted border-border hover:bg-surface-muted"
+                          }`}
+                        >
+                          {sug}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -383,7 +653,8 @@ export function ProjectFormModal({
           {/* Section 2: Team Roster & Scopes */}
           <div className="bg-surface-subtle/50 rounded-2xl p-4 border border-border space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" /> 2. Team Architecture & Responsibilities
+              <Users className="w-4 h-4 text-primary" /> 2. Team Architecture &
+              Responsibilities
             </h3>
 
             {/* Lead Architect & Scope */}
@@ -410,8 +681,8 @@ export function ProjectFormModal({
                 <label className="block text-xs font-semibold text-text-secondary mb-1.5">
                   Lead Assigned Scope
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {ASSIGNED_ROLES.map((r) => {
+                <div className="grid grid-cols-2 gap-2">
+                  {leadRoleOptions.map((r) => {
                     const isSelected = leadArchitectRole === r.id;
                     const roleClasses =
                       r.id === "Design"
@@ -419,16 +690,12 @@ export function ProjectFormModal({
                           ? "bg-[#63537E] text-white border-[#63537E] shadow-xs"
                           : "bg-[#63537E]/5 text-[#514366] border-[#63537E]/25 hover:bg-[#63537E]/10"
                         : r.id === "Site"
-                        ? isSelected
-                          ? "bg-teal-700 text-white border-teal-700 shadow-xs"
-                          : "bg-teal-50 text-teal-900 border-teal-200/80 hover:bg-teal-100/60"
-                        : r.id === "BOQ"
-                        ? isSelected
-                          ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                          : "bg-emerald-50 text-emerald-900 border-emerald-200/80 hover:bg-emerald-100/60"
-                        : isSelected
-                        ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                        : "bg-purple-50 text-purple-900 border-purple-200/80 hover:bg-purple-100/60";
+                          ? isSelected
+                            ? "bg-teal-700 text-white border-teal-700 shadow-xs"
+                            : "bg-teal-50 text-teal-900 border-teal-200/80 hover:bg-teal-100/60"
+                          : isSelected
+                            ? "bg-slate-800 text-white border-slate-800 shadow-xs"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100";
 
                     return (
                       <button
@@ -437,7 +704,7 @@ export function ProjectFormModal({
                         onClick={() => setLeadArchitectRole(r.id)}
                         className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${roleClasses}`}
                       >
-                        <span className="text-sm">{r.icon}</span>
+                        <span className="text-base">{r.icon}</span>
                         <span>{r.label}</span>
                       </button>
                     );
@@ -465,7 +732,11 @@ export function ProjectFormModal({
                           : "bg-surface-subtle text-text-secondary border border-border hover:bg-surface-muted"
                       }`}
                     >
-                      {isSelected ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5 text-text-muted" />}
+                      {isSelected ? (
+                        <Check className="w-3.5 h-3.5" />
+                      ) : (
+                        <Plus className="w-3.5 h-3.5 text-text-muted" />
+                      )}
                       <span>{emp.name}</span>
                     </button>
                   );
@@ -482,7 +753,10 @@ export function ProjectFormModal({
                     const emp = employees.find((e) => e.id === sId);
                     const currentRole = subArchitectRoles[sId] || "Design";
                     return (
-                      <div key={sId} className="pt-2 flex items-center justify-between gap-2">
+                      <div
+                        key={sId}
+                        className="pt-2 flex items-center justify-between gap-2"
+                      >
                         <span className="text-xs font-medium text-text-primary truncate">
                           {emp?.name || sId}
                         </span>
@@ -495,16 +769,16 @@ export function ProjectFormModal({
                                   ? "bg-[#63537E] text-white border-[#63537E] shadow-xs"
                                   : "bg-[#63537E]/5 text-[#514366] border-[#63537E]/25 hover:bg-[#63537E]/10"
                                 : r.id === "Site"
-                                ? isSelected
-                                  ? "bg-teal-700 text-white border-teal-700 shadow-xs"
-                                  : "bg-teal-50 text-teal-900 border-teal-200/80 hover:bg-teal-100/60"
-                                : r.id === "BOQ"
-                                ? isSelected
-                                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                                  : "bg-emerald-50 text-emerald-900 border-emerald-200/80 hover:bg-emerald-100/60"
-                                : isSelected
-                                ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                                : "bg-purple-50 text-purple-900 border-purple-200/80 hover:bg-purple-100/60";
+                                  ? isSelected
+                                    ? "bg-teal-700 text-white border-teal-700 shadow-xs"
+                                    : "bg-teal-50 text-teal-900 border-teal-200/80 hover:bg-teal-100/60"
+                                  : r.id === "BOQ"
+                                    ? isSelected
+                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                                      : "bg-emerald-50 text-emerald-900 border-emerald-200/80 hover:bg-emerald-100/60"
+                                    : isSelected
+                                      ? "bg-purple-600 text-white border-purple-600 shadow-xs"
+                                      : "bg-purple-50 text-purple-900 border-purple-200/80 hover:bg-purple-100/60";
 
                             return (
                               <button
@@ -513,7 +787,9 @@ export function ProjectFormModal({
                                 onClick={() => handleSetSubRole(sId, r.id)}
                                 className={`px-2 py-0.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${subRoleClasses}`}
                               >
-                                <span>{r.icon} {r.label}</span>
+                                <span>
+                                  {r.icon} {r.label}
+                                </span>
                               </button>
                             );
                           })}
@@ -544,7 +820,8 @@ export function ProjectFormModal({
           <div className="bg-surface-subtle/50 rounded-2xl p-4 border border-border space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-primary" /> 3. Dual-Track Execution & Progress
+                <Sliders className="w-4 h-4 text-primary" /> 3. Dual-Track
+                Execution & Progress
               </h3>
               <span className="text-[11px] text-text-muted">
                 Toggle tracks ON / OFF
@@ -569,12 +846,16 @@ export function ProjectFormModal({
                   <span className="text-lg">🎨</span>
                   <div>
                     <div className="text-xs font-bold">Design Track</div>
-                    <div className="text-[11px] opacity-75">Concept & Drawings</div>
+                    <div className="text-[11px] opacity-75">
+                      Concept & Drawings
+                    </div>
                   </div>
                 </div>
                 <div
                   className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    hasDesign ? "bg-[#63537E] border-[#63537E] text-white" : "border-border bg-white"
+                    hasDesign
+                      ? "bg-[#63537E] border-[#63537E] text-white"
+                      : "border-border bg-white"
                   }`}
                 >
                   {hasDesign && <Check className="w-3 h-3 stroke-[3]" />}
@@ -597,12 +878,16 @@ export function ProjectFormModal({
                   <span className="text-lg">🏗️</span>
                   <div>
                     <div className="text-xs font-bold">Site Track</div>
-                    <div className="text-[11px] opacity-75">Site Construction</div>
+                    <div className="text-[11px] opacity-75">
+                      Site Construction
+                    </div>
                   </div>
                 </div>
                 <div
                   className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
-                    hasSite ? "bg-teal-700 border-teal-700 text-white" : "border-border bg-white"
+                    hasSite
+                      ? "bg-teal-700 border-teal-700 text-white"
+                      : "border-border bg-white"
                   }`}
                 >
                   {hasSite && <Check className="w-3 h-3 stroke-[3]" />}
@@ -617,7 +902,9 @@ export function ProjectFormModal({
                   <span className="text-xs font-bold text-[#514366] flex items-center gap-1.5">
                     <span>🎨</span> Design Track
                   </span>
-                  <span className="text-xs font-bold text-[#63537E] font-mono">{designProgress}%</span>
+                  <span className="text-xs font-bold text-[#63537E] font-mono">
+                    {designProgress}%
+                  </span>
                 </div>
 
                 <StageSelectDropdown
@@ -626,12 +913,15 @@ export function ProjectFormModal({
                   onChange={setDesignStage}
                   stages={TRACK_STAGES.design}
                   placeholder="Select milestone..."
+                  hideLabel={true}
                 />
 
                 <div className="space-y-1 pt-1">
                   <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
                     <span>Progress</span>
-                    <span className="font-mono font-bold text-[#63537E]">{designProgress}%</span>
+                    <span className="font-mono font-bold text-[#63537E]">
+                      {designProgress}%
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -653,7 +943,9 @@ export function ProjectFormModal({
                   <span className="text-xs font-bold text-teal-950 flex items-center gap-1.5">
                     <span>🏗️</span> Site Track
                   </span>
-                  <span className="text-xs font-bold text-teal-800 font-mono">{siteProgress}%</span>
+                  <span className="text-xs font-bold text-teal-800 font-mono">
+                    {siteProgress}%
+                  </span>
                 </div>
 
                 <StageSelectDropdown
@@ -662,12 +954,15 @@ export function ProjectFormModal({
                   onChange={setSiteStage}
                   stages={TRACK_STAGES.site}
                   placeholder="Select milestone..."
+                  hideLabel={true}
                 />
 
                 <div className="space-y-1 pt-1">
                   <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
                     <span>Progress</span>
-                    <span className="font-mono font-bold text-teal-800">{siteProgress}%</span>
+                    <span className="font-mono font-bold text-teal-800">
+                      {siteProgress}%
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -686,9 +981,12 @@ export function ProjectFormModal({
             <div className="p-4 rounded-xl bg-white border border-border space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-text-secondary flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-primary" /> Overall Project Progress
+                  <CheckCircle2 className="w-4 h-4 text-primary" /> Overall
+                  Project Progress
                 </span>
-                <span className="font-extrabold text-sm text-primary">{compositeProgress}%</span>
+                <span className="font-extrabold text-sm text-primary">
+                  {compositeProgress}%
+                </span>
               </div>
               <div className="w-full bg-border-light h-2.5 rounded-full overflow-hidden">
                 <div
@@ -699,10 +997,11 @@ export function ProjectFormModal({
             </div>
           </div>
 
-          {/* Section 4: Schedule & Deadlines */}
+          {/* Section 4: Schedule, Status & Payment */}
           <div className="bg-surface-subtle/50 rounded-2xl p-4 border border-border space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-primary" /> 4. Schedule & Status
+              <Calendar className="w-4 h-4 text-primary" /> 4. Schedule, Status
+              & Payment
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -731,7 +1030,7 @@ export function ProjectFormModal({
 
             <div>
               <label className="block text-xs font-semibold text-text-secondary mb-1.5">
-                Status
+                Project Status
               </label>
               <div className="grid grid-cols-4 gap-2">
                 {STATUS_OPTIONS.map((st) => (
@@ -749,6 +1048,147 @@ export function ProjectFormModal({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Whole-Project Payment Remaining */}
+            <div className="pt-3 border-t border-border space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-text-secondary flex items-center gap-1.5">
+                  <span>💳</span>{" "}
+                  {isEditing
+                    ? "Whole-Project Payment Status"
+                    : "Whole-Project Payment Remaining"}
+                </label>
+                {paymentRemaining.trim() ? (
+                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    Due: ₨ {paymentRemaining.trim()}
+                  </span>
+                ) : isEditing && paymentStatus === "Paid" ? (
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    Paid in Full
+                  </span>
+                ) : null}
+              </div>
+
+              {/* For initial projects, do not show 'Paid in Full' option */}
+              {isEditing ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (paymentStatus === "Paid") {
+                        setPaymentStatus("");
+                      } else {
+                        setPaymentStatus("Paid");
+                        setPaymentRemaining("");
+                      }
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      paymentStatus === "Paid"
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                        : "bg-white text-text-secondary border-border hover:bg-surface-muted"
+                    }`}
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Paid in Full</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (paymentStatus === "Payment Remaining") {
+                        setPaymentStatus("");
+                        setPaymentRemaining("");
+                      } else {
+                        setPaymentStatus("Payment Remaining");
+                      }
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      paymentStatus === "Payment Remaining"
+                        ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                        : "bg-amber-50/60 text-amber-900 border-amber-200/80 hover:bg-amber-100/60"
+                    }`}
+                  >
+                    <span>⚠️</span>
+                    <span>Payment Remaining</span>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-text-muted">
+                  Initial projects track outstanding payment balance or client
+                  retention fee.
+                </p>
+              )}
+
+              {(!isEditing || paymentStatus === "Payment Remaining") && (
+                <div className="p-3 bg-amber-50/50 border border-amber-200/80 rounded-xl space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-bold text-amber-950">
+                      Remaining Amount (₨) or Note
+                    </label>
+                    <span className="text-[10px] text-amber-700">
+                      e.g. 50,000 or Final 20%
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-amber-700 pointer-events-none">
+                      ₨
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="e.g. 50,000, 150,000, or Advance pending"
+                      value={paymentRemaining}
+                      onChange={(e) => {
+                        setPaymentRemaining(e.target.value);
+                        if (e.target.value.trim()) {
+                          setPaymentStatus("Payment Remaining");
+                        }
+                      }}
+                      className="w-full text-xs font-medium pl-8 pr-3 py-2 bg-white border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-text-primary placeholder:text-text-muted"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-amber-800 font-medium">
+                      Suggestions:
+                    </span>
+                    {[
+                      "50,000",
+                      "100,000",
+                      "200,000",
+                      "Advance Pending",
+                      "Final 20% Due",
+                    ].map((sug) => (
+                      <button
+                        key={sug}
+                        type="button"
+                        onClick={() => {
+                          setPaymentRemaining(sug);
+                          setPaymentStatus("Payment Remaining");
+                        }}
+                        className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                          paymentRemaining === sug
+                            ? "bg-amber-600 text-white border-amber-600 font-semibold"
+                            : "bg-white text-amber-900 border-amber-200 hover:bg-amber-100/60"
+                        }`}
+                      >
+                        +{sug}
+                      </button>
+                    ))}
+                    {paymentRemaining && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentRemaining("");
+                          setPaymentStatus("");
+                        }}
+                        className="text-[10px] font-medium text-rose-500 hover:text-rose-700 ml-1 cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </form>

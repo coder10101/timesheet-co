@@ -46,6 +46,7 @@ export function ProjectTableView({
               <th className="py-3.5 px-3 whitespace-nowrap">{stageLabel}</th>
               <th className="py-3.5 px-3 whitespace-nowrap">Start Date</th>
               <th className="py-3.5 px-3 whitespace-nowrap">Deadline</th>
+              <th className="py-3.5 px-3 whitespace-nowrap">Payment Remaining</th>
               <th className="py-3.5 px-3 whitespace-nowrap">Project Status</th>
               <th className="py-3.5 px-3 whitespace-nowrap">Last Updated</th>
               <th className="py-3.5 px-4 text-right whitespace-nowrap">
@@ -267,7 +268,39 @@ export function ProjectTableView({
                     />
                   </td>
 
-                  {/* 6. PROJECT STATUS & PROGRESS */}
+                  {/* 6. PAYMENT REMAINING */}
+                  <td className="py-3.5 px-3 whitespace-nowrap">
+                    {p.payment_remaining ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/90 shadow-2xs"
+                        title={`Payment Remaining: ₨ ${p.payment_remaining}`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 animate-pulse" />
+                        <span>₨ {p.payment_remaining}</span>
+                        <span className="text-[10px] font-bold text-amber-700 uppercase">
+                          Due
+                        </span>
+                      </span>
+                    ) : p.payment_status === "Payment Remaining" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                        <span>Payment Due</span>
+                      </span>
+                    ) : p.payment_status === "Paid" ||
+                      p.payment_status === "Paid in Full" ||
+                      p.payment_status === "Cleared" ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                        <span>✓</span>
+                        <span>Paid</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-xs font-normal">
+                        —
+                      </span>
+                    )}
+                  </td>
+
+                  {/* 7. PROJECT STATUS & PROGRESS */}
                   <td className="py-3.5 px-3 whitespace-nowrap">
                     <div
                       onClick={() => {
