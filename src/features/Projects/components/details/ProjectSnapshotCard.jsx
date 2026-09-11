@@ -30,9 +30,9 @@ export function ProjectSnapshotCard({
     project.hasDesign !== false &&
     Boolean(
       project.design_stage ||
-        project.lead_architect_role === "Design" ||
-        project.lead_architect_role === "Both" ||
-        Number(project.design_progress) > 0,
+      project.lead_architect_role === "Design" ||
+      project.lead_architect_role === "Both" ||
+      Number(project.design_progress) > 0,
     );
 
   const hasS =
@@ -40,9 +40,9 @@ export function ProjectSnapshotCard({
     project.hasSite !== false &&
     Boolean(
       project.site_stage ||
-        project.lead_architect_role === "Site" ||
-        project.lead_architect_role === "Both" ||
-        Number(project.site_progress) > 0,
+      project.lead_architect_role === "Site" ||
+      project.lead_architect_role === "Both" ||
+      Number(project.site_progress) > 0,
     );
 
   const overallProgress =
@@ -61,7 +61,7 @@ export function ProjectSnapshotCard({
   return (
     <div className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-2xs space-y-4">
       {/* 4 KPI METRIC TILES */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         {/* Tile 1: Stage & Progress (Balanced & Sleek) */}
         <div
           onClick={() => canEdit && onOpenEdit && onOpenEdit()}
@@ -97,7 +97,10 @@ export function ProjectSnapshotCard({
             <div className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100/60 px-1.5 py-0.5 rounded border border-amber-200/80 truncate">
               <span>💳</span>
               <span className="truncate">
-                Payment Due{project.payment_remaining ? `: ₨ ${project.payment_remaining}` : ""}
+                Payment Due
+                {project.payment_remaining
+                  ? `: ₨ ${project.payment_remaining}`
+                  : ""}
               </span>
             </div>
           )}
@@ -178,27 +181,6 @@ export function ProjectSnapshotCard({
               }`}
             >
               {urgency?.label || "On schedule"}
-            </p>
-          </div>
-        </div>
-
-        {/* Tile 4: Total Effort Logged */}
-        <div className="bg-slate-50/70 border border-slate-200/70 rounded-2xl p-3 sm:p-3.5">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider">
-              Total Effort
-            </span>
-            <Briefcase size={14} className="text-slate-400" />
-          </div>
-          <div className="mt-1">
-            <p className="text-xs sm:text-sm font-semibold font-mono text-slate-900">
-              {totalHours.toFixed(1)}{" "}
-              <span className="text-xs font-sans text-slate-500 font-normal">
-                hrs
-              </span>
-            </p>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              Across {uniqueContributors} team contributors
             </p>
           </div>
         </div>
