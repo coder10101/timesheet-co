@@ -11,12 +11,34 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
 import { getEmployeeColor } from "../../constants/colors";
+import { useProjects } from "../../hooks/useProjectsData";
+
+function EmployeeProjects({ projects }) {
+  if (!projects?.length) {
+    return <span className="text-[10px] text-text-faint">No projects</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {projects.map((project) => (
+        <span
+          key={project.id}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white shadow-2xs"
+          style={{ backgroundColor: project.color || "#63537E" }}
+        >
+          {project.name}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function AdminTeam({ me }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [err, setErr] = useState("");
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
+  const { projects = [], isLoading: projectsLoading } = useProjects();
 
   const query = useQuery({
     queryKey: ["roster"],
@@ -42,6 +64,23 @@ export function AdminTeam({ me }) {
   });
 
   const employees = query.data || [];
+  const employeeProjects = useMemo(() => {
+    const map = {};
+
+    employees.forEach((emp) => {
+      map[emp.id] = projects?.filter((project) => {
+        const isLead = project.lead_architect_id === emp.id;
+
+        const isSub =
+          Array.isArray(project.sub_architect_ids) &&
+          project.sub_architect_ids.includes(emp.id);
+
+        return isLead || isSub;
+      });
+    });
+
+    return map;
+  }, [employees, projects]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((e) => {
@@ -80,7 +119,8 @@ export function AdminTeam({ me }) {
         <div>
           <h1 className="text-xl font-bold text-text">Team Members</h1>
           <p className="text-xs text-text-muted">
-            Manage organization members, roles, departments, and workspace access.
+            Manage organization members, roles, departments, and workspace
+            access.
           </p>
         </div>
 
@@ -173,28 +213,42 @@ export function AdminTeam({ me }) {
                 <div>
                   {/* CARD TOP ROW: AVATAR & REVOKED TAG IF ANY */}
                   <div className="flex items-start justify-between gap-2">
-                    <div
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-xs"
-                      style={{ backgroundColor: getEmployeeColor(emp) }}
-                    >
-                      {emp.name?.slice(0, 2).toUpperCase()}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className="w-11 h-11 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-xs shrink-0"
+                        style={{ backgroundColor: getEmployeeColor(emp) }}
+                      >
+                        {emp.name?.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-bold text-text truncate">
+                          {emp.name}
+                        </h3>
+                        <p className="text-[11px] text-text-muted truncate">
+                          {emp.title || emp.role || "Team Member"}
+                        </p>
+                      </div>
                     </div>
 
                     {!isActive && (
-                      <span className="px-2 py-0.5 rounded-md bg-alert-light text-alert border border-alert/30 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-md bg-alert-light text-alert border border-alert/30 text-[10px] font-bold shrink-0">
                         Access Revoked
                       </span>
                     )}
                   </div>
 
-                  {/* NAME & TITLE */}
-                  <div className="mt-3">
-                    <h3 className="text-sm font-bold text-text truncate">
-                      {emp.name}
-                    </h3>
-                    <p className="text-[11px] text-text-muted truncate mt-0.5">
-                      {emp.title || emp.role || "Team Member"}
-                    </p>
+                  <div className="pt-2.5 mt-2 border-t border-border-light">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-semibold text-text-muted">
+                        Projects
+                      </span>
+
+                      <span className="text-[10px] font-mono text-text-muted">
+                        {employeeProjects[emp.id]?.length || 0}
+                      </span>
+                    </div>
+
+                    <EmployeeProjects projects={employeeProjects[emp.id]} />
                   </div>
                 </div>
 
@@ -236,7 +290,9 @@ export function AdminTeam({ me }) {
               <div
                 key={emp.id}
                 className={`flex items-center justify-between p-3.5 transition-colors ${
-                  isActive ? "hover:bg-surface-muted/30" : "bg-surface-muted/20 opacity-70"
+                  isActive
+                    ? "hover:bg-surface-muted/30"
+                    : "bg-surface-muted/20 opacity-70"
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -248,19 +304,25 @@ export function AdminTeam({ me }) {
                   </div>
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-xs sm:text-sm font-bold text-text truncate">
                         {emp.name}
                       </h4>
+                      <span className="text-[11px] text-text-muted truncate">
+                        {emp.title || emp.role || "Team Member"}
+                      </span>
                       {!isActive && (
-                        <span className="px-1.5 py-0.2 rounded bg-alert-light text-alert text-[9px] font-bold">
+                        <span className="px-1.5 py-0.2 rounded bg-alert-light text-alert text-[9px] font-bold shrink-0">
                           Revoked
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-text-muted truncate">
-                      {emp.title || emp.role} · {emp.department || "General"}
-                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[10px] text-text-muted shrink-0">
+                        {employeeProjects[emp.id]?.length || 0} projects
+                      </span>
+                      <EmployeeProjects projects={employeeProjects[emp.id]} />
+                    </div>
                   </div>
                 </div>
 
