@@ -41,24 +41,6 @@ export function useAttendance(employeeId) {
         let break_minutes = r.break_minutes ?? 0;
         let break_start = r.break_start ?? null;
         let breaks = Array.isArray(r.breaks) ? r.breaks : [];
-        try {
-          const localActive = localStorage.getItem(
-            `break_start_${r.employee_id}_${r.date}`,
-          );
-          if (localActive && !break_start) break_start = localActive;
-          const localData = localStorage.getItem(
-            `break_data_${r.employee_id}_${r.date}`,
-          );
-          if (localData) {
-            const parsed = JSON.parse(localData);
-            if (Array.isArray(parsed.breaks) && parsed.breaks.length > 0) {
-              breaks = parsed.breaks;
-            }
-            if (r.break_minutes === null || r.break_minutes === undefined) {
-              break_minutes = parsed.break_minutes || 0;
-            }
-          }
-        } catch (_) {}
 
         if (breaks.length > 0) {
           break_minutes = calculateBreaksTotalMins(breaks, break_minutes);
@@ -96,14 +78,17 @@ export function useAttendance(employeeId) {
       const today = todayISO();
       const now = new Date();
       const nowISO = now.toISOString();
-      let startISO = null;
-      try {
-        startISO = localStorage.getItem(`break_start_${employeeId}_${today}`);
-        localStorage.removeItem(`break_start_${employeeId}_${today}`);
-      } catch (_) {}
-
-      const currentRecord = (query.data || []).find((r) => r.date === today);
-      const activeStart = currentRecord?.break_start || startISO;
+      let currentRecord = (query.data || []).find((r) => r.date === today);
+      if (!currentRecord) {
+        const { data: fetched } = await supabase
+          .from("attendance")
+          .select("*")
+          .eq("employee_id", employeeId)
+          .eq("date", today)
+          .maybeSingle();
+        currentRecord = fetched;
+      }
+      const activeStart = currentRecord?.break_start;
       const existingBreaks = Array.isArray(currentRecord?.breaks)
         ? currentRecord.breaks
         : [];
@@ -125,16 +110,6 @@ export function useAttendance(employeeId) {
           updatedBreaks,
           (currentRecord?.break_minutes || 0) + Math.floor(diffMs / 60000),
         );
-
-        try {
-          localStorage.setItem(
-            `break_data_${employeeId}_${today}`,
-            JSON.stringify({
-              break_minutes: totalBreakMinutes,
-              breaks: updatedBreaks,
-            }),
-          );
-        } catch (_) {}
       }
 
       const updateData = {
@@ -150,21 +125,7 @@ export function useAttendance(employeeId) {
         .eq("employee_id", employeeId)
         .eq("date", today);
 
-      if (error) {
-        if (error.code === "42703" || error.message?.includes("break")) {
-          delete updateData.break_start;
-          delete updateData.break_minutes;
-          delete updateData.breaks;
-          const { error: err2 } = await supabase
-            .from("attendance")
-            .update(updateData)
-            .eq("employee_id", employeeId)
-            .eq("date", today);
-          if (err2) throw err2;
-        } else {
-          throw error;
-        }
-      }
+      if (error) throw error;
     },
     onSuccess: invalidate,
   });
@@ -174,23 +135,13 @@ export function useAttendance(employeeId) {
       const nowISO = new Date().toISOString();
       const today = todayISO();
 
-      try {
-        localStorage.setItem(`break_start_${employeeId}_${today}`, nowISO);
-      } catch (_) {}
-
       const { error } = await supabase
         .from("attendance")
         .update({ break_start: nowISO })
         .eq("employee_id", employeeId)
         .eq("date", today);
 
-      if (
-        error &&
-        error.code !== "42703" &&
-        !error.message?.includes("break_start")
-      ) {
-        throw error;
-      }
+      if (error) throw error;
     },
     onSuccess: invalidate,
   });
@@ -201,13 +152,17 @@ export function useAttendance(employeeId) {
       const nowISO = now.toISOString();
       const today = todayISO();
 
-      const currentRecord = (query.data || []).find((r) => r.date === today);
-      let startISO = currentRecord?.break_start;
-      if (!startISO) {
-        try {
-          startISO = localStorage.getItem(`break_start_${employeeId}_${today}`);
-        } catch (_) {}
+      let currentRecord = (query.data || []).find((r) => r.date === today);
+      if (!currentRecord) {
+        const { data: fetched } = await supabase
+          .from("attendance")
+          .select("*")
+          .eq("employee_id", employeeId)
+          .eq("date", today)
+          .maybeSingle();
+        currentRecord = fetched;
       }
+      const startISO = currentRecord?.break_start;
 
       const diffMs = startISO
         ? Math.max(0, now.getTime() - new Date(startISO).getTime())
@@ -227,17 +182,6 @@ export function useAttendance(employeeId) {
         (currentRecord?.break_minutes || 0) + Math.floor(diffMs / 60000),
       );
 
-      try {
-        localStorage.removeItem(`break_start_${employeeId}_${today}`);
-        localStorage.setItem(
-          `break_data_${employeeId}_${today}`,
-          JSON.stringify({
-            break_minutes: totalBreakMinutes,
-            breaks: updatedBreaks,
-          }),
-        );
-      } catch (_) {}
-
       const { error } = await supabase
         .from("attendance")
         .update({
@@ -248,13 +192,7 @@ export function useAttendance(employeeId) {
         .eq("employee_id", employeeId)
         .eq("date", today);
 
-      if (
-        error &&
-        error.code !== "42703" &&
-        !error.message?.includes("break")
-      ) {
-        throw error;
-      }
+      if (error) throw error;
     },
     onSuccess: invalidate,
   });
@@ -298,38 +236,15 @@ export function useAttendance(employeeId) {
         break_minutes: finalBreak,
       };
 
-      if (date) {
-        try {
-          localStorage.setItem(
-            `break_data_${employeeId}_${date}`,
-            JSON.stringify({ break_minutes: finalBreak }),
-          );
-        } catch (_) {}
-      }
-
       if (attendanceId) {
-        let { error } = await supabase
+        const { error } = await supabase
           .from("attendance")
           .update(payload)
           .eq("id", attendanceId)
           .eq("employee_id", employeeId);
-
-        if (
-          error &&
-          (error.code === "42703" || error.message?.includes("break"))
-        ) {
-          delete payload.break_minutes;
-          const { error: err2 } = await supabase
-            .from("attendance")
-            .update(payload)
-            .eq("id", attendanceId)
-            .eq("employee_id", employeeId);
-          if (err2) throw err2;
-        } else if (error) {
-          throw error;
-        }
+        if (error) throw error;
       } else if (date) {
-        let { error } = await supabase.from("attendance").upsert(
+        const { error } = await supabase.from("attendance").upsert(
           {
             employee_id: employeeId,
             date,
@@ -337,24 +252,7 @@ export function useAttendance(employeeId) {
           },
           { onConflict: "employee_id,date" },
         );
-
-        if (
-          error &&
-          (error.code === "42703" || error.message?.includes("break"))
-        ) {
-          delete payload.break_minutes;
-          const { error: err2 } = await supabase.from("attendance").upsert(
-            {
-              employee_id: employeeId,
-              date,
-              ...payload,
-            },
-            { onConflict: "employee_id,date" },
-          );
-          if (err2) throw err2;
-        } else if (error) {
-          throw error;
-        }
+        if (error) throw error;
       } else {
         throw new Error("Missing attendance record ID or date.");
       }
@@ -427,23 +325,11 @@ export function useOrgAttendance(dateOrOptions) {
       return (data || []).map((r) => {
         let break_minutes = r.break_minutes ?? 0;
         let break_start = r.break_start ?? null;
-        let breaks = r.breaks ?? [];
-        try {
-          const localActive = localStorage.getItem(
-            `break_start_${r.employee_id}_${r.date}`,
-          );
-          if (localActive && !break_start) break_start = localActive;
-          const localData = localStorage.getItem(
-            `break_data_${r.employee_id}_${r.date}`,
-          );
-          if (localData) {
-            const parsed = JSON.parse(localData);
-            if ((parsed.break_minutes || 0) > break_minutes) {
-              break_minutes = parsed.break_minutes;
-              breaks = parsed.breaks || breaks;
-            }
-          }
-        } catch (_) {}
+        let breaks = Array.isArray(r.breaks) ? r.breaks : [];
+
+        if (breaks.length > 0) {
+          break_minutes = calculateBreaksTotalMins(breaks, break_minutes);
+        }
 
         return {
           ...r,
