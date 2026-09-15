@@ -51,6 +51,9 @@ import {
   getAssignedRoleBadgeText,
 } from "../../constants/projectPresets";
 
+/** Stages that mean a project has been handed over — excluded from the work log dropdown. */
+const HANDED_OVER_STAGES = ["Handover Complete", "Final Payment"];
+
 export function EmployeeWorklog({ me }) {
   const officeHours = useOfficeHours();
   const { records } = useAttendance(me.id);
@@ -76,8 +79,22 @@ export function EmployeeWorklog({ me }) {
   // Accordion state
   const [openDates, setOpenDates] = useState(() => new Set([todayISO()]));
 
+
   const activeProjects = useMemo(
-    () => (projects || []).filter((p) => !p.archived),
+    () =>
+      (projects || []).filter((p) => {
+        if (p.archived) return false;
+        const normStatus = (p.status || "").toLowerCase();
+        if (normStatus === "completed" || normStatus === "complete") return false;
+        const stage = (p.current_stage || "").trim();
+        const siteStage = (p.site_stage || "").trim();
+        if (
+          HANDED_OVER_STAGES.includes(stage) ||
+          HANDED_OVER_STAGES.includes(siteStage)
+        )
+          return false;
+        return true;
+      }),
     [projects],
   );
 

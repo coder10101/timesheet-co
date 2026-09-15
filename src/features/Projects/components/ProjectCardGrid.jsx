@@ -129,7 +129,7 @@ export function ProjectCardGrid({
                   >
                     {currentStatus}
                   </button>
-                  {(p.payment_remaining ||
+                  {isAdmin && (p.payment_remaining ||
                     p.payment_status === "Payment Remaining") && (
                     <span
                       className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs shrink-0 flex items-center gap-0.5"

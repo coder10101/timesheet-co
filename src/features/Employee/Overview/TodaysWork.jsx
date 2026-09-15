@@ -18,6 +18,9 @@ import {
 } from "../../../utils/workType";
 import { useOfficeHours } from "../../../constants/officeHours";
 
+/** Stages that mean a project has been handed over — excluded from the log dropdown. */
+const HANDED_OVER_STAGES = ["Handover Complete", "Final Payment"];
+
 export function TodaysWork({
   entries,
   addEntry,
@@ -36,7 +39,16 @@ export function TodaysWork({
   const [editingWorkId, setEditingWorkId] = useState(null);
   const [savingWork, setSavingWork] = useState(false);
 
-  const activeProjects = projects.filter((p) => !p.archived);
+  const activeProjects = projects.filter((p) => {
+    if (p.archived) return false;
+    const normStatus = (p.status || "").toLowerCase();
+    if (normStatus === "completed" || normStatus === "complete") return false;
+    const stage = (p.current_stage || "").trim();
+    const siteStage = (p.site_stage || "").trim();
+    if (HANDED_OVER_STAGES.includes(stage) || HANDED_OVER_STAGES.includes(siteStage))
+      return false;
+    return true;
+  });
 
   const todayWorkLogs = entries.filter((entry) => entry.date === today);
 

@@ -79,8 +79,8 @@ export function ProjectDetailsHeader({
               </span>
             )}
 
-            {/* Payment Remaining Badge */}
-            {(project.payment_remaining ||
+            {/* Payment Remaining Badge — admin only */}
+            {isAdmin && (project.payment_remaining ||
               project.payment_status === "Payment Remaining") && (
               <span
                 className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs"

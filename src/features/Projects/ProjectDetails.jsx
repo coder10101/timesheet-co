@@ -494,6 +494,7 @@ export function ProjectDetails({ me }) {
         designArchitects={designArchitects}
         siteArchitects={siteArchitects}
         canEdit={canEdit}
+        isAdmin={isAdmin}
         onOpenEdit={() => setShowEditModal(true)}
       />
 
