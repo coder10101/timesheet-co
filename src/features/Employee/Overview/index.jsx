@@ -12,7 +12,6 @@ import {
 import { todayISO } from "../../../utils/workTime";
 import UpcomingEvents from "../../../components/UpcomingEvents";
 import { LeaveBalance } from "./LeaveBalance";
-import { TeammatesOnLeaveCard } from "./TeammatesOnLeaveCard";
 import { TodaysWork } from "./TodaysWork";
 import { Today } from "./Today";
 import { WeekAtGlance } from "./WeekAtGlance";
@@ -51,7 +50,12 @@ export function EmployeeOverview({ me }) {
   const [quickLogSaving, setQuickLogSaving] = useState(false);
   const [quickLogError, setQuickLogError] = useState("");
 
-  const handleSaveQuickLog = async ({ date, clockIn, clockOut, breakMinutes }) => {
+  const handleSaveQuickLog = async ({
+    date,
+    clockIn,
+    clockOut,
+    breakMinutes,
+  }) => {
     setQuickLogSaving(true);
     setQuickLogError("");
     try {
@@ -62,7 +66,9 @@ export function EmployeeOverview({ me }) {
         breakMinutes: Number(breakMinutes) || 0,
       });
       try {
-        localStorage.removeItem(`dismissed_missing_attendance_${me?.id}_${date}`);
+        localStorage.removeItem(
+          `dismissed_missing_attendance_${me?.id}_${date}`,
+        );
       } catch (_) {}
       setQuickLogDate(null);
     } catch (error) {
@@ -128,6 +134,8 @@ export function EmployeeOverview({ me }) {
           endBreakPending={endBreakPending}
           setErr={setErr}
           today={today}
+          teamLeaves={teamLeaves}
+          me={me}
         />
         <WeekAtGlance
           records={records}
@@ -151,9 +159,8 @@ export function EmployeeOverview({ me }) {
           setErr={setErr}
           today={today}
         />
-        <div className="space-y-4">
-          <TeammatesOnLeaveCard teamLeaves={teamLeaves} me={me} today={today} />
-          <LeaveBalance myLeave={myLeave} me={me} />
+        <div className="space-y-3">
+          <LeaveBalance myLeave={myLeave} me={me} today={today} />
           <UpcomingEvents events={events} holidays={holidays} today={today} />
         </div>
       </div>

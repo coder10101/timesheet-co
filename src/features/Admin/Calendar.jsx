@@ -21,9 +21,15 @@ import {
   Info,
   Sun,
   ArrowRight,
+  CalendarDays,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-import { useHolidays, useEvents, useRoster, useTeamLeaves } from "../../hooks/useOrgData";
+import {
+  useHolidays,
+  useEvents,
+  useRoster,
+  useTeamLeaves,
+} from "../../hooks/useOrgData";
 import { fmtDate, fmtTimeAmPm, todayISO } from "../../utils/workTime";
 import {
   isoToBS,
@@ -52,7 +58,7 @@ export function AdminCalendar({ me }) {
   const { employees } = useRoster(me?.org_id);
   const { teamLeaves } = useTeamLeaves(me?.org_id);
 
-  const [rightSidebarTab, setRightSidebarTab] = useState("holidays"); // "holidays" | "leaves"
+  const [rightSidebarTab, setRightSidebarTab] = useState("holidays"); // "holidays" | "events" | "leaves"
 
   const todayStr = todayISO();
   const isPastDate = (d) => !!d && d < todayStr;
@@ -132,6 +138,19 @@ export function AdminCalendar({ me }) {
       .sort((a, b) => a.start_date.localeCompare(b.start_date));
   }, [teamLeaves, bsYear]);
 
+  const eventsForYear = useMemo(() => {
+    return (events || [])
+      .filter((e) => {
+        const bsDate = isoToBS(e.date);
+        return bsDate && bsDate.year === bsYear;
+      })
+      .sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          (a.time || "").localeCompare(b.time || ""),
+      );
+  }, [events, bsYear]);
+
   // Calendar cells mapping (Called unconditionally before any early return)
   const calendarDays = useMemo(() => {
     const days = [];
@@ -174,7 +193,16 @@ export function AdminCalendar({ me }) {
     }
 
     return days;
-  }, [bsYear, bsMonth, totalBSDays, firstWeekday, holidays, events, teamLeaves, todayStr]);
+  }, [
+    bsYear,
+    bsMonth,
+    totalBSDays,
+    firstWeekday,
+    holidays,
+    events,
+    teamLeaves,
+    todayStr,
+  ]);
 
   if (holidays === null || events === null || employees === null) return null;
 
@@ -338,7 +366,8 @@ export function AdminCalendar({ me }) {
         <div>
           <h1 className="text-xl font-bold text-text">Calendar</h1>
           <p className="text-xs text-text-muted">
-            Manage company holidays, meetings, deadlines, and important office dates.
+            Manage company holidays, meetings, deadlines, and important office
+            dates.
           </p>
         </div>
 
@@ -524,24 +553,28 @@ export function AdminCalendar({ me }) {
                       );
                     })}
 
-                    {cell.leaves && cell.leaves.map((l) => {
-                      const empFirstName = l.employeeName ? l.employeeName.split(" ")[0] : "Emp";
-                      const isHalf = isHalfDayLeave(l);
-                      return (
-                        <div
-                          key={l.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedDay(cell);
-                          }}
-                          className="text-[9px] sm:text-[10px] font-semibold px-1 sm:px-1.5 py-0.5 rounded truncate transition-transform hover:scale-[1.02] bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs"
-                          title={`${l.employeeName || "Employee"}: ${l.type} Leave (${formatLeaveDays(l.days)})${l.reason ? ` - "${cleanLeaveReason(l.reason)}"` : ""}`}
-                        >
-                          <span className="font-bold">{empFirstName}</span>: {l.type}
-                          {isHalf && " (½d)"}
-                        </div>
-                      );
-                    })}
+                    {cell.leaves &&
+                      cell.leaves.map((l) => {
+                        const empFirstName = l.employeeName
+                          ? l.employeeName.split(" ")[0]
+                          : "Emp";
+                        const isHalf = isHalfDayLeave(l);
+                        return (
+                          <div
+                            key={l.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDay(cell);
+                            }}
+                            className="text-[9px] sm:text-[10px] font-semibold px-1 sm:px-1.5 py-0.5 rounded truncate transition-transform hover:scale-[1.02] bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs"
+                            title={`${l.employeeName || "Employee"}: ${l.type} Leave (${formatLeaveDays(l.days)})${l.reason ? ` - "${cleanLeaveReason(l.reason)}"` : ""}`}
+                          >
+                            <span className="font-bold">{empFirstName}</span>:{" "}
+                            {l.type}
+                            {isHalf && " (½d)"}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               );
@@ -566,6 +599,18 @@ export function AdminCalendar({ me }) {
               </button>
               <button
                 type="button"
+                onClick={() => setRightSidebarTab("events")}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  rightSidebarTab === "events"
+                    ? "bg-white text-primary shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                <CalendarDays size={12} />
+                <span>Events ({eventsForYear.length})</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setRightSidebarTab("leaves")}
                 className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                   rightSidebarTab === "leaves"
@@ -577,19 +622,9 @@ export function AdminCalendar({ me }) {
                 <span>Leaves ({approvedLeavesForYear.length})</span>
               </button>
             </div>
-
-            {rightSidebarTab === "leaves" && (
-              <NavLink
-                to="/admin/leave"
-                className="text-[11px] font-semibold text-primary hover:text-primary-dark flex items-center gap-0.5 transition"
-              >
-                <span>Manage</span>
-                <ArrowRight size={11} />
-              </NavLink>
-            )}
           </div>
 
-          {rightSidebarTab === "holidays" ? (
+          {rightSidebarTab === "holidays" && (
             <>
               {holidays.length === 0 ? (
                 <div className="py-8 text-center text-xs text-text-muted">
@@ -667,7 +702,11 @@ export function AdminCalendar({ me }) {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (window.confirm(`Delete holiday "${h.name}"?`)) {
+                                    if (
+                                      window.confirm(
+                                        `Delete holiday "${h.name}"?`,
+                                      )
+                                    ) {
                                       deleteHoliday(h.id);
                                     }
                                   }}
@@ -694,7 +733,161 @@ export function AdminCalendar({ me }) {
                 <span>Add Holiday</span>
               </button>
             </>
-          ) : (
+          )}
+
+          {rightSidebarTab === "events" && (
+            <>
+              {eventsForYear.length === 0 ? (
+                <div className="py-8 text-center text-xs text-text-muted">
+                  No events scheduled for {bsYear}.
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                  {eventsForYear.map((ev) => {
+                    const isPast = isPastDate(ev.date);
+                    const isDeadline = ev.event_type === "deadline";
+                    const isMeeting = ev.event_type === "meeting";
+                    const bsDate = isoToBS(ev.date);
+
+                    const badgeClass = isMeeting
+                      ? "bg-[#EEF6F8] text-[#1E4E5F] border-[#C5DCE4]"
+                      : isDeadline
+                        ? "bg-pink-50 text-pink-700 border-pink-200"
+                        : "bg-amber-50 text-amber-800 border-amber-200";
+
+                    const dotColor = isMeeting
+                      ? "bg-[#1E4E5F]"
+                      : isDeadline
+                        ? "bg-pink-500"
+                        : "bg-amber-500";
+
+                    return (
+                      <div
+                        key={ev.id}
+                        className={`group flex items-start justify-between p-3 rounded-xl border transition-colors gap-2.5 ${
+                          isPast
+                            ? "bg-surface-muted/30 border-border-light opacity-80"
+                            : "bg-surface-muted/50 border-border-light hover:bg-surface-muted"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                          <span
+                            className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dotColor}`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-xs font-bold text-text truncate">
+                                {ev.title}
+                              </h4>
+                              {isPast && (
+                                <span className="text-[9px] text-text-muted bg-surface-muted px-1.5 py-0.2 rounded font-mono">
+                                  Past
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] font-mono text-text-muted mt-0.5 flex-wrap">
+                              <span>
+                                {bsDate
+                                  ? `${bsDate.day} ${NEPALI_MONTHS[bsDate.month - 1]} ${bsDate.year}`
+                                  : ev.date}
+                              </span>
+                              {ev.time && (
+                                <>
+                                  <span>•</span>
+                                  <span>{fmtTimeAmPm(ev.time)}</span>
+                                </>
+                              )}
+                            </div>
+                            {ev.description && (
+                              <p className="text-[11px] text-text-muted truncate mt-1">
+                                {ev.description}
+                              </p>
+                            )}
+                            <div className="mt-1.5 flex items-center gap-1.5">
+                              {ev.all_org !== false ? (
+                                <span className="text-[9px] font-medium text-text-muted bg-white border border-border-light px-1.5 py-0.5 rounded">
+                                  All Organization
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-medium text-text-muted bg-white border border-border-light px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <Users size={10} />
+                                  <span>
+                                    {(ev.event_assignees || []).length} assigned
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border capitalize ${badgeClass}`}
+                          >
+                            {ev.event_type || "Event"}
+                          </span>
+
+                          <div className="flex items-center gap-1 mt-1">
+                            {isPast ? (
+                              <div
+                                className="p-1 text-text-faint"
+                                title="Past events cannot be edited"
+                              >
+                                <Lock size={12} />
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => openEditEvent(ev)}
+                                  className="p-1 text-text-muted hover:text-text rounded-lg hover:bg-surface-muted transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                                  title="Edit Event"
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (
+                                      window.confirm(
+                                        `Delete event "${ev.title}"?`,
+                                      )
+                                    ) {
+                                      try {
+                                        await deleteEvent(ev.id);
+                                      } catch (err) {
+                                        alert(
+                                          "Failed to delete event: " +
+                                            (err.message || err),
+                                        );
+                                      }
+                                    }
+                                  }}
+                                  className="p-1 text-text-muted hover:text-alert rounded-lg hover:bg-alert-light transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                                  title="Delete Event"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ADD EVENT BUTTON */}
+              <button
+                onClick={() => openAddEvent(todayStr)}
+                className="w-full py-2.5 rounded-xl border border-primary/30 text-primary hover:bg-primary-light/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>Add Event</span>
+              </button>
+            </>
+          )}
+
+          {rightSidebarTab === "leaves" && (
             <>
               {approvedLeavesForYear.length === 0 ? (
                 <div className="py-8 text-center text-xs text-text-muted">
@@ -748,7 +941,9 @@ export function AdminCalendar({ me }) {
                         </div>
 
                         <div className="flex items-center justify-between text-[11px] font-mono text-text-muted">
-                          <span>{formatLeaveDates(l.start_date, l.end_date)}</span>
+                          <span>
+                            {formatLeaveDates(l.start_date, l.end_date)}
+                          </span>
                           {isPast && (
                             <span className="text-[9px] text-text-muted bg-surface-muted px-1.5 py-0.2 rounded font-sans">
                               Completed
@@ -801,7 +996,9 @@ export function AdminCalendar({ me }) {
               {selectedDay.isPast && (
                 <div className="p-3 rounded-xl bg-alert-light border border-alert/20 text-alert text-xs flex items-center gap-2.5">
                   <Info size={15} className="shrink-0 text-alert" />
-                  <span>Past events and holidays are archived and cannot be edited.</span>
+                  <span>
+                    Past events and holidays are archived and cannot be edited.
+                  </span>
                 </div>
               )}
 
@@ -912,7 +1109,9 @@ export function AdminCalendar({ me }) {
                           On Leave ({selectedDay.leaves.length})
                         </span>
                         {selectedDay.leaves.map((l) => {
-                          const empColor = getEmployeeColor(l.employeeName || "User");
+                          const empColor = getEmployeeColor(
+                            l.employeeName || "User",
+                          );
                           const isHalf = isHalfDayLeave(l);
                           const halfSession = getHalfDaySession(l);
                           const cleanedReason = cleanLeaveReason(l.reason);
@@ -935,7 +1134,9 @@ export function AdminCalendar({ me }) {
                                       {l.employeeName || "Employee"}
                                     </span>
                                     <span className="text-[10px] text-slate-500 block truncate">
-                                      {l.employeeTitle || l.employeeRole || "Staff"}
+                                      {l.employeeTitle ||
+                                        l.employeeRole ||
+                                        "Staff"}
                                     </span>
                                   </div>
                                 </div>
@@ -948,14 +1149,16 @@ export function AdminCalendar({ me }) {
                                   }`}
                                 >
                                   {l.type} Leave
-                                  {isHalf && ` • ${SESSION_SHORT_LABELS[halfSession] || "Half Day"}`}
+                                  {isHalf &&
+                                    ` • ${SESSION_SHORT_LABELS[halfSession] || "Half Day"}`}
                                 </span>
                               </div>
 
                               <div className="text-[11px] text-slate-600 flex items-center justify-between">
                                 <span>
                                   {fmtDate(l.start_date)}
-                                  {l.start_date !== l.end_date && ` → ${fmtDate(l.end_date)}`}
+                                  {l.start_date !== l.end_date &&
+                                    ` → ${fmtDate(l.end_date)}`}
                                 </span>
                                 <span className="font-mono text-purple-700 font-semibold">
                                   {formatLeaveDays(l.days)}
@@ -1209,7 +1412,9 @@ export function AdminCalendar({ me }) {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (window.confirm(`Delete event "${editingEvent.title}"?`)) {
+                      if (
+                        window.confirm(`Delete event "${editingEvent.title}"?`)
+                      ) {
                         await deleteEvent(editingEvent.id);
                         setIsEventModalOpen(false);
                       }
@@ -1359,7 +1564,11 @@ export function AdminCalendar({ me }) {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (window.confirm(`Delete holiday "${editingHoliday.name}"?`)) {
+                      if (
+                        window.confirm(
+                          `Delete holiday "${editingHoliday.name}"?`,
+                        )
+                      ) {
                         await deleteHoliday(editingHoliday.id);
                         setIsHolidayModalOpen(false);
                       }

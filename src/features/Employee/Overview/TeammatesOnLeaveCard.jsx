@@ -16,7 +16,12 @@ import { isoToBS, NEPALI_MONTHS } from "../../../utils/nepaliCalendar";
 import { todayISO } from "../../../utils/workTime";
 import { isHalfDayLeave, getHalfDaySession } from "../../../utils/leaveUtils";
 
-export function TeammatesOnLeaveCard({ teamLeaves = [], me, today = todayISO() }) {
+export function TeammatesOnLeaveCard({
+  teamLeaves = [],
+  me,
+  today = todayISO(),
+  embedded = false,
+}) {
   // Filter approved leaves for other teammates (exclude self), sorted chronologically
   const activeTeammateLeaves = useMemo(() => {
     return (teamLeaves || [])
@@ -61,49 +66,46 @@ export function TeammatesOnLeaveCard({ teamLeaves = [], me, today = todayISO() }
     return null;
   };
 
-  return (
-    <Card>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <Users size={13} />
+  if (embedded) {
+    return (
+      <div className="mt-3.5 pt-3 border-t border-white/10 space-y-2">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-5 h-5 rounded-md bg-white/10 text-amber-300 flex items-center justify-center shrink-0">
+              <Users size={12} />
+            </div>
+            <h4 className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-white/70 truncate">
+              Teammates on Leave
+            </h4>
+            {onLeaveToday.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0 animate-pulse">
+                {onLeaveToday.length} today
+              </span>
+            )}
           </div>
-          <h3 className="text-sm font-semibold text-text">Teammates on Leave</h3>
+
+          <NavLink
+            to="/calendar"
+            className="flex items-center gap-1 text-[11px] font-semibold text-white/50 hover:text-white transition shrink-0"
+          >
+            <span>Calendar</span>
+            <ArrowRight size={11} />
+          </NavLink>
         </div>
 
-        <NavLink
-          to="/calendar"
-          className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-dark transition shrink-0"
-        >
-          <span>Team calendar</span>
-          <ArrowRight size={12} />
-        </NavLink>
-      </div>
-
-      {activeTeammateLeaves.length === 0 ? (
-        <div className="py-4 px-3 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center flex flex-col items-center justify-center gap-1">
-          <span className="text-base">🎉</span>
-          <p className="text-xs font-semibold text-slate-700">
-            Everyone is present
-          </p>
-          <p className="text-[11px] text-slate-400">
-            No teammates are currently on leave or scheduled this week.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {/* TODAY SECTION */}
-          {onLeaveToday.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                  Out of Office Today ({onLeaveToday.length})
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
+        {activeTeammateLeaves.length === 0 ? (
+          <div className="py-2 px-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2 text-xs text-white/70">
+            <span className="text-sm">🎉</span>
+            <span className="font-medium text-white/80">
+              No one is on leave today
+            </span>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* TODAY SECTION */}
+            {onLeaveToday.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-0.5">
                 {onLeaveToday.map((leave) => {
                   const empColor = getEmployeeColor(leave.employeeName || "User");
                   const isHalf = isHalfDayLeave(leave);
@@ -112,106 +114,206 @@ export function TeammatesOnLeaveCard({ teamLeaves = [], me, today = todayISO() }
                   return (
                     <div
                       key={leave.id}
-                      className="p-2 rounded-xl bg-amber-50/60 border border-amber-200/80 flex items-center justify-between gap-2"
+                      className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between gap-2 transition-colors"
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <div
-                          className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] text-white shrink-0 shadow-2xs"
+                          className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] text-white shrink-0 shadow-2xs"
                           style={{ backgroundColor: empColor }}
                         >
                           {getInitials(leave.employeeName || "Team")}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">
-                            {leave.employeeName || "Teammate"}
+                          <p className="text-xs font-semibold text-white truncate leading-tight">
+                            {leave.employeeName}
                           </p>
-                          <p className="text-[10px] text-slate-500 truncate">
+                          <p className="text-[10px] text-white/40 truncate leading-tight">
                             {leave.employeeTitle || leave.employeeRole || "Colleague"}
                           </p>
                         </div>
                       </div>
 
-                      <div className="text-right shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                          className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-semibold border ${
                             leave.type === "Sick"
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : "bg-blue-50 text-blue-700 border-blue-200"
+                              ? "bg-rose-500/20 text-rose-300 border-rose-500/30"
+                              : "bg-sky-500/20 text-sky-300 border-sky-500/30"
                           }`}
                         >
                           {leave.type}
-                          {isHalf && ` • ${session === "first" ? "1st Half" : "2nd Half"}`}
+                          {isHalf && ` • ${session === "first" ? "1st" : "2nd"}`}
                         </span>
                         {leave.start_date !== leave.end_date && (
-                          <p className="text-[9px] text-slate-500 mt-0.5">
-                            Until {formatLeaveDates(leave.start_date, leave.end_date)}
-                          </p>
+                          <span className="text-[9px] text-white/40 font-mono">
+                            (until {formatLeaveDates(leave.start_date, leave.end_date)})
+                          </span>
                         )}
                       </div>
                     </div>
                   );
                 })}
               </div>
+            ) : (
+              <div className="py-2 px-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2 text-xs text-white/70">
+                <span className="text-sm">🎉</span>
+                <span className="font-medium text-white/80">
+                  No one is on leave today
+                </span>
+              </div>
+            )}
+
+            {/* UPCOMING SECTION PREVIEW */}
+            {upcomingLeaves.length > 0 && (
+              <div className="pt-1.5 flex items-center gap-1.5 text-[10px] text-white/50 overflow-x-auto">
+                <span className="font-bold uppercase tracking-wider text-white/40 shrink-0 text-[9px]">
+                  Upcoming:
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {upcomingLeaves.slice(0, 3).map((l) => (
+                    <span
+                      key={l.id}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/80 text-[10px] font-medium"
+                      title={`${l.employeeName} - ${formatLeaveDates(l.start_date, l.end_date)}`}
+                    >
+                      <span className="font-semibold text-white">
+                        {l.employeeName?.split(" ")[0]}
+                      </span>
+                      <span className="text-white/40">· {l.type}</span>
+                      <span className="text-[9px] text-amber-300 font-mono">
+                        ({getRelativeDays(l.start_date)})
+                      </span>
+                    </span>
+                  ))}
+                  {upcomingLeaves.length > 3 && (
+                    <span className="text-[10px] text-white/40 font-medium">
+                      +{upcomingLeaves.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="w-5 h-5 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <Users size={12} />
+          </div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text truncate">
+            Teammates on Leave
+          </h3>
+          {onLeaveToday.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shrink-0 animate-pulse">
+              {onLeaveToday.length} today
+            </span>
+          )}
+        </div>
+
+        <NavLink
+          to="/calendar"
+          className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary-dark transition shrink-0"
+        >
+          <span>Calendar</span>
+          <ArrowRight size={11} />
+        </NavLink>
+      </div>
+
+      {activeTeammateLeaves.length === 0 ? (
+        <div className="py-2 px-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-center gap-1.5 text-xs text-slate-600">
+          <span>🎉</span>
+          <span className="font-medium text-slate-700">No one is on leave today</span>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {/* TODAY SECTION */}
+          {onLeaveToday.length > 0 ? (
+            <div className="space-y-1.5 max-h-32 overflow-y-auto pr-0.5">
+              {onLeaveToday.map((leave) => {
+                const empColor = getEmployeeColor(leave.employeeName || "User");
+                const isHalf = isHalfDayLeave(leave);
+                const session = getHalfDaySession(leave);
+
+                return (
+                  <div
+                    key={leave.id}
+                    className="px-2 py-1.5 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] text-white shrink-0 shadow-2xs"
+                        style={{ backgroundColor: empColor }}
+                      >
+                        {getInitials(leave.employeeName || "Team")}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate leading-tight">
+                          {leave.employeeName}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate leading-tight">
+                          {leave.employeeTitle || leave.employeeRole || "Colleague"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span
+                        className={`inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold border ${
+                          leave.type === "Sick"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"
+                        }`}
+                      >
+                        {leave.type}
+                        {isHalf && ` • ${session === "first" ? "1st" : "2nd"}`}
+                      </span>
+                      {leave.start_date !== leave.end_date && (
+                        <span className="text-[9px] text-slate-400 font-mono">
+                          (until {formatLeaveDates(leave.start_date, leave.end_date)})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-2 px-2.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-center gap-1.5 text-xs text-slate-600">
+              <span>🎉</span>
+              <span className="font-medium text-slate-700">No one is on leave today</span>
             </div>
           )}
 
-          {/* UPCOMING SECTION */}
+          {/* UPCOMING SECTION PREVIEW */}
           {upcomingLeaves.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Upcoming Leaves
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                {upcomingLeaves.map((leave) => {
-                  const empColor = getEmployeeColor(leave.employeeName || "User");
-                  const relDays = getRelativeDays(leave.start_date);
-                  const isHalf = isHalfDayLeave(leave);
-
-                  return (
-                    <div
-                      key={leave.id}
-                      className="px-2.5 py-2 rounded-xl bg-slate-50/70 border border-slate-200/70 flex items-center justify-between gap-2 text-xs"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] text-white shrink-0"
-                          style={{ backgroundColor: empColor }}
-                        >
-                          {getInitials(leave.employeeName || "Team")}
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-semibold text-slate-800 text-xs truncate block">
-                            {leave.employeeName}
-                          </span>
-                          <span className="text-[10px] text-slate-500 block">
-                            {formatLeaveDates(leave.start_date, leave.end_date)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {relDays && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-200/80 text-slate-700">
-                            {relDays}
-                          </span>
-                        )}
-                        <span
-                          className={`px-1.5 py-0.2 rounded text-[9px] font-semibold border ${
-                            leave.type === "Sick"
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : "bg-blue-50 text-blue-700 border-blue-200"
-                          }`}
-                        >
-                          {leave.type}
-                          {isHalf ? " (0.5d)" : ` (${leave.days}d)`}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+            <div className="pt-1.5 border-t border-slate-100 flex items-center gap-1.5 text-[10px] text-slate-500 overflow-x-auto">
+              <span className="font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                Upcoming:
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {upcomingLeaves.slice(0, 3).map((l) => (
+                  <span
+                    key={l.id}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-medium"
+                    title={`${l.employeeName} - ${formatLeaveDates(l.start_date, l.end_date)}`}
+                  >
+                    <span className="font-semibold text-slate-800">{l.employeeName?.split(" ")[0]}</span>
+                    <span className="text-slate-400">· {l.type}</span>
+                    <span className="text-[9px] text-slate-500 font-mono">({getRelativeDays(l.start_date)})</span>
+                  </span>
+                ))}
+                {upcomingLeaves.length > 3 && (
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    +{upcomingLeaves.length - 3} more
+                  </span>
+                )}
               </div>
             </div>
           )}

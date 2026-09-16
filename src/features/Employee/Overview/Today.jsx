@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { Clock, LogIn, LogOut, Check, MapPin, Coffee, Play } from "lucide-react";
+import {
+  Clock,
+  LogIn,
+  LogOut,
+  Check,
+  MapPin,
+  Coffee,
+  Play,
+} from "lucide-react";
 
 import {
   formatDuration,
@@ -15,6 +23,7 @@ import {
 } from "../../../utils/leaveUtils";
 import { isDateWithinLeave } from "../../../utils/attendance";
 import { useOfficeHours } from "../../../constants/officeHours";
+import { TeammatesOnLeaveCard } from "./TeammatesOnLeaveCard";
 
 export function Today({
   records,
@@ -29,20 +38,28 @@ export function Today({
   endBreakPending,
   setErr,
   today,
+  teamLeaves,
+  me,
 }) {
   const [justClocked, setJustClocked] = useState(null); // 'in' | 'out' | null
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const officeHours = useOfficeHours();
   const todayRecord = records.find((record) => record.date === today);
-  const siteSummary = getSiteSummaryForDate(entries, today, officeHours.workDayHours);
+  const siteSummary = getSiteSummaryForDate(
+    entries,
+    today,
+    officeHours.workDayHours,
+  );
 
   const todayLeave = (myLeave || []).find(
     (l) => l.status === "Approved" && isDateWithinLeave(today, l),
   );
   const isTodayHalfDay = isHalfDayLeave(todayLeave);
   const halfDaySession = getHalfDaySession(todayLeave);
-  const targetDayMinutes = isTodayHalfDay ? officeHours.halfDayMinutes : officeHours.workDayMinutes;
+  const targetDayMinutes = isTodayHalfDay
+    ? officeHours.halfDayMinutes
+    : officeHours.workDayMinutes;
 
   useEffect(() => {
     if (!todayRecord?.clock_in || todayRecord?.clock_out) return;
@@ -255,7 +272,11 @@ export function Today({
             <div className="flex items-center gap-1.5 flex-wrap mt-1">
               {isTodayHalfDay && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white/95 bg-primary/40 border border-white/20 px-2 py-0.5 rounded-full">
-                  🌗 Half Day ({halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF ? "Afternoon Off" : "Morning Off"}) · {officeHours.halfDayHours}h Target
+                  🌗 Half Day (
+                  {halfDaySession === HALF_DAY_SESSIONS.SECOND_HALF
+                    ? "Afternoon Off"
+                    : "Morning Off"}
+                  ) · {officeHours.halfDayHours}h Target
                 </span>
               )}
 
@@ -338,12 +359,12 @@ export function Today({
         )}
       </div>
 
-      <div className="hidden md:grid grid-cols-3 gap-2 mt-4 relative">
-        <div className="bg-white/5 rounded-lg px-3 py-2.5">
+      <div className="grid grid-cols-3 gap-2 mt-4 relative">
+        <div className="bg-white/5 rounded-lg px-2.5 py-2 sm:px-3 sm:py-2.5">
           <p className="text-[9px] uppercase tracking-wider text-white/30">
             Clock in
           </p>
-          <p className="font-mono text-xs mt-1">
+          <p className="font-mono text-xs mt-1 truncate">
             {todayRecord?.clock_in
               ? new Date(todayRecord?.clock_in).toLocaleTimeString("en-US", {
                   hour: "2-digit",
@@ -357,11 +378,11 @@ export function Today({
           </p>
         </div>
 
-        <div className="bg-white/5 rounded-lg px-3 py-2.5">
+        <div className="bg-white/5 rounded-lg px-2.5 py-2 sm:px-3 sm:py-2.5">
           <p className="text-[9px] uppercase tracking-wider text-white/30">
             Break Time
           </p>
-          <p className="font-mono text-xs mt-1">
+          <p className="font-mono text-xs mt-1 truncate">
             {isOnBreak ? (
               <span className="text-amber-300 font-semibold">On Break</span>
             ) : totalBreaks > 0 ? (
@@ -374,11 +395,11 @@ export function Today({
           </p>
         </div>
 
-        <div className="bg-white/5 rounded-lg px-3 py-2.5">
+        <div className="bg-white/5 rounded-lg px-2.5 py-2 sm:px-3 sm:py-2.5">
           <p className="text-[9px] uppercase tracking-wider text-white/30">
             Clock out
           </p>
-          <p className="font-mono text-xs mt-1">
+          <p className="font-mono text-xs mt-1 truncate">
             {todayRecord?.clock_out
               ? new Date(todayRecord?.clock_out).toLocaleTimeString("en-US", {
                   hour: "2-digit",
@@ -392,6 +413,13 @@ export function Today({
           </p>
         </div>
       </div>
+
+      <TeammatesOnLeaveCard
+        teamLeaves={teamLeaves}
+        me={me}
+        today={today}
+        embedded={true}
+      />
     </section>
   );
 }

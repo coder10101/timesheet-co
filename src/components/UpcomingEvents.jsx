@@ -41,7 +41,7 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
         a.date.localeCompare(b.date) ||
         (a.time || "").localeCompare(b.time || ""),
     )
-    .slice(0, 4);
+    .slice(0, 3);
 
   const formatDate = (date) => {
     const [ey, em, ed] = date.split("-").map(Number);
@@ -69,19 +69,26 @@ export default function UpcomingEvents({ events = [], holidays = [], today }) {
   return (
     <Card>
       {/* HEADER — title left, calendar link right */}
-      <div className="flex items-center justify-between mb-1">
-        <h3 className="text-sm font-semibold text-text">Upcoming Schedule</h3>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="w-5 h-5 rounded-md bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+            <CalendarDays size={12} />
+          </div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text truncate">
+            Upcoming Events
+          </h3>
+        </div>
         <NavLink
           to="/calendar"
-          className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary-dark transition shrink-0"
+          className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary-dark transition shrink-0"
         >
-          <span>View calendar</span>
-          <ArrowRight size={12} />
+          <span>Calendar</span>
+          <ArrowRight size={11} />
         </NavLink>
       </div>
 
       {upcoming.length === 0 ? (
-        <div className="py-4 text-center text-xs text-text-subtle">
+        <div className="py-2.5 px-3 rounded-xl bg-slate-50/80 border border-slate-200/60 text-center text-xs text-text-muted">
           No upcoming events or holidays
         </div>
       ) : (
