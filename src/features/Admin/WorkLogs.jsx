@@ -354,7 +354,7 @@ export function AdminWorklogs() {
                     <span className="truncate">{employee.name}</span>
                     {employee.is_active === false && (
                       <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-0.5 shrink-0">
-                        Inactive / Former Member
+                        Inactive
                       </span>
                     )}
                   </h2>

@@ -149,7 +149,7 @@ export function useLeaveRequests(employeeId, scope = "mine", explicitOrgId) {
         }
       }
 
-      const cachedRoster = currentOrgId ? getCachedRoster(currentOrgId) : [];
+      const cachedRoster = (currentOrgId ? getCachedRoster(currentOrgId) : null) || [];
       const rosterMap = new Map();
       cachedRoster.forEach((p) => {
         if (p?.id) rosterMap.set(p.id, p);

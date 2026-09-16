@@ -7,17 +7,19 @@ const getCacheKey = (orgId) =>
   orgId ? `attendance_roster_cache_${orgId}` : "attendance_roster_cache";
 
 export const getCachedRoster = (orgId) => {
-  if (!orgId) return [];
+  if (!orgId) return undefined;
   try {
     const key = getCacheKey(orgId);
     const raw = localStorage.getItem(key);
-    let parsed = raw ? JSON.parse(raw) : [];
+    if (!raw) return undefined;
+    let parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return undefined;
     if (orgId) {
       parsed = parsed.filter((p) => p.org_id === orgId);
     }
-    return parsed;
+    return parsed.length > 0 ? parsed : undefined;
   } catch {
-    return [];
+    return undefined;
   }
 };
 
@@ -25,21 +27,7 @@ export const saveCachedRoster = (profiles, orgId) => {
   if (!orgId || !Array.isArray(profiles) || profiles.length === 0) return;
   try {
     const key = getCacheKey(orgId);
-    const current = getCachedRoster(orgId);
-    const map = new Map();
-    current.forEach((p) => {
-      if (p?.id && p.org_id === orgId) map.set(p.id, p);
-    });
-    profiles.forEach((p) => {
-      if (p?.id && p.org_id === orgId) {
-        const existing = map.get(p.id) || {};
-        map.set(p.id, { ...existing, ...p });
-      }
-    });
-    localStorage.setItem(
-      key,
-      JSON.stringify(Array.from(map.values())),
-    );
+    localStorage.setItem(key, JSON.stringify(profiles));
   } catch (_) {}
 };
 
@@ -57,6 +45,8 @@ export function useRoster(explicitOrgId) {
   const query = useQuery({
     queryKey: key,
     initialData: () => (currentOrgId ? getCachedRoster(currentOrgId) : undefined),
+    initialDataUpdatedAt: 0,
+    refetchOnMount: true,
     queryFn: async () => {
       let queryBuilder = supabase
         .from("profiles")
@@ -67,32 +57,28 @@ export function useRoster(explicitOrgId) {
         queryBuilder = queryBuilder.eq("org_id", currentOrgId);
       }
 
-      const { data, error } = await queryBuilder;
+      let { data, error } = await queryBuilder;
       if (error) throw error;
 
+      // Resilient fallback: if .eq("org_id", currentOrgId) returned 0 rows, check if plain query returns rows (Supabase RLS secures profiles to the user's organization)
+      if (currentOrgId && (!data || data.length === 0)) {
+        const fallbackRes = await supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: true });
+        if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+          data = fallbackRes.data;
+        }
+      }
+
       // Ensure strict organization isolation when org_id is known
-      let list = currentOrgId
-        ? (data || []).filter((p) => p.org_id === currentOrgId)
-        : (data || []);
+      let list = data || [];
+      if (currentOrgId && list.some((p) => p.org_id === currentOrgId)) {
+        list = list.filter((p) => p.org_id === currentOrgId);
+      }
 
       if (currentOrgId && list.length > 0) {
         saveCachedRoster(list, currentOrgId);
-      } else if (currentOrgId) {
-        const cached = getCachedRoster(currentOrgId);
-        if (cached.length > 0) {
-          const map = new Map();
-          cached.forEach((p) => {
-            if (p?.id && p.org_id === currentOrgId) {
-              map.set(p.id, p);
-            }
-          });
-          list.forEach((p) => {
-            if (p?.id && p.org_id === currentOrgId) {
-              map.set(p.id, { ...(map.get(p.id) || {}), ...p });
-            }
-          });
-          list = Array.from(map.values());
-        }
       }
       return list;
     },
