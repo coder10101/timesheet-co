@@ -16,8 +16,11 @@ import {
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { getEmployeeColor } from "../constants/colors";
 import { OfficeHoursProvider } from "../constants/officeHours";
+import { NotificationCenter } from "../components/NotificationCenter";
+import { useAttendanceReminders } from "../hooks/useAttendanceReminders";
 
 export function Dashboard({ me, onLogout }) {
+  useAttendanceReminders(me);
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
   const location = useLocation();
   const isAdmin = me.role === "admin";
@@ -202,7 +205,7 @@ export function Dashboard({ me, onLogout }) {
         {/* DESKTOP SIDEBAR */}
         <aside className="hidden md:flex flex-col md:fixed md:inset-y-0 md:left-0 md:z-30 w-56 lg:w-60 shrink-0 bg-[#011E26] text-white h-screen border-r border-white/5">
           {/* BRAND LOGO */}
-          <div className="px-5 py-5 border-b border-white/5">
+          <div className="px-5 py-5 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#1E4E5F] to-[#0A2630] border border-white/15 flex items-center justify-center shadow-xs">
                 <Clock size={16} className="text-white" strokeWidth={2.2} />
@@ -217,6 +220,8 @@ export function Dashboard({ me, onLogout }) {
                 </p>
               </div>
             </div>
+
+            <NotificationCenter userId={me?.id} placement="sidebar" />
           </div>
 
           {/* NAVIGATION */}
@@ -284,6 +289,8 @@ export function Dashboard({ me, onLogout }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <NotificationCenter userId={me?.id} placement="mobile" />
+
             <div
               className="w-7 h-7 rounded-full border border-white/20 text-white flex items-center justify-center text-[9px] font-bold shadow-xs"
               style={{ backgroundColor: getEmployeeColor(me) }}

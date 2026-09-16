@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
 import { nepalDateTimeToISO, todayISO } from "../utils/timezone";
 import { useAuth } from "../lib/AuthProvider";
+import { sendNotification } from "./useNotificationsData";
+import { isoToBSLabel } from "../utils/nepaliCalendar";
 
 export const calculateBreaksTotalMins = (breaksList, fallbackMins = 0) => {
   if (!Array.isArray(breaksList) || breaksList.length === 0) {
@@ -284,17 +286,17 @@ export function useAttendance(employeeId) {
         }
       }
 
+      const currentEditorName =
+        editorName ||
+        auth?.profile?.name ||
+        auth?.user?.user_metadata?.name ||
+        "Team Member";
+      const currentEditorRole =
+        editorRole || auth?.profile?.role || "employee";
+      const currentEditorId = auth?.user?.id || null;
+
       let newHistory = existingHistory;
       if (existingRecord && Object.keys(changes).length > 0) {
-        const currentEditorName =
-          editorName ||
-          auth?.profile?.name ||
-          auth?.user?.user_metadata?.name ||
-          "Team Member";
-        const currentEditorRole =
-          editorRole || auth?.profile?.role || "employee";
-        const currentEditorId = auth?.user?.id || null;
-
         const historyEntry = {
           id:
             typeof crypto !== "undefined" && crypto.randomUUID
@@ -375,6 +377,35 @@ export function useAttendance(employeeId) {
         if (error) throw error;
       } else {
         throw new Error("Missing attendance record ID or date.");
+      }
+
+      // Notify admins if attendance was edited by an employee
+      if (currentEditorRole !== "admin" && Object.keys(changes).length > 0) {
+        const changeFields = [];
+        if (changes.clock_in) changeFields.push("clock-in");
+        if (changes.clock_out) changeFields.push("clock-out");
+        if (changes.break_minutes) changeFields.push("breaks");
+        const changeDesc = changeFields.length > 0 ? changeFields.join(", ") : "attendance";
+
+        const targetDate = date || existingRecord?.date || todayISO();
+        const targetDateBS = isoToBSLabel(targetDate);
+
+        await sendNotification({
+          recipientRole: "admin",
+          orgId: auth?.profile?.org_id,
+          actorId: auth?.user?.id,
+          type: "attendance_edited",
+          title: "Attendance Record Edited",
+          message: `${currentEditorName} edited ${changeDesc} for ${targetDateBS}.${reason ? ` Reason: "${reason.trim()}"` : ""}`,
+          link: "/attendance",
+          metadata: {
+            employeeId: effectiveEmpId,
+            date: targetDate,
+            dateBS: targetDateBS,
+            changes,
+            reason: reason ? reason.trim() : null,
+          },
+        });
       }
     },
     onSuccess: invalidate,

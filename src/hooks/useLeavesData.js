@@ -3,6 +3,8 @@ import { supabase } from "../lib/supabaseClient";
 import { isHalfDayLeave, LEAVE_QUOTAS } from "../utils/leaveUtils";
 import { useAuth } from "../lib/AuthProvider";
 import { getCachedRoster } from "./useRosterData";
+import { sendNotification } from "./useNotificationsData";
+import { isoToBSLabel } from "../utils/nepaliCalendar";
 
 export const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 
@@ -257,6 +259,30 @@ export function useLeaveRequests(employeeId, scope = "mine", explicitOrgId) {
       }
 
       if (error) throw error;
+
+      // Dispatch notification to admins (Nepali BS dates only, no days or reason)
+      const empName = auth?.profile?.name || auth?.user?.user_metadata?.name || "An employee";
+      const startBS = isoToBSLabel(startDate);
+      const endBS = isoToBSLabel(endDate);
+      const dateText = startDate === endDate ? startBS : `${startBS} – ${endBS}`;
+
+      await sendNotification({
+        recipientRole: "admin",
+        orgId: currentOrgId,
+        actorId: employeeId,
+        type: "leave_requested",
+        title: "New Leave Request",
+        message: `${empName} requested ${type} leave (${dateText}).`,
+        link: "/leave-approvals",
+        metadata: {
+          employeeId,
+          type,
+          startDate,
+          endDate,
+          startDateBS: startBS,
+          endDateBS: endBS,
+        },
+      });
     },
 
     onSuccess: invalidate,
@@ -392,6 +418,39 @@ export function useLeaveRequests(employeeId, scope = "mine", explicitOrgId) {
 
       if (empId) {
         await syncEmployeeLeaveBalance(empId);
+
+        // Dispatch decision notification to the employee (Nepali BS dates only)
+        const adminName = auth?.profile?.name || "Admin";
+        const isApproved = status === "Approved";
+        const isRejected = status === "Rejected";
+
+        if (isApproved || isRejected) {
+          const startBS = isoToBSLabel(existingReq.start_date);
+          const endBS = isoToBSLabel(existingReq.end_date);
+          const dateText =
+            existingReq.start_date === existingReq.end_date
+              ? startBS
+              : `${startBS} – ${endBS}`;
+
+          await sendNotification({
+            recipientId: empId,
+            orgId: currentOrgId,
+            actorId: decidedBy || auth?.user?.id,
+            type: isApproved ? "leave_approved" : "leave_rejected",
+            title: isApproved ? "Leave Request Approved ✅" : "Leave Request Rejected ❌",
+            message: `Your ${existingReq.type} leave (${dateText}) was ${status.toLowerCase()} by ${adminName}.`,
+            link: "/leave",
+            metadata: {
+              requestId,
+              status,
+              type: existingReq.type,
+              startDate: existingReq.start_date,
+              endDate: existingReq.end_date,
+              startDateBS: startBS,
+              endDateBS: endBS,
+            },
+          });
+        }
       }
     },
 
