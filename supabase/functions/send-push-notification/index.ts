@@ -74,25 +74,28 @@ Deno.serve(async (req) => {
       link:  link ?? "/",
     });
 
-    const pushOptions = {
-      TTL: 60 * 60 * 24, // 24 hours
-      headers: {
-        "apns-push-type": "alert",
-        "apns-priority": "10",
-      },
-    };
-
     const results = await Promise.allSettled(
-      subs.map((sub) =>
-        webPush.sendNotification(
+      subs.map((sub) => {
+        const isApple = sub.endpoint.includes("apple.com");
+        const options: Record<string, any> = {
+          TTL: 60 * 60 * 24, // 24 hours
+        };
+        if (isApple) {
+          options.headers = {
+            "apns-push-type": "alert",
+            "apns-priority": "10",
+          };
+        }
+
+        return webPush.sendNotification(
           {
             endpoint: sub.endpoint,
             keys: { p256dh: sub.p256dh, auth: sub.auth },
           },
           payload,
-          pushOptions
-        )
-      )
+          options
+        );
+      })
     );
 
     const expiredEndpoints: string[] = [];
