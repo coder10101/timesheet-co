@@ -29,8 +29,7 @@ self.addEventListener("push", (event) => {
   const title   = data.title  || "Attendance Ledger";
   const options = {
     body:    data.body  || data.message || "",
-    icon:    data.icon  || "/icon-192.png",
-    badge:   data.badge || "/icon-192.png",
+    icon:    data.icon  || "/icon-512.png",
     data:    { link: data.link || "/" },
     vibrate: [200, 100, 200],
     silent:  false,
