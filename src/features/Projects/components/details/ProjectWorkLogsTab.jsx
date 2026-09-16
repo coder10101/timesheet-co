@@ -1,10 +1,12 @@
-import { Search, X, Filter, Clock, MapPin, Plus } from "lucide-react";
+import { useState } from "react";
+import { Search, X, Filter, Clock, MapPin, Plus, History } from "lucide-react";
 import {
   getInitials,
   formatProjectDateNepali,
   formatRelativeTime,
 } from "../../../../constants/projectPresets";
 import { getEmployeeColor } from "../../../../constants/colors";
+import EditHistoryModal from "../../../../components/EditHistoryModal";
 
 export function ProjectWorkLogsTab({
   filteredLogs = [],
@@ -18,6 +20,8 @@ export function ProjectWorkLogsTab({
   isAdmin = false,
   onOpenAddLog,
 }) {
+  const [historyLog, setHistoryLog] = useState(null);
+
   return (
     <div className="space-y-4">
       {/* FILTERS BAR: SEARCH BOX & MEMBER DROPDOWN SIZED PROMINENTLY */}
@@ -160,6 +164,19 @@ export function ProjectWorkLogsTab({
                           <span>🎨 Desk Work</span>
                         </span>
                       )}
+
+                      {/* Edited History Badge */}
+                      {log.edit_history?.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setHistoryLog(log)}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors cursor-pointer"
+                          title="View edit history"
+                        >
+                          <History size={10} className="text-primary" />
+                          <span>Edited</span>
+                        </button>
+                      )}
                     </div>
 
                     <p className="text-xs text-slate-700 leading-relaxed break-words">
@@ -187,6 +204,17 @@ export function ProjectWorkLogsTab({
             );
           })}
         </div>
+      )}
+
+      {historyLog && (
+        <EditHistoryModal
+          isOpen={!!historyLog}
+          onClose={() => setHistoryLog(null)}
+          history={historyLog.edit_history}
+          title="Work Log Edit History"
+          subtitle={`${historyLog.employeeName || "Team Member"} · ${historyLog.date}`}
+          type="work_log"
+        />
       )}
     </div>
   );

@@ -399,6 +399,22 @@ export default function AttendanceEditForm({
         </div>
       )}
 
+      {/* OPTIONAL REASON FOR EDIT */}
+      <div className="mb-4">
+        <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider mb-1.5">
+          Reason for edit <span className="font-normal text-text-faint">(optional)</span>
+        </label>
+        <input
+          type="text"
+          placeholder="e.g., Forgot to clock in, Adjusted break time..."
+          value={editing.reason || ""}
+          onChange={(e) =>
+            setEditing((prev) => ({ ...prev, reason: e.target.value }))
+          }
+          className="w-full text-xs px-3 py-2 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-text-faint"
+        />
+      </div>
+
       {/* INLINE ERROR DISPLAY */}
       {error && (
         <div className="mb-4 px-3 py-2 rounded-lg bg-alert-light border border-alert/20 text-alert text-xs flex items-center gap-2">

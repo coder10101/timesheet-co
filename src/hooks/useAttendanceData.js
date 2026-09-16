@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
 import { nepalDateTimeToISO, todayISO } from "../utils/timezone";
+import { useAuth } from "../lib/AuthProvider";
 
 export const calculateBreaksTotalMins = (breaksList, fallbackMins = 0) => {
   if (!Array.isArray(breaksList) || breaksList.length === 0) {
@@ -25,6 +26,7 @@ export const calculateBreaksTotalMins = (breaksList, fallbackMins = 0) => {
 /* ---------------- Attendance for specific employee ---------------- */
 export function useAttendance(employeeId) {
   const qc = useQueryClient();
+  const auth = useAuth();
   const key = ["attendance", employeeId];
 
   const query = useQuery({
@@ -41,6 +43,7 @@ export function useAttendance(employeeId) {
         let break_minutes = r.break_minutes ?? 0;
         let break_start = r.break_start ?? null;
         let breaks = Array.isArray(r.breaks) ? r.breaks : [];
+        let edit_history = Array.isArray(r.edit_history) ? r.edit_history : [];
 
         if (breaks.length > 0) {
           break_minutes = calculateBreaksTotalMins(breaks, break_minutes);
@@ -51,6 +54,7 @@ export function useAttendance(employeeId) {
           break_minutes,
           break_start,
           breaks,
+          edit_history,
         };
       });
     },
@@ -59,7 +63,11 @@ export function useAttendance(employeeId) {
     staleTime: 15000,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: key });
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: key });
+    qc.invalidateQueries({ queryKey: ["org-attendance"] });
+    qc.invalidateQueries({ queryKey: ["attendance"] });
+  };
 
   const clockIn = useMutation({
     mutationFn: async () => {
@@ -207,6 +215,10 @@ export function useAttendance(employeeId) {
       breakMinutes,
       break_minutes,
       date,
+      reason,
+      editorName,
+      editorRole,
+      targetEmployeeId,
     }) => {
       const rawIn = clockIn !== undefined ? clockIn : clock_in;
       const rawOut = clockOut !== undefined ? clockOut : clock_out;
@@ -230,28 +242,136 @@ export function useAttendance(employeeId) {
       const finalBreak =
         rawBreak !== undefined && rawBreak !== null ? Number(rawBreak) : 0;
 
-      const payload = {
+      const effectiveEmpId = targetEmployeeId || employeeId;
+
+      // Find existing record to compare changes and preserve prior history
+      let existingRecord = (query.data || []).find((r) =>
+        attendanceId ? r.id === attendanceId : r.date === date
+      );
+      if (!existingRecord && (attendanceId || (date && effectiveEmpId))) {
+        let q = supabase.from("attendance").select("*");
+        if (attendanceId) q = q.eq("id", attendanceId);
+        else q = q.eq("employee_id", effectiveEmpId).eq("date", date);
+        const { data: fetched } = await q.maybeSingle();
+        existingRecord = fetched;
+      }
+
+      const existingHistory = Array.isArray(existingRecord?.edit_history)
+        ? existingRecord.edit_history
+        : [];
+
+      // Detect field-level changes
+      const changes = {};
+      if (existingRecord) {
+        if (finalIn !== undefined && finalIn !== (existingRecord.clock_in || null)) {
+          changes.clock_in = {
+            old: existingRecord.clock_in || null,
+            new: finalIn,
+          };
+        }
+        if (finalOut !== undefined && finalOut !== (existingRecord.clock_out || null)) {
+          changes.clock_out = {
+            old: existingRecord.clock_out || null,
+            new: finalOut,
+          };
+        }
+        const oldBreak = existingRecord.break_minutes || 0;
+        if (finalBreak !== undefined && finalBreak !== oldBreak) {
+          changes.break_minutes = {
+            old: oldBreak,
+            new: finalBreak,
+          };
+        }
+      }
+
+      let newHistory = existingHistory;
+      if (existingRecord && Object.keys(changes).length > 0) {
+        const currentEditorName =
+          editorName ||
+          auth?.profile?.name ||
+          auth?.user?.user_metadata?.name ||
+          "Team Member";
+        const currentEditorRole =
+          editorRole || auth?.profile?.role || "employee";
+        const currentEditorId = auth?.user?.id || null;
+
+        const historyEntry = {
+          id:
+            typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `edit-${Date.now()}`,
+          edited_at: new Date().toISOString(),
+          edited_by: currentEditorId,
+          editor_name: currentEditorName,
+          editor_role: currentEditorRole,
+          reason: reason ? reason.trim() : "",
+          changes,
+        };
+
+        newHistory = [historyEntry, ...existingHistory];
+      }
+
+      const basePayload = {
         clock_in: finalIn,
         clock_out: finalOut,
         break_minutes: finalBreak,
       };
 
+      const payloadWithHistory = {
+        ...basePayload,
+        edit_history: newHistory,
+      };
+
+      const isAdmin = auth?.profile?.role === "admin";
+
       if (attendanceId) {
-        const { error } = await supabase
+        let updateQuery = supabase
           .from("attendance")
-          .update(payload)
-          .eq("id", attendanceId)
-          .eq("employee_id", employeeId);
+          .update(payloadWithHistory)
+          .eq("id", attendanceId);
+
+        if (!isAdmin && effectiveEmpId) {
+          updateQuery = updateQuery.eq("employee_id", effectiveEmpId);
+        }
+
+        let { error } = await updateQuery;
+
+        // Resilient fallback if edit_history column doesn't exist yet
+        if (error && (error.message?.includes("edit_history") || error.code === "42703")) {
+          let fbQuery = supabase
+            .from("attendance")
+            .update(basePayload)
+            .eq("id", attendanceId);
+          if (!isAdmin && effectiveEmpId) {
+            fbQuery = fbQuery.eq("employee_id", effectiveEmpId);
+          }
+          const res = await fbQuery;
+          error = res.error;
+        }
+
         if (error) throw error;
-      } else if (date) {
-        const { error } = await supabase.from("attendance").upsert(
+      } else if (date && effectiveEmpId) {
+        let { error } = await supabase.from("attendance").upsert(
           {
-            employee_id: employeeId,
+            employee_id: effectiveEmpId,
             date,
-            ...payload,
+            ...payloadWithHistory,
           },
           { onConflict: "employee_id,date" },
         );
+
+        if (error && (error.message?.includes("edit_history") || error.code === "42703")) {
+          const res = await supabase.from("attendance").upsert(
+            {
+              employee_id: effectiveEmpId,
+              date,
+              ...basePayload,
+            },
+            { onConflict: "employee_id,date" },
+          );
+          error = res.error;
+        }
+
         if (error) throw error;
       } else {
         throw new Error("Missing attendance record ID or date.");
@@ -326,6 +446,7 @@ export function useOrgAttendance(dateOrOptions) {
         let break_minutes = r.break_minutes ?? 0;
         let break_start = r.break_start ?? null;
         let breaks = Array.isArray(r.breaks) ? r.breaks : [];
+        let edit_history = Array.isArray(r.edit_history) ? r.edit_history : [];
 
         if (breaks.length > 0) {
           break_minutes = calculateBreaksTotalMins(breaks, break_minutes);
@@ -336,6 +457,7 @@ export function useOrgAttendance(dateOrOptions) {
           break_minutes,
           break_start,
           breaks,
+          edit_history,
         };
       });
     },

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   CheckCircle2,
   Clock9,
@@ -7,6 +8,7 @@ import {
   TrendingUp,
   Clock10,
   MapPin,
+  History,
 } from "lucide-react";
 
 import { NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
@@ -27,6 +29,7 @@ import {
 
 import AttendanceEditForm from "./EditAttendance";
 import { useOfficeHours } from "../../../constants/officeHours";
+import EditHistoryModal from "../../../components/EditHistoryModal";
 
 export default function AttendanceRow({
   date,
@@ -125,10 +128,12 @@ export default function AttendanceRow({
 }
 
 function AttendanceRecord({ date, record, result, onStartEdit }) {
+  const [showHistory, setShowHistory] = useState(false);
   const officeHours = useOfficeHours();
   const isToday = date.isoDate === todayISO();
   const effectiveClockOut = getEffectiveClockOut(record, todayISO(), officeHours.endTime);
   const isAutoClockOut = !record.clock_out && !isToday && !!record.clock_in;
+  const hasEdits = Array.isArray(record?.edit_history) && record.edit_history.length > 0;
 
   const worked = getWorkedMinutes(
     record.clock_in,
@@ -153,103 +158,127 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
   const workedOnHoliday = result.isSaturday || !!result.holiday;
 
   return (
-    <div className="border-b border-border-light last:border-0 hover:bg-surface-muted/40 transition-colors">
-      <div className="px-4 py-2.5 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1.1fr_44px] gap-2 sm:gap-4 items-center">
-        {/* DATE */}
-        <DateCell date={date} workedOnHoliday={workedOnHoliday} />
+    <>
+      <div className="border-b border-border-light last:border-0 hover:bg-surface-muted/40 transition-colors">
+        <div className="px-4 py-2.5 grid grid-cols-1 sm:grid-cols-[1.25fr_1fr_1fr_1fr_1.1fr_auto] gap-2 sm:gap-4 items-center">
+          {/* DATE */}
+          <DateCell date={date} workedOnHoliday={workedOnHoliday} />
 
-        {/* CLOCK IN */}
-        <MobileCell label="Clock in">
-          <div>
-            <div className="font-mono text-xs font-semibold text-text">
-              {fmtTime(record.clock_in)}
-            </div>
-            <div className="mt-0.5 flex items-center gap-1 flex-wrap">
-              {result.isSiteHybrid && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/20 px-1.5 py-0.5 rounded leading-none">
-                  <MapPin size={9} /> Site ({result.siteInfo?.totalHours || 2}h)
-                </span>
-              )}
-              {result.isHalfDay && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded leading-none">
-                  ½d Leave
-                </span>
-              )}
-              {isLate ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning-light px-1.5 py-0.5 rounded leading-none">
-                  <Clock12 size={10} /> Late
-                </span>
-              ) : isEarly ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary-light px-1.5 py-0.5 rounded leading-none">
-                  <Clock9 size={10} /> Early
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success-light px-1.5 py-0.5 rounded leading-none">
-                  <Clock10 size={10} /> On time
-                </span>
-              )}
-            </div>
-          </div>
-        </MobileCell>
-
-        {/* CLOCK OUT */}
-        <MobileCell label="Clock out">
-          <span className="font-mono text-xs font-semibold text-text">
-            {record.clock_out ? (
-              fmtTime(record.clock_out)
-            ) : isToday ? (
-              <span className="text-primary italic font-sans text-xs font-medium">
-                Working...
-              </span>
-            ) : isAutoClockOut ? (
-              <div className="flex items-center gap-1">
-                <span>{officeHours.endTimeAmPm}</span>
-                <span
-                  className="text-[9px] font-semibold text-text-muted bg-surface-muted border border-border-light px-1 py-0.2 rounded"
-                  title={`Auto-closed at standard ${officeHours.endTimeAmPm}`}
-                >
-                  Auto
-                </span>
+          {/* CLOCK IN */}
+          <MobileCell label="Clock in">
+            <div>
+              <div className="font-mono text-xs font-semibold text-text">
+                {fmtTime(record.clock_in)}
               </div>
-            ) : (
-              <span className="text-xs text-text-faint font-mono">—</span>
+              <div className="mt-0.5 flex items-center gap-1 flex-wrap">
+                {result.isSiteHybrid && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/20 px-1.5 py-0.5 rounded leading-none">
+                    <MapPin size={9} /> Site ({result.siteInfo?.totalHours || 2}h)
+                  </span>
+                )}
+                {result.isHalfDay && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded leading-none">
+                    ½d Leave
+                  </span>
+                )}
+                {isLate ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning-light px-1.5 py-0.5 rounded leading-none">
+                    <Clock12 size={10} /> Late
+                  </span>
+                ) : isEarly ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary-light px-1.5 py-0.5 rounded leading-none">
+                    <Clock9 size={10} /> Early
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success-light px-1.5 py-0.5 rounded leading-none">
+                    <Clock10 size={10} /> On time
+                  </span>
+                )}
+              </div>
+            </div>
+          </MobileCell>
+
+          {/* CLOCK OUT */}
+          <MobileCell label="Clock out">
+            <span className="font-mono text-xs font-semibold text-text">
+              {record.clock_out ? (
+                fmtTime(record.clock_out)
+              ) : isToday ? (
+                <span className="text-primary italic font-sans text-xs font-medium">
+                  Working...
+                </span>
+              ) : isAutoClockOut ? (
+                <div className="flex items-center gap-1">
+                  <span>{officeHours.endTimeAmPm}</span>
+                  <span
+                    className="text-[9px] font-semibold text-text-muted bg-surface-muted border border-border-light px-1 py-0.2 rounded"
+                    title={`Auto-closed at standard ${officeHours.endTimeAmPm}`}
+                  >
+                    Auto
+                  </span>
+                </div>
+              ) : (
+                <span className="text-xs text-text-faint font-mono">—</span>
+              )}
+            </span>
+          </MobileCell>
+
+          {/* NET WORKED HOURS */}
+          <MobileCell label="Net Worked">
+            <HoursCell
+              record={record}
+              worked={worked}
+              date={date}
+              hasCheckout={hasCheckout}
+            />
+          </MobileCell>
+
+          {/* SHIFT STATUS / VARIANCE */}
+          <MobileCell label="Shift Status">
+            <TimeStatus
+              record={record}
+              workStatus={workStatus}
+              date={date}
+              hasCheckout={hasCheckout}
+              result={result}
+            />
+          </MobileCell>
+
+          {/* ACTION */}
+          <div className="flex items-center justify-end gap-1.5">
+            {hasEdits && (
+              <button
+                type="button"
+                onClick={() => setShowHistory(true)}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-muted hover:bg-surface-muted/80 text-text-muted hover:text-text border border-border transition-colors cursor-pointer"
+                title="View edit history"
+              >
+                <History size={10} className="text-primary" />
+                <span>Edited</span>
+              </button>
             )}
-          </span>
-        </MobileCell>
-
-        {/* NET WORKED HOURS */}
-        <MobileCell label="Net Worked">
-          <HoursCell
-            record={record}
-            worked={worked}
-            date={date}
-            hasCheckout={hasCheckout}
-          />
-        </MobileCell>
-
-        {/* SHIFT STATUS / VARIANCE */}
-        <MobileCell label="Shift Status">
-          <TimeStatus
-            record={record}
-            workStatus={workStatus}
-            date={date}
-            hasCheckout={hasCheckout}
-            result={result}
-          />
-        </MobileCell>
-
-        {/* ACTION */}
-        <div className="flex justify-end">
-          <button
-            onClick={() => onStartEdit(date, record)}
-            className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text transition-colors"
-            title="Edit attendance"
-          >
-            <Pencil size={13} />
-          </button>
+            <button
+              onClick={() => onStartEdit(date, record)}
+              className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-text transition-colors cursor-pointer"
+              title="Edit attendance"
+            >
+              <Pencil size={13} />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+
+      {showHistory && (
+        <EditHistoryModal
+          isOpen={showHistory}
+          onClose={() => setShowHistory(false)}
+          history={record.edit_history}
+          title="Attendance Edit History"
+          subtitle={`${date.day} ${NEPALI_MONTHS[date.month - 1]} ${date.year} (${date.isoDate})`}
+          type="attendance"
+        />
+      )}
+    </>
   );
 }
 

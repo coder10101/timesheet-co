@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Building2,
   MapPin,
+  History,
 } from "lucide-react";
 import { todayISO } from "../../../utils/workTime";
 import { Card } from "../../../components/Card";
@@ -17,6 +18,7 @@ import {
   formatWorkLogEntryText,
 } from "../../../utils/workType";
 import { useOfficeHours } from "../../../constants/officeHours";
+import EditHistoryModal from "../../../components/EditHistoryModal";
 
 /** Stages that mean a project has been handed over — excluded from the log dropdown. */
 const HANDED_OVER_STAGES = ["Handover Complete", "Final Payment"];
@@ -38,6 +40,7 @@ export function TodaysWork({
   const [isFullDay, setIsFullDay] = useState(false);
   const [editingWorkId, setEditingWorkId] = useState(null);
   const [savingWork, setSavingWork] = useState(false);
+  const [historyModalEntry, setHistoryModalEntry] = useState(null);
 
   const activeProjects = projects.filter((p) => {
     if (p.archived) return false;
@@ -458,27 +461,53 @@ export function TodaysWork({
                     {parsed.cleanText}
                   </span>
 
-                  <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
-                    <button
-                      onClick={() => startEditWork(entry)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-muted"
-                      title="Edit"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => removeWork(entry.id)}
-                      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-muted text-alert"
-                      title="Delete"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {entry.edit_history?.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setHistoryModalEntry(entry)}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-muted hover:bg-surface-muted/80 text-text-muted hover:text-text border border-border transition-colors cursor-pointer"
+                        title="View edit history"
+                      >
+                        <History size={10} className="text-primary" />
+                        <span>Edited</span>
+                      </button>
+                    )}
+
+                    <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => startEditWork(entry)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-muted cursor-pointer"
+                        title="Edit"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => removeWork(entry.id)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-muted text-alert cursor-pointer"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+      )}
+
+      {historyModalEntry && (
+        <EditHistoryModal
+          isOpen={!!historyModalEntry}
+          onClose={() => setHistoryModalEntry(null)}
+          history={historyModalEntry.edit_history}
+          title="Work Log Edit History"
+          subtitle={`Logged for today (${today})`}
+          type="work_log"
+          projectMap={new Map(projects.map((p) => [p.id, p]))}
+        />
       )}
     </Card>
   );

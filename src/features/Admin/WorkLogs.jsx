@@ -31,9 +31,11 @@ import {
   ChevronRight,
   Building2,
   MapPin,
+  History,
 } from "lucide-react";
 import { getEmployeeColor } from "../../constants/colors";
 import { parseWorkLogEntry } from "../../utils/workType";
+import EditHistoryModal from "../../components/EditHistoryModal";
 
 const PROJECT_BORDER_COLORS = [
   "#2563EB", // Blue
@@ -104,6 +106,7 @@ export function AdminWorklogs() {
   }, [records]);
 
   const [workTypeFilter, setWorkTypeFilter] = useState("all"); // "all" | "desk" | "site"
+  const [historyEntry, setHistoryEntry] = useState(null);
 
   // All entries for selected month
   const monthEntries = useMemo(() => {
@@ -606,9 +609,22 @@ export function AdminWorklogs() {
                               style={{ borderColor }}
                             >
                               <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <span className="text-xs font-bold text-text">
-                                  {project ? project.name : "General Work"}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-text">
+                                    {project ? project.name : "General Work"}
+                                  </span>
+                                  {it.edit_history?.length > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setHistoryEntry(it)}
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-muted hover:bg-surface-muted/80 text-text-muted hover:text-text border border-border transition-colors cursor-pointer"
+                                      title="View edit history"
+                                    >
+                                      <History size={10} className="text-primary" />
+                                      <span>Edited</span>
+                                    </button>
+                                  )}
+                                </div>
 
                                 {parsed.workType === "site" ? (
                                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#63537E] bg-[#EEEAF2] border border-[#63537E]/30 px-2 py-0.5 rounded-md">
@@ -638,6 +654,18 @@ export function AdminWorklogs() {
           )}
         </div>
       </div>
+
+      {historyEntry && (
+        <EditHistoryModal
+          isOpen={!!historyEntry}
+          onClose={() => setHistoryEntry(null)}
+          history={historyEntry.edit_history}
+          title="Work Log Edit History"
+          subtitle={`${employee?.name || "Staff"} · ${historyEntry.date}`}
+          type="work_log"
+          projectMap={projectMap}
+        />
+      )}
     </div>
   );
 }

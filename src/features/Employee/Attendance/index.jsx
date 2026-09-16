@@ -479,6 +479,7 @@ export function EmployeeAttendance({ me }) {
         clock_out: clockOutVal,
         breakMinutes: Number(editing.breakMinutes) || 0,
         break_minutes: Number(editing.breakMinutes) || 0,
+        reason: editing.reason,
       });
 
       setEditing(null);

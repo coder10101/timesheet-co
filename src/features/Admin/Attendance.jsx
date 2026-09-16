@@ -44,11 +44,15 @@ import {
   Settings,
   Coffee,
   Users,
+  Pencil,
+  History,
 } from "lucide-react";
 import { getEmployeeColor, COLORS } from "../../constants/colors";
 import { WorkHoursChart } from "../../components/charts/WorkHoursChart";
 import { getSiteSummaryForDate } from "../../utils/workType";
 import { EditOfficeHoursModal } from "./EditOfficeHoursModal";
+import EditHistoryModal from "../../components/EditHistoryModal";
+import { AdminEditAttendanceModal } from "./AdminEditAttendanceModal";
 
 export function AdminAttendance() {
   const officeHours = useOfficeHours();
@@ -80,6 +84,8 @@ export function AdminAttendance() {
   const [selectedBSMonth, setSelectedBSMonth] = useState(todayBS.month);
   const [selectedBSYear, setSelectedBSYear] = useState(todayBS.year);
   const [showHoursModal, setShowHoursModal] = useState(false);
+  const [historyRecord, setHistoryRecord] = useState(null);
+  const [editingRecord, setEditingRecord] = useState(null);
 
   const effectiveSelectedId = useMemo(() => {
     if (selected && allStaffMembers.some((e) => e.id === selected)) return selected;
@@ -88,10 +94,30 @@ export function AdminAttendance() {
     return null;
   }, [selected, staffMembers, allStaffMembers]);
 
-  const { records } = useAttendance(effectiveSelectedId);
+  const { records, updateAttendance } = useAttendance(effectiveSelectedId);
   const { entries: workLogs } = useWorkLogs(effectiveSelectedId);
   const { requests: leaveRequests } = useLeaveRequests(null, "org");
   const { holidays } = useHolidays();
+
+  const handleAdminSaveAttendance = async ({
+    attendanceId,
+    date,
+    clockIn,
+    clockOut,
+    breakMinutes,
+    reason,
+  }) => {
+    await updateAttendance({
+      attendanceId,
+      targetEmployeeId: effectiveSelectedId,
+      date,
+      clockIn,
+      clockOut,
+      breakMinutes,
+      reason,
+      editorRole: "admin",
+    });
+  };
 
   const selectedEmployee = useMemo(() => {
     if (!allStaffMembers || !effectiveSelectedId) return null;
@@ -633,7 +659,8 @@ export function AdminAttendance() {
                       <th className="px-3 py-2.5">Clock Out</th>
                       <th className="px-3 py-2.5">Duration</th>
                       <th className="px-3 py-2.5">Shift Variance</th>
-                      <th className="px-4 py-2.5 text-right">Status</th>
+                      <th className="px-3 py-2.5 text-center">Status</th>
+                      <th className="px-4 py-2.5 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-light">
@@ -817,7 +844,7 @@ export function AdminAttendance() {
                             )}
                           </td>
 
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-3 py-3 text-center">
                             {r.is_site_only ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#EEEAF2] text-[#63537E] border border-[#63537E]/30 text-[10px] font-semibold">
                                 <MapPin size={9} /> Site Visit
@@ -843,6 +870,30 @@ export function AdminAttendance() {
                               </span>
                             )}
                           </td>
+
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {r.edit_history?.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryRecord(r)}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-muted hover:bg-surface-muted/80 text-text-muted hover:text-text border border-border transition-colors cursor-pointer"
+                                  title="View edit history"
+                                >
+                                  <History size={10} className="text-primary" />
+                                  <span>Edited</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setEditingRecord(r)}
+                                className="p-1.5 rounded-lg hover:bg-surface-muted text-text-muted hover:text-primary transition-colors cursor-pointer"
+                                title="Edit attendance record"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -861,6 +912,28 @@ export function AdminAttendance() {
         onClose={() => setShowHoursModal(false)}
         orgId={officeHours.orgId}
       />
+
+      {historyRecord && (
+        <EditHistoryModal
+          isOpen={!!historyRecord}
+          onClose={() => setHistoryRecord(null)}
+          history={historyRecord.edit_history}
+          title="Attendance Edit History"
+          subtitle={`${selectedEmployee?.name || "Staff"} · ${historyRecord.date}`}
+          type="attendance"
+        />
+      )}
+
+      {editingRecord && (
+        <AdminEditAttendanceModal
+          isOpen={!!editingRecord}
+          onClose={() => setEditingRecord(null)}
+          record={editingRecord}
+          employee={selectedEmployee}
+          onSave={handleAdminSaveAttendance}
+          officeHours={officeHours}
+        />
+      )}
     </div>
   );
 }

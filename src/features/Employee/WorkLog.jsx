@@ -36,10 +36,12 @@ import {
   FileText,
   Briefcase,
   Info,
+  History,
 } from "lucide-react";
 
 import { EmptyState } from "../../components/EmptyState";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
+import EditHistoryModal from "../../components/EditHistoryModal";
 import {
   parseWorkLogEntry,
   formatWorkLogEntryText,
@@ -69,6 +71,8 @@ export function EmployeeWorklog({ me }) {
   const [siteHours, setSiteHours] = useState(2);
   const [isFullDay, setIsFullDay] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editReason, setEditReason] = useState("");
+  const [historyModalEntry, setHistoryModalEntry] = useState(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -242,6 +246,7 @@ export function EmployeeWorklog({ me }) {
     }
 
     setProjectId(entry.project_id || "");
+    setEditReason("");
     setErr("");
 
     setOpenDates((prev) => {
@@ -277,6 +282,7 @@ export function EmployeeWorklog({ me }) {
     setSiteHours(2);
     setIsFullDay(false);
     setEditingId(null);
+    setEditReason("");
     setErr("");
   };
 
@@ -296,6 +302,7 @@ export function EmployeeWorklog({ me }) {
           text: formattedText,
           projectId: projectId || null,
           workType,
+          reason: editReason.trim(),
         });
       } else {
         await addEntry({
@@ -549,6 +556,22 @@ export function EmployeeWorklog({ me }) {
             className="w-full bg-surface-muted/40 focus:bg-white border border-border-light focus:border-primary rounded-xl p-3 text-xs sm:text-sm text-text outline-none resize-none transition-all shadow-2xs leading-relaxed"
           />
         </div>
+
+        {/* OPTIONAL EDIT REASON WHEN EDITING */}
+        {editingId && (
+          <div>
+            <label className="block text-[11px] font-bold text-text-muted uppercase tracking-wider mb-1">
+              Reason for edit <span className="font-normal text-text-faint">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={editReason}
+              onChange={(e) => setEditReason(e.target.value)}
+              placeholder="e.g. Corrected task details, added site notes..."
+              className="w-full text-xs px-3 py-2 bg-surface-muted/30 border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-text-faint"
+            />
+          </div>
+        )}
 
         {/* CONTROLS ROW UNDER THE TEXT FIELD */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -866,21 +889,35 @@ export function EmployeeWorklog({ me }) {
                                 </span>
                               </div>
 
-                              <div className="flex items-center gap-0.5 shrink-0 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                <button
-                                  onClick={() => startEdit(entry)}
-                                  className="p-1 rounded-lg hover:bg-white text-text-muted hover:text-text transition-colors cursor-pointer"
-                                  title="Edit"
-                                >
-                                  <Pencil size={12} />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(entry.id)}
-                                  className="p-1 rounded-lg hover:bg-alert-light text-text-muted hover:text-alert transition-colors cursor-pointer"
-                                  title="Delete"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {entry.edit_history?.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setHistoryModalEntry(entry)}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-surface-muted hover:bg-surface-muted/80 text-text-muted hover:text-text border border-border transition-colors cursor-pointer"
+                                    title="View edit history"
+                                  >
+                                    <History size={10} className="text-primary" />
+                                    <span>Edited</span>
+                                  </button>
+                                )}
+
+                                <div className="flex items-center gap-0.5 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => startEdit(entry)}
+                                    className="p-1 rounded-lg hover:bg-white text-text-muted hover:text-text transition-colors cursor-pointer"
+                                    title="Edit"
+                                  >
+                                    <Pencil size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(entry.id)}
+                                    className="p-1 rounded-lg hover:bg-alert-light text-text-muted hover:text-alert transition-colors cursor-pointer"
+                                    title="Delete"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           );
@@ -983,6 +1020,18 @@ export function EmployeeWorklog({ me }) {
         </div>
       </div>
     </div>
+
+    {historyModalEntry && (
+      <EditHistoryModal
+        isOpen={!!historyModalEntry}
+        onClose={() => setHistoryModalEntry(null)}
+        history={historyModalEntry.edit_history}
+        title="Work Log Edit History"
+        subtitle={`Logged on ${historyModalEntry.date}`}
+        type="work_log"
+        projectMap={projectMap}
+      />
+    )}
   </div>
 );
 }
