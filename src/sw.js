@@ -33,6 +33,9 @@ self.addEventListener("push", (event) => {
     badge:   data.badge || "/icon-192.png",
     data:    { link: data.link || "/" },
     vibrate: [200, 100, 200],
+    silent:  false,
+    renotify: true,
+    tag:     data.tag || ("notif_" + Date.now()),
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
