@@ -55,6 +55,7 @@ DECLARE
   v_is_holiday     bool;
   v_has_leave      bool;
   v_has_clockin    bool;
+  v_has_worklog    bool;
   v_start_mins     int;
   v_grace_mins     int;
   v_end_mins       int;
@@ -167,6 +168,9 @@ BEGIN
       -- -----------------------------------------------------------------------
       -- Reminder 3: Clock-Out (30 min window before shift end)
       -- Fires: shift_end - 30 min → shift_end
+      -- -----------------------------------------------------------------------
+      -- Reminder 3: Clock-Out (30 min window before shift end)
+      -- Fires: shift_end - 30 min → shift_end
       -- Only fires if employee has already clocked in.
       -- -----------------------------------------------------------------------
       IF v_has_clockin
@@ -174,10 +178,35 @@ BEGIN
          AND v_now <= v_shift_end
       THEN
         INSERT INTO notifications (org_id, recipient_id, actor_id, type, title, message, metadata)
-        VALUES (v_org.id, v_emp.user_id, v_emp.user_id, 'attendance_reminder',
+        VALUES (v_org.id, v_emp.user_id, v_emp.user_id, 'clockout_reminder',
                 'Clock-Out Reminder', 'Your shift ends in 30 minutes. Remember to clock out.',
                 jsonb_build_object('date', v_date_str, 'reminderKey', 'shift_end_warning'))
         ON CONFLICT (recipient_id, type, (metadata->>'date'), (metadata->>'reminderKey')) WHERE metadata->>'reminderKey' IS NOT NULL DO NOTHING;
+      END IF;
+
+      -- -----------------------------------------------------------------------
+      -- Reminder 4: Work Log Reminder (15-30 min window before shift end)
+      -- Fires: shift_end - 30 min → shift_end
+      -- Only fires if employee clocked in today but hasn't entered a work log
+      -- -----------------------------------------------------------------------
+      IF v_has_clockin
+         AND v_now >= v_shift_end - interval '30 minutes'
+         AND v_now <= v_shift_end
+      THEN
+        SELECT EXISTS (
+          SELECT 1 FROM work_logs
+          WHERE employee_id = v_emp.user_id
+            AND date = v_today
+        ) INTO v_has_worklog;
+
+        IF NOT v_has_worklog THEN
+          INSERT INTO notifications (org_id, recipient_id, actor_id, type, title, message, link, metadata)
+          VALUES (v_org.id, v_emp.user_id, v_emp.user_id, 'worklog_reminder',
+                  'Work Log Reminder 📝', 'Don''t forget to submit your daily work log before the day ends.',
+                  '/work-logs',
+                  jsonb_build_object('date', v_date_str, 'reminderKey', 'work_log_reminder'))
+          ON CONFLICT (recipient_id, type, (metadata->>'date'), (metadata->>'reminderKey')) WHERE metadata->>'reminderKey' IS NOT NULL DO NOTHING;
+        END IF;
       END IF;
     END LOOP;
 
@@ -244,7 +273,7 @@ GRANT EXECUTE ON FUNCTION public.nepal_today()                  TO service_role;
 -- =============================================================================
 SELECT cron.schedule(
   'attendance_and_event_reminders',
-  '*/1 * * * *',
+  '*/15 * * * *',
   'SELECT public.evaluate_scheduled_reminders();'
 );
 

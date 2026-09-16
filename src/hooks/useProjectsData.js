@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
 import { calculateOverallProgress } from "../constants/projectPresets";
 import { saveCachedRoster } from "./useRosterData";
+import { sendNotification } from "./useNotificationsData";
 
 export function parseStagesFromCurrentStage(stageStr) {
   if (!stageStr || typeof stageStr !== "string") {
@@ -504,7 +505,48 @@ export function useProjects() {
         ...extendedData,
       };
     },
-    onSuccess: invalidate,
+    onSuccess: (newProject) => {
+      invalidate();
+
+      try {
+        const projectName = newProject?.name || "Project";
+        const projectId = newProject?.id;
+        const orgId = newProject?.org_id;
+        const link = projectId ? `/projects/${projectId}` : "/projects";
+
+        // Notify Lead Architect
+        if (newProject?.lead_architect_id) {
+          sendNotification({
+            recipientId: newProject.lead_architect_id,
+            orgId,
+            type: "project_assigned",
+            title: "Assigned as Lead Architect",
+            message: `You were assigned as Lead Architect for ${projectName}.`,
+            link,
+            metadata: { projectId, role: "lead" },
+          });
+        }
+
+        // Notify Sub Architects
+        if (Array.isArray(newProject?.sub_architect_ids)) {
+          newProject.sub_architect_ids.forEach((subId) => {
+            if (subId && subId !== newProject.lead_architect_id) {
+              sendNotification({
+                recipientId: subId,
+                orgId,
+                type: "project_assigned",
+                title: "Added to Project",
+                message: `You were added to team for ${projectName}.`,
+                link,
+                metadata: { projectId, role: "member" },
+              });
+            }
+          });
+        }
+      } catch (err) {
+        console.warn("[Projects] Notice sending project assignment notification:", err);
+      }
+    },
   });
 
   const updateProject = useMutation({
@@ -744,9 +786,97 @@ export function useProjects() {
         await supabase.from("projects").update(minimal).eq("id", id);
       }
 
-      return { id, ...allMergedFields, ...(data?.[0] || {}) };
+      return {
+        id,
+        ...allMergedFields,
+        ...(data?.[0] || {}),
+        _previous: existing
+          ? {
+              status: existing.status,
+              current_stage: existing.current_stage,
+              lead_architect_id: existing.lead_architect_id,
+              sub_architect_ids: existing.sub_architect_ids || [],
+            }
+          : null,
+      };
     },
-    onSuccess: invalidate,
+    onSuccess: (updatedProj) => {
+      invalidate();
+
+      try {
+        const projectName = updatedProj?.name || "Project";
+        const projectId = updatedProj?.id;
+        const orgId = updatedProj?.org_id;
+        const link = projectId ? `/projects/${projectId}` : "/projects";
+        const prev = updatedProj?._previous;
+
+        // Collect all assignees to notify about general project changes
+        const currentLead = updatedProj?.lead_architect_id;
+        const currentSubs = Array.isArray(updatedProj?.sub_architect_ids) ? updatedProj.sub_architect_ids : [];
+        const allAssignees = Array.from(new Set([currentLead, ...currentSubs].filter(Boolean)));
+
+        // 1. Status change alert
+        if (prev?.status && updatedProj?.status && prev.status !== updatedProj.status) {
+          allAssignees.forEach((userId) => {
+            sendNotification({
+              recipientId: userId,
+              orgId,
+              type: "project_updated",
+              title: "Project Status Updated",
+              message: `${projectName} status changed to ${updatedProj.status}.`,
+              link,
+              metadata: { projectId, oldStatus: prev.status, newStatus: updatedProj.status },
+            });
+          });
+        }
+
+        // 2. Stage change alert
+        if (prev?.current_stage && updatedProj?.current_stage && prev.current_stage !== updatedProj.current_stage) {
+          allAssignees.forEach((userId) => {
+            sendNotification({
+              recipientId: userId,
+              orgId,
+              type: "project_updated",
+              title: "Project Stage Updated",
+              message: `${projectName} moved to stage: ${updatedProj.current_stage}.`,
+              link,
+              metadata: { projectId, oldStage: prev.current_stage, newStage: updatedProj.current_stage },
+            });
+          });
+        }
+
+        // 3. New Lead Architect assignment
+        if (updatedProj?.lead_architect_id && updatedProj.lead_architect_id !== prev?.lead_architect_id) {
+          sendNotification({
+            recipientId: updatedProj.lead_architect_id,
+            orgId,
+            type: "project_assigned",
+            title: "Assigned as Lead Architect",
+            message: `You were assigned as Lead Architect for ${projectName}.`,
+            link,
+            metadata: { projectId, role: "lead" },
+          });
+        }
+
+        // 4. Newly added Sub Architects
+        const prevSubs = new Set(prev?.sub_architect_ids || []);
+        currentSubs.forEach((subId) => {
+          if (subId && !prevSubs.has(subId) && subId !== updatedProj.lead_architect_id) {
+            sendNotification({
+              recipientId: subId,
+              orgId,
+              type: "project_assigned",
+              title: "Added to Project",
+              message: `You were added to team for ${projectName}.`,
+              link,
+              metadata: { projectId, role: "member" },
+            });
+          }
+        });
+      } catch (err) {
+        console.warn("[Projects] Notice sending project update notifications:", err);
+      }
+    },
   });
 
   const updateProjectStageAndDeadline = useMutation({

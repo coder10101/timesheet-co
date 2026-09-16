@@ -11,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. Create notifications table
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID PRIMARY KEY DEFAULT extensions.uuid_generate_v4(),
-  org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE DEFAULT '00000000-0000-0000-0000-000000000001',
+  org_id UUID REFERENCES public.organizations(id) ON DELETE CASCADE,
   recipient_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
   type TEXT NOT NULL,

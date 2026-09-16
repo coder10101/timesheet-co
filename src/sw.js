@@ -1,0 +1,64 @@
+// =============================================================================
+// Custom Service Worker — Attendance Ledger PWA
+// =============================================================================
+// Handles:
+//   1. Workbox precaching (injected by Vite PWA injectManifest mode)
+//   2. Web Push notifications from the server
+//   3. Notification click → open/focus the app at the correct route
+// =============================================================================
+
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
+
+// Injected by Vite PWA at build time
+precacheAndRoute(self.__WB_MANIFEST || []);
+cleanupOutdatedCaches();
+
+// ---------------------------------------------------------------------------
+// Push event — show a native OS notification banner
+// ---------------------------------------------------------------------------
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch {
+    data = { title: "Attendance Ledger", body: event.data.text() };
+  }
+
+  const title   = data.title  || "Attendance Ledger";
+  const options = {
+    body:    data.body  || data.message || "",
+    icon:    data.icon  || "/icon-192.png",
+    badge:   data.badge || "/icon-192.png",
+    data:    { link: data.link || "/" },
+    vibrate: [200, 100, 200],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// ---------------------------------------------------------------------------
+// Notification click — focus existing tab or open a new one
+// ---------------------------------------------------------------------------
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const link = event.notification.data?.link || "/";
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windowClients) => {
+        // Focus an existing tab if the app is already open
+        for (const client of windowClients) {
+          if (client.url.includes(self.location.origin)) {
+            client.focus();
+            client.navigate(link);
+            return;
+          }
+        }
+        // Otherwise open a new tab
+        return clients.openWindow(link);
+      })
+  );
+});

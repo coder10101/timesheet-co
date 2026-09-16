@@ -12,9 +12,14 @@ import {
   LogOut,
   CalendarDays,
   ExternalLink,
+  Briefcase,
+  FileText,
+  Smartphone,
+  BellOff,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useNotifications } from "../hooks/useNotificationsData";
+import { usePushSubscription } from "../hooks/usePushSubscription";
 import { isoToBSLabel } from "../utils/nepaliCalendar";
 
 /**
@@ -79,6 +84,17 @@ function getNotificationVisuals(type) {
         icon: <CalendarDays size={16} className="text-teal-400" />,
         bg: "bg-teal-400/10 border-teal-400/20",
       };
+    case "project_assigned":
+    case "project_updated":
+      return {
+        icon: <Briefcase size={16} className="text-indigo-400" />,
+        bg: "bg-indigo-400/10 border-indigo-400/20",
+      };
+    case "worklog_reminder":
+      return {
+        icon: <FileText size={16} className="text-orange-400" />,
+        bg: "bg-orange-400/10 border-orange-400/20",
+      };
     default:
       return {
         icon: <Bell size={16} className="text-cyan-400" />,
@@ -101,6 +117,31 @@ export function NotificationCenter({ userId, placement = "auto" }) {
     deleteNotification,
     clearAll,
   } = useNotifications(userId);
+
+  const {
+    isSupported: isPushSupported,
+    permission: pushPermission,
+    isSubscribed: isPushSubscribed,
+    isLoading: isPushLoading,
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+  } = usePushSubscription(userId);
+
+  const [pushError, setPushError] = useState(null);
+
+  const handleTogglePush = async () => {
+    setPushError(null);
+    try {
+      if (isPushSubscribed) {
+        await unsubscribePush();
+      } else {
+        await subscribePush();
+      }
+    } catch (err) {
+      setPushError(err.message || "Failed to update push preference");
+      setTimeout(() => setPushError(null), 4000);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -326,6 +367,55 @@ export function NotificationCenter({ userId, placement = "auto" }) {
                 })
               )}
             </div>
+
+            {/* PUSH NOTIFICATIONS BAR */}
+            <div className="px-3 py-2 border-t border-white/10 bg-white/[0.03] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {isPushSubscribed ? (
+                  <Smartphone size={14} className="text-emerald-400 shrink-0" />
+                ) : (
+                  <BellOff size={14} className="text-white/40 shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium text-white/80 leading-tight">
+                    Push Notifications
+                  </div>
+                  <div className="text-[10px] text-white/40 truncate">
+                    {!isPushSupported
+                      ? "Not supported on this browser"
+                      : pushPermission === "denied"
+                      ? "Blocked in browser settings"
+                      : isPushSubscribed
+                      ? "Native banners enabled"
+                      : "Receive alerts when app is closed"}
+                  </div>
+                </div>
+              </div>
+
+              {isPushSupported && pushPermission !== "denied" && (
+                <button
+                  type="button"
+                  onClick={handleTogglePush}
+                  disabled={isPushLoading}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    isPushSubscribed ? "bg-primary" : "bg-white/20"
+                  } ${isPushLoading ? "opacity-50 cursor-wait" : ""}`}
+                  title={isPushSubscribed ? "Disable push notifications" : "Enable push notifications"}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      isPushSubscribed ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              )}
+            </div>
+
+            {pushError && (
+              <div className="px-3 py-1.5 bg-rose-500/10 border-t border-rose-500/20 text-[10px] text-rose-300">
+                {pushError}
+              </div>
+            )}
 
             {/* FOOTER */}
             {notifications.length > 0 && (
