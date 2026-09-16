@@ -78,12 +78,14 @@ Deno.serve(async (req) => {
         const isApple = sub.endpoint.includes("apple.com");
         const options: Record<string, any> = {
           TTL: 60 * 60 * 24, // 24 hours
+          urgency: "high",
+          headers: {
+            "Urgency": "high",
+          },
         };
         if (isApple) {
-          options.headers = {
-            "apns-push-type": "alert",
-            "apns-priority": "10",
-          };
+          options.headers["apns-push-type"] = "alert";
+          options.headers["apns-priority"] = "10";
         }
 
         return webPush.sendNotification(
