@@ -43,7 +43,8 @@ self.addEventListener("push", (event) => {
 // ---------------------------------------------------------------------------
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const link = event.notification.data?.link || "/";
+  const rawLink = event.notification.data?.link || "/";
+  const targetUrl = new URL(rawLink, self.location.origin).href;
 
   event.waitUntil(
     clients
@@ -53,12 +54,13 @@ self.addEventListener("notificationclick", (event) => {
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin)) {
             client.focus();
-            client.navigate(link);
-            return;
+            return client.navigate(targetUrl);
           }
         }
-        // Otherwise open a new tab
-        return clients.openWindow(link);
+        // Otherwise open a new window
+        if (clients.openWindow) {
+          return clients.openWindow(targetUrl);
+        }
       })
   );
 });
