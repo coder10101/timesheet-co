@@ -81,6 +81,7 @@ export function WeekAtGlance({
         pastWorkingDates.length !== 1 ? "s" : ""
       } logged this week`}
       cardStyle={{ marginBottom: 0 }}
+      className="h-fit"
     >
       <div className="grid grid-cols-7 gap-1.5">
         {weekDates.map((date, index) => {

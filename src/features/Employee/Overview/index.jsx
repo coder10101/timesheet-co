@@ -120,46 +120,62 @@ export function EmployeeOverview({ me }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 w-full max-w-full">
-        <Today
-          records={records}
-          entries={entries}
-          myLeave={myLeave}
-          clockIn={clockIn}
-          clockOut={clockOut}
-          clockInPending={clockInPending}
-          startBreak={startBreak}
-          startBreakPending={startBreakPending}
-          endBreak={endBreak}
-          endBreakPending={endBreakPending}
-          setErr={setErr}
-          today={today}
-          teamLeaves={teamLeaves}
-          me={me}
-        />
-        <WeekAtGlance
-          records={records}
-          leaveRequests={myLeave}
-          holidays={holidays}
-          today={today}
-          onLogAttendance={(date) => {
-            setQuickLogError("");
-            setQuickLogDate(date);
-          }}
-        />
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 items-start w-full max-w-full">
+        {/* LEFT COLUMN: Today & Today's Work */}
+        <div className="space-y-4">
+          <Today
+            records={records}
+            entries={entries}
+            myLeave={myLeave}
+            clockIn={clockIn}
+            clockOut={clockOut}
+            clockInPending={clockInPending}
+            startBreak={startBreak}
+            startBreakPending={startBreakPending}
+            endBreak={endBreak}
+            endBreakPending={endBreakPending}
+            setErr={setErr}
+            today={today}
+            teamLeaves={teamLeaves}
+            me={me}
+          />
+          <div className="block lg:hidden">
+            <WeekAtGlance
+              records={records}
+              leaveRequests={myLeave}
+              holidays={holidays}
+              today={today}
+              onLogAttendance={(date) => {
+                setQuickLogError("");
+                setQuickLogDate(date);
+              }}
+            />
+          </div>
+          <TodaysWork
+            entries={entries}
+            addEntry={addEntry}
+            updateEntry={updateEntry}
+            deleteEntry={deleteEntry}
+            projects={projects}
+            setErr={setErr}
+            today={today}
+          />
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-4 mt-4 items-start w-full max-w-full">
-        <TodaysWork
-          entries={entries}
-          addEntry={addEntry}
-          updateEntry={updateEntry}
-          deleteEntry={deleteEntry}
-          projects={projects}
-          setErr={setErr}
-          today={today}
-        />
-        <div className="space-y-3">
+        {/* RIGHT COLUMN: Attendance at a Glance & Leave / Events */}
+        <div className="space-y-4">
+          <div className="hidden lg:block">
+            <WeekAtGlance
+              records={records}
+              leaveRequests={myLeave}
+              holidays={holidays}
+              today={today}
+              onLogAttendance={(date) => {
+                setQuickLogError("");
+                setQuickLogDate(date);
+              }}
+            />
+          </div>
           <LeaveBalance myLeave={myLeave} me={me} today={today} />
           <UpcomingEvents events={events} holidays={holidays} today={today} />
         </div>
