@@ -7,10 +7,12 @@ import {
   useProjects,
   useHolidays,
   useEvents,
+  useTeamLeaves,
 } from "../../../hooks/useOrgData";
 import { todayISO } from "../../../utils/workTime";
 import UpcomingEvents from "../../../components/UpcomingEvents";
 import { LeaveBalance } from "./LeaveBalance";
+import { TeammatesOnLeaveCard } from "./TeammatesOnLeaveCard";
 import { TodaysWork } from "./TodaysWork";
 import { Today } from "./Today";
 import { WeekAtGlance } from "./WeekAtGlance";
@@ -41,6 +43,8 @@ export function EmployeeOverview({ me }) {
   const { holidays } = useHolidays();
 
   const { events } = useEvents();
+
+  const { teamLeaves } = useTeamLeaves(me?.org_id);
 
   const [err, setErr] = useState("");
   const [quickLogDate, setQuickLogDate] = useState(null);
@@ -148,6 +152,7 @@ export function EmployeeOverview({ me }) {
           today={today}
         />
         <div className="space-y-4">
+          <TeammatesOnLeaveCard teamLeaves={teamLeaves} me={me} today={today} />
           <LeaveBalance myLeave={myLeave} me={me} />
           <UpcomingEvents events={events} holidays={holidays} today={today} />
         </div>

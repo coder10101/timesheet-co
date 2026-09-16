@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useLeaveRequests } from "../../hooks/useOrgData";
+import { useLeaveRequests, useTeamLeaves } from "../../hooks/useOrgData";
 import { calculateLeaveDays, fmtDate, todayISO } from "../../utils/workTime";
 import {
   AlertCircle,
@@ -12,10 +12,14 @@ import {
   Clock,
   Check,
   Info,
+  Users,
+  Search,
 } from "lucide-react";
 import { StatusPill } from "../../components/StatusPill";
 import { LeavePolicyCard } from "../../components/LeavePolicyCard";
-import { COLORS } from "../../constants/colors";
+import { COLORS, getEmployeeColor } from "../../constants/colors";
+import { getInitials } from "../../constants/projectPresets";
+import { isoToBS, NEPALI_MONTHS } from "../../utils/nepaliCalendar";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
 import {
   isHalfDayLeave,
@@ -63,6 +67,46 @@ export function EmployeeLeave({ me }) {
 
   const [activeTab, setActiveTab] = useState("all");
   const [editing, setEditing] = useState(null);
+
+  const [viewMode, setViewMode] = useState("my"); // "my" | "team"
+  const [teamSearch, setTeamSearch] = useState("");
+  const [teamTab, setTeamTab] = useState("all"); // "all" | "today"
+  const today = todayISO();
+
+  const { teamLeaves } = useTeamLeaves(me?.org_id);
+
+  const teammateLeaves = useMemo(() => {
+    return (teamLeaves || [])
+      .filter((l) => l.employee_id !== me?.id && l.status === "Approved")
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  }, [teamLeaves, me?.id]);
+
+  const activeTeammateCount = useMemo(() => {
+    return teammateLeaves.filter(
+      (l) => l.start_date <= today && l.end_date >= today,
+    ).length;
+  }, [teammateLeaves, today]);
+
+  const filteredTeamLeaves = useMemo(() => {
+    return teammateLeaves.filter((l) => {
+      // Search filter
+      if (teamSearch.trim()) {
+        const q = teamSearch.toLowerCase();
+        const matchesName = (l.employeeName || "").toLowerCase().includes(q);
+        const matchesType = (l.type || "").toLowerCase().includes(q);
+        const matchesRole = (l.employeeTitle || l.employeeRole || "").toLowerCase().includes(q);
+        if (!matchesName && !matchesType && !matchesRole) return false;
+      }
+
+      // Tab filter
+      if (teamTab === "today") {
+        return l.start_date <= today && l.end_date >= today;
+      }
+
+      // Default: show active and upcoming
+      return l.end_date >= today;
+    });
+  }, [teammateLeaves, teamSearch, teamTab, today]);
 
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
@@ -224,23 +268,76 @@ export function EmployeeLeave({ me }) {
     }
   };
 
+  const formatLeaveDates = (start, end) => {
+    const bsStart = isoToBS(start);
+    const bsEnd = isoToBS(end);
+    if (!bsStart || !bsEnd) return `${start} - ${end}`;
+    if (start === end) {
+      return `${bsStart.day} ${NEPALI_MONTHS[bsStart.month - 1]}`;
+    }
+    if (bsStart.month === bsEnd.month) {
+      return `${bsStart.day} - ${bsEnd.day} ${NEPALI_MONTHS[bsStart.month - 1]}`;
+    }
+    return `${bsStart.day} ${NEPALI_MONTHS[bsStart.month - 1]} - ${bsEnd.day} ${NEPALI_MONTHS[bsEnd.month - 1]}`;
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 fade-in">
       {/* PAGE HEADER */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-text">Leave Requests</h1>
           <p className="text-xs text-text-muted">
-            View your balance and request time off.
+            {viewMode === "team"
+              ? "Check when teammates are away to coordinate time off and project coverage."
+              : "View your balance and request time off."}
           </p>
         </div>
 
-        {pendingCount > 0 && (
-          <div className="flex items-center gap-1.5 bg-warning-light text-warning px-3 py-1.5 rounded-xl text-xs font-semibold border border-warning/20 shadow-2xs">
-            <Clock size={13} />
-            <span>{pendingCount} pending review</span>
+        <div className="flex items-center gap-2">
+          {/* VIEW SWITCHER */}
+          <div className="flex items-center p-1 bg-surface-muted rounded-xl border border-border text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setViewMode("my")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                viewMode === "my"
+                  ? "bg-white text-text shadow-2xs"
+                  : "text-text-muted hover:text-text"
+              }`}
+            >
+              <span>My Leaves</span>
+              {pendingCount > 0 && (
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("team")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                viewMode === "team"
+                  ? "bg-white text-primary shadow-2xs"
+                  : "text-text-muted hover:text-text"
+              }`}
+            >
+              <Users size={13} />
+              <span>Team Schedule</span>
+              {activeTeammateCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                  {activeTeammateCount} out
+                </span>
+              )}
+            </button>
           </div>
-        )}
+
+          {viewMode === "my" && pendingCount > 0 && (
+            <div className="hidden md:flex items-center gap-1.5 bg-warning-light text-warning px-3 py-1.5 rounded-xl text-xs font-semibold border border-warning/20 shadow-2xs">
+              <Clock size={13} />
+              <span>{pendingCount} pending</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {err && (
@@ -250,7 +347,161 @@ export function EmployeeLeave({ me }) {
         </div>
       )}
 
-      {/* VISUAL LEAVE QUOTA & USAGE CARDS */}
+      {viewMode === "team" ? (
+        <div className="space-y-4">
+          {/* SEARCH & FILTER BAR */}
+          <div className="bg-white border border-border rounded-2xl p-3.5 sm:p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* TABS */}
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setTeamTab("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  teamTab === "all"
+                    ? "bg-primary text-white shadow-2xs"
+                    : "bg-surface-muted text-text-muted hover:text-text"
+                }`}
+              >
+                All Upcoming ({teammateLeaves.filter((l) => l.end_date >= today).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTeamTab("today")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                  teamTab === "today"
+                    ? "bg-amber-500 text-white shadow-2xs"
+                    : "bg-surface-muted text-text-muted hover:text-text"
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                <span>Out Today ({activeTeammateCount})</span>
+              </button>
+            </div>
+
+            {/* SEARCH */}
+            <div className="relative w-full sm:w-64">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+              />
+              <input
+                type="text"
+                value={teamSearch}
+                onChange={(e) => setTeamSearch(e.target.value)}
+                placeholder="Search teammates, leaves..."
+                className="w-full pl-8 pr-3 py-1.5 bg-surface-muted rounded-xl border border-border text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition"
+              />
+            </div>
+          </div>
+
+          {/* TEAM LEAVES LIST OR GRID */}
+          {filteredTeamLeaves.length === 0 ? (
+            <div className="bg-white border border-dashed border-border rounded-2xl p-10 text-center flex flex-col items-center justify-center gap-2">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mb-1">
+                <Users size={24} />
+              </div>
+              <h3 className="text-sm font-bold text-text">No teammate leaves found</h3>
+              <p className="text-xs text-text-muted max-w-sm">
+                {teamSearch
+                  ? `No leaves match "${teamSearch}". Try searching for another name or leave type.`
+                  : teamTab === "today"
+                    ? "All teammates are present at work today!"
+                    : "No approved upcoming leaves for your colleagues."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredTeamLeaves.map((leave) => {
+                const empColor = getEmployeeColor(leave.employeeName || "User");
+                const isOutToday = leave.start_date <= today && leave.end_date >= today;
+                const isHalf = isHalfDayLeave(leave);
+                const halfSession = getHalfDaySession(leave);
+
+                return (
+                  <div
+                    key={leave.id}
+                    className={`bg-white border rounded-2xl p-4 shadow-2xs transition-all space-y-3 ${
+                      isOutToday
+                        ? "border-amber-300 ring-2 ring-amber-400/15"
+                        : "border-border hover:border-border-strong"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-2xs"
+                          style={{ backgroundColor: empColor }}
+                        >
+                          {getInitials(leave.employeeName || "Team")}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-text truncate">
+                            {leave.employeeName || "Teammate"}
+                          </p>
+                          <p className="text-[11px] text-text-muted truncate">
+                            {leave.employeeTitle || leave.employeeRole || "Colleague"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {isOutToday && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
+                          Out Today
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-border-light flex items-center justify-between gap-2 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block">
+                          Leave Type
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${
+                              leave.type === "Sick"
+                                ? "bg-alert-light text-alert border-alert/20"
+                                : "bg-primary/10 text-primary border-primary/20"
+                            }`}
+                          >
+                            {leave.type}
+                          </span>
+                          <span className="text-[11px] font-mono text-text-muted">
+                            ({formatLeaveDays(leave.days)})
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted block">
+                          Dates
+                        </span>
+                        <span className="text-[11px] font-medium text-text mt-0.5 block">
+                          {formatLeaveDates(leave.start_date, leave.end_date)}
+                        </span>
+                        {isHalf && (
+                          <span className="text-[10px] text-primary font-semibold block">
+                            {SESSION_SHORT_LABELS[halfSession] || "Half Day"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="px-4 py-2.5 rounded-xl bg-surface-muted border border-border-light text-[11px] text-text-muted flex items-center gap-2">
+            <Info size={13} className="text-text-muted shrink-0" />
+            <span>
+              For privacy, specific reasons for teammate leaves are kept confidential.
+            </span>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* VISUAL LEAVE QUOTA & USAGE CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {Object.entries(LEAVE_TYPES).map(([leaveKey, meta]) => {
           const max = meta.max;
@@ -774,6 +1025,8 @@ export function EmployeeLeave({ me }) {
         </div>
       </div>
     </div>
-  </div>
-);
+        </>
+      )}
+    </div>
+  );
 }

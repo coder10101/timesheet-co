@@ -11,7 +11,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../lib/supabaseClient";
 import { getEmployeeColor } from "../../constants/colors";
-import { useProjects } from "../../hooks/useProjectsData";
+import { useProjects, useRoster } from "../../hooks/useOrgData";
 
 function EmployeeProjects({ projects }) {
   if (!projects?.length) {
@@ -40,17 +40,8 @@ export function AdminTeam({ me }) {
   const [viewMode, setViewMode] = useState("grid"); // "grid" | "list"
   const { projects = [], isLoading: projectsLoading } = useProjects();
 
-  const query = useQuery({
-    queryKey: ["roster"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-  });
+  const { employees: rosterEmployees, isLoading: rosterLoading } = useRoster(me?.org_id);
+  const employees = rosterEmployees || [];
 
   const setActive = useMutation({
     mutationFn: async ({ id, isActive }) => {
@@ -62,8 +53,6 @@ export function AdminTeam({ me }) {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["roster"] }),
   });
-
-  const employees = query.data || [];
   const employeeProjects = useMemo(() => {
     const map = {};
 
@@ -95,7 +84,7 @@ export function AdminTeam({ me }) {
     });
   }, [employees, search]);
 
-  const isTeamLoading = query.isLoading || !query.data;
+  const isTeamLoading = rosterLoading || !rosterEmployees;
 
   const act = async (id, isActive, name) => {
     setErr("");

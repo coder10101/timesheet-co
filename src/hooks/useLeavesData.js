@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../lib/supabaseClient";
 import { isHalfDayLeave, LEAVE_QUOTAS } from "../utils/leaveUtils";
+import { useAuth } from "../lib/AuthProvider";
+import { getCachedRoster } from "./useRosterData";
 
 export const LEAVE_TYPES = ["Annual", "Sick", "Casual", "Unpaid"];
 
@@ -76,10 +78,16 @@ export async function syncEmployeeLeaveBalance(employeeId) {
 }
 
 /* ---------------- Leave requests ---------------- */
-export function useLeaveRequests(employeeId, scope = "mine") {
+export function useLeaveRequests(employeeId, scope = "mine", explicitOrgId) {
   const qc = useQueryClient();
+  const auth = useAuth();
+  const currentOrgId = explicitOrgId || auth?.profile?.org_id;
 
-  const key = ["leave-requests", scope, scope === "mine" ? employeeId : "org"];
+  const key = [
+    "leave-requests",
+    scope,
+    scope === "mine" ? employeeId : (currentOrgId || "org"),
+  ];
 
   const query = useQuery({
     queryKey: key,
@@ -88,39 +96,97 @@ export function useLeaveRequests(employeeId, scope = "mine") {
       let q = supabase
         .from("leave_requests")
         .select(
-          "*, profiles!leave_requests_employee_id_fkey(name, role, title)",
+          "*, profiles!leave_requests_employee_id_fkey(name, role, title, org_id)",
         )
         .order("created_at", { ascending: false });
 
       if (scope === "mine") {
         q = q.eq("employee_id", employeeId);
+      } else if (scope === "approved" || scope === "team") {
+        q = q.eq("status", "Approved");
       }
 
-      const { data, error } = await q;
+      let { data, error } = await q;
 
-      if (error) throw error;
+      // Graceful fallback if explicit foreign key constraint name fails
+      if (error) {
+        console.warn(
+          "Failed with explicit foreign key constraint, trying standard profiles join...",
+          error,
+        );
+        let fallbackQ = supabase
+          .from("leave_requests")
+          .select("*, profiles(name, role, title, org_id)")
+          .order("created_at", { ascending: false });
+
+        if (scope === "mine") {
+          fallbackQ = fallbackQ.eq("employee_id", employeeId);
+        } else if (scope === "approved" || scope === "team") {
+          fallbackQ = fallbackQ.eq("status", "Approved");
+        }
+
+        const fallbackRes = await fallbackQ;
+        if (!fallbackRes.error && fallbackRes.data) {
+          data = fallbackRes.data;
+          error = null;
+        } else {
+          // Plain query fallback
+          let plainQ = supabase
+            .from("leave_requests")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+          if (scope === "mine") {
+            plainQ = plainQ.eq("employee_id", employeeId);
+          } else if (scope === "approved" || scope === "team") {
+            plainQ = plainQ.eq("status", "Approved");
+          }
+
+          const plainRes = await plainQ;
+          if (plainRes.error) throw plainRes.error;
+          data = plainRes.data;
+          error = null;
+        }
+      }
+
+      const cachedRoster = currentOrgId ? getCachedRoster(currentOrgId) : [];
+      const rosterMap = new Map();
+      cachedRoster.forEach((p) => {
+        if (p?.id) rosterMap.set(p.id, p);
+      });
 
       return (data || [])
         .filter((r) => {
+          // For personal leaves, never filter out the user's own leaves
+          if (scope === "mine") return true;
+
+          // For team or org leaves, filter out employees from other organizations if org_id is known
+          const empOrgId = r.profiles?.org_id || rosterMap.get(r.employee_id)?.org_id;
+          if (currentOrgId && empOrgId && empOrgId !== currentOrgId) {
+            return false;
+          }
+
           if (scope === "org") {
-            const role = r.profiles?.role?.toLowerCase();
-            const title = r.profiles?.title?.toLowerCase();
+            const role = (r.profiles?.role || rosterMap.get(r.employee_id)?.role)?.toLowerCase();
+            const title = (r.profiles?.title || rosterMap.get(r.employee_id)?.title)?.toLowerCase();
             if (role === "admin" || title === "admin") return false;
           }
           return true;
         })
         .map((r) => {
           const isHalf = isHalfDayLeave(r);
+          const rosterUser = rosterMap.get(r.employee_id);
           return {
             ...r,
             days: isHalf ? 0.5 : Number(r.days),
-            employeeName: r.profiles?.name,
-            employeeRole: r.profiles?.role,
+            employeeName: r.profiles?.name || rosterUser?.name,
+            employeeRole: r.profiles?.role || rosterUser?.role,
+            employeeTitle: r.profiles?.title || rosterUser?.title,
           };
         });
     },
 
-    enabled: scope === "org" || !!employeeId,
+    enabled: scope === "mine" ? !!employeeId : true,
   });
 
   const invalidate = () => {
@@ -334,5 +400,16 @@ export function useLeaveRequests(employeeId, scope = "mine") {
         status,
         decidedBy,
       }),
+  };
+}
+
+/**
+ * Convenient hook for employee and shared views to get all approved teammate leaves.
+ */
+export function useTeamLeaves(explicitOrgId) {
+  const { requests, isLoading } = useLeaveRequests(null, "approved", explicitOrgId);
+  return {
+    teamLeaves: requests,
+    isLoading,
   };
 }

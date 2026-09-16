@@ -166,6 +166,16 @@ create policy "admin decides org leave requests" on leave_requests
     exists (select 1 from profiles p where p.id = leave_requests.employee_id and is_org_admin(p.org_id))
   );
 
+create policy "org members read approved leaves" on leave_requests
+  for select using (
+    status = 'Approved'
+    and exists (
+      select 1 from profiles p
+      where p.id = leave_requests.employee_id
+        and p.org_id = get_auth_org_id()
+    )
+  );
+
 -- ---------- holidays ----------
 create table if not exists holidays (
   id uuid primary key default uuid_generate_v4(),

@@ -19,8 +19,11 @@ import {
   Sparkles,
   X,
   Info,
+  Sun,
+  ArrowRight,
 } from "lucide-react";
-import { useHolidays, useEvents, useRoster } from "../../hooks/useOrgData";
+import { NavLink } from "react-router-dom";
+import { useHolidays, useEvents, useRoster, useTeamLeaves } from "../../hooks/useOrgData";
 import { fmtDate, fmtTimeAmPm, todayISO } from "../../utils/workTime";
 import {
   isoToBS,
@@ -33,11 +36,23 @@ import {
 } from "../../utils/nepaliCalendar";
 import bs from "bikram-sambat";
 import { NepaliDatePicker } from "../../components/NepaliDatePicker";
+import {
+  isHalfDayLeave,
+  getHalfDaySession,
+  formatLeaveDays,
+  cleanLeaveReason,
+  SESSION_SHORT_LABELS,
+} from "../../utils/leaveUtils";
+import { getEmployeeColor } from "../../constants/colors";
+import { getInitials } from "../../constants/projectPresets";
 
 export function AdminCalendar({ me }) {
   const { holidays, addHoliday, updateHoliday, deleteHoliday } = useHolidays();
   const { events, createEvent, updateEvent, deleteEvent } = useEvents();
-  const { employees } = useRoster();
+  const { employees } = useRoster(me?.org_id);
+  const { teamLeaves } = useTeamLeaves(me?.org_id);
+
+  const [rightSidebarTab, setRightSidebarTab] = useState("holidays"); // "holidays" | "leaves"
 
   const todayStr = todayISO();
   const isPastDate = (d) => !!d && d < todayStr;
@@ -91,11 +106,38 @@ export function AdminCalendar({ me }) {
     setViewBS((prev) => addMonths(prev.year, prev.month, 1));
   };
 
+  const formatLeaveDates = (start, end) => {
+    const bsStart = isoToBS(start);
+    const bsEnd = isoToBS(end);
+    if (!bsStart || !bsEnd) return `${start} - ${end}`;
+    if (start === end) {
+      return `${bsStart.day} ${NEPALI_MONTHS[bsStart.month - 1]}`;
+    }
+    if (bsStart.month === bsEnd.month) {
+      return `${bsStart.day} - ${bsEnd.day} ${NEPALI_MONTHS[bsStart.month - 1]}`;
+    }
+    return `${bsStart.day} ${NEPALI_MONTHS[bsStart.month - 1]} - ${bsEnd.day} ${NEPALI_MONTHS[bsEnd.month - 1]}`;
+  };
+
+  const approvedLeavesForYear = useMemo(() => {
+    return (teamLeaves || [])
+      .filter((l) => {
+        const bsStart = isoToBS(l.start_date);
+        const bsEnd = isoToBS(l.end_date);
+        return (
+          (bsStart && bsStart.year === bsYear) ||
+          (bsEnd && bsEnd.year === bsYear)
+        );
+      })
+      .sort((a, b) => a.start_date.localeCompare(b.start_date));
+  }, [teamLeaves, bsYear]);
+
   // Calendar cells mapping (Called unconditionally before any early return)
   const calendarDays = useMemo(() => {
     const days = [];
     const holidayList = holidays || [];
     const eventList = events || [];
+    const leaveList = teamLeaves || [];
 
     // Empty lead cells
     for (let i = 0; i < firstWeekday; i++) {
@@ -107,6 +149,9 @@ export function AdminCalendar({ me }) {
       const isoDate = bsDateToISO(bsYear, bsMonth, d);
       const dayHolidays = holidayList.filter((h) => h.date === isoDate);
       const dayEvents = eventList.filter((e) => e.date === isoDate);
+      const dayLeaves = leaveList.filter(
+        (l) => l.start_date <= isoDate && l.end_date >= isoDate,
+      );
       const isToday = isoDate === todayStr;
       const isPast = isoDate < todayStr;
       const greg = bs.toGreg(bsYear, bsMonth, d);
@@ -120,6 +165,7 @@ export function AdminCalendar({ me }) {
         isoDate,
         holidays: dayHolidays,
         events: dayEvents,
+        leaves: dayLeaves,
         isToday,
         isPast,
         isSaturday,
@@ -128,7 +174,7 @@ export function AdminCalendar({ me }) {
     }
 
     return days;
-  }, [bsYear, bsMonth, totalBSDays, firstWeekday, holidays, events, todayStr]);
+  }, [bsYear, bsMonth, totalBSDays, firstWeekday, holidays, events, teamLeaves, todayStr]);
 
   if (holidays === null || events === null || employees === null) return null;
 
@@ -354,6 +400,10 @@ export function AdminCalendar({ me }) {
                 <span className="w-2 h-2 rounded-full bg-pink-500" />
                 <span>Deadline</span>
               </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-purple-600" />
+                <span>Leave</span>
+              </div>
             </div>
           </div>
 
@@ -379,6 +429,8 @@ export function AdminCalendar({ me }) {
                   />
                 );
               }
+
+              const hasLeaves = cell.leaves && cell.leaves.length > 0;
 
               return (
                 <div
@@ -407,6 +459,14 @@ export function AdminCalendar({ me }) {
                     >
                       {cell.dayNumBS}
                     </span>
+
+                    {/* LEAVE INDICATOR DOT */}
+                    {hasLeaves && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-purple-600 shrink-0"
+                        title={`${cell.leaves.length} approved leave(s)`}
+                      />
+                    )}
                   </div>
 
                   {/* PILLS */}
@@ -463,6 +523,25 @@ export function AdminCalendar({ me }) {
                         </div>
                       );
                     })}
+
+                    {cell.leaves && cell.leaves.map((l) => {
+                      const empFirstName = l.employeeName ? l.employeeName.split(" ")[0] : "Emp";
+                      const isHalf = isHalfDayLeave(l);
+                      return (
+                        <div
+                          key={l.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDay(cell);
+                          }}
+                          className="text-[9px] sm:text-[10px] font-semibold px-1 sm:px-1.5 py-0.5 rounded truncate transition-transform hover:scale-[1.02] bg-purple-50 text-purple-700 border border-purple-200 shadow-2xs"
+                          title={`${l.employeeName || "Employee"}: ${l.type} Leave (${formatLeaveDays(l.days)})${l.reason ? ` - "${cleanLeaveReason(l.reason)}"` : ""}`}
+                        >
+                          <span className="font-bold">{empFirstName}</span>: {l.type}
+                          {isHalf && " (½d)"}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -470,119 +549,227 @@ export function AdminCalendar({ me }) {
           </div>
         </div>
 
-        {/* RIGHT: PUBLIC & COMPANY HOLIDAYS LIST */}
+        {/* RIGHT: PUBLIC & COMPANY HOLIDAYS + APPROVED LEAVES */}
         <div className="lg:col-span-4 bg-white border border-border rounded-2xl p-4 sm:p-5 shadow-2xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-border-light">
-            <h3 className="text-sm font-bold text-text">
-              Holidays ({bsYear})
-            </h3>
-            <span className="text-xs text-text-muted font-mono font-medium">
-              {holidays.length} listed
-            </span>
+            <div className="flex items-center gap-1 p-0.5 bg-surface-muted rounded-xl border border-border-light text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setRightSidebarTab("holidays")}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  rightSidebarTab === "holidays"
+                    ? "bg-white text-text shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                Holidays ({holidays.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightSidebarTab("leaves")}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  rightSidebarTab === "leaves"
+                    ? "bg-white text-purple-700 shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                <Sun size={12} />
+                <span>Leaves ({approvedLeavesForYear.length})</span>
+              </button>
+            </div>
+
+            {rightSidebarTab === "leaves" && (
+              <NavLink
+                to="/admin/leave"
+                className="text-[11px] font-semibold text-primary hover:text-primary-dark flex items-center gap-0.5 transition"
+              >
+                <span>Manage</span>
+                <ArrowRight size={11} />
+              </NavLink>
+            )}
           </div>
 
-          {holidays.length === 0 ? (
-            <div className="py-8 text-center text-xs text-text-muted">
-              No holidays registered for {bsYear}.
-            </div>
-          ) : (
-            <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
-              {holidays
-                .slice()
-                .sort((a, b) => a.date.localeCompare(b.date))
-                .map((h) => {
-                  const isPast = isPastDate(h.date);
-                  const isCompany = h.category === "company";
-                  const dotColor = isCompany ? "bg-success" : "bg-alert";
-                  const badgeClass = isCompany
-                    ? "bg-success-light text-success border-success/30"
-                    : "bg-alert-light text-alert border-alert/30";
+          {rightSidebarTab === "holidays" ? (
+            <>
+              {holidays.length === 0 ? (
+                <div className="py-8 text-center text-xs text-text-muted">
+                  No holidays registered for {bsYear}.
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                  {holidays
+                    .slice()
+                    .sort((a, b) => a.date.localeCompare(b.date))
+                    .map((h) => {
+                      const isPast = isPastDate(h.date);
+                      const isCompany = h.category === "company";
+                      const dotColor = isCompany ? "bg-success" : "bg-alert";
+                      const badgeClass = isCompany
+                        ? "bg-success-light text-success border-success/30"
+                        : "bg-alert-light text-alert border-alert/30";
 
-                  const bsDate = isoToBS(h.date);
+                      const bsDate = isoToBS(h.date);
 
-                  return (
-                    <div
-                      key={h.id}
-                      className={`group flex items-center justify-between p-3 rounded-xl border transition-colors ${
-                        isPast
-                          ? "bg-surface-muted/30 border-border-light opacity-80"
-                          : "bg-surface-muted/50 border-border-light hover:bg-surface-muted"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <span
-                          className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dotColor}`}
-                        />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <h4 className="text-xs font-bold text-text truncate">
-                              {h.name}
-                            </h4>
-                            {isPast && (
-                              <span className="text-[9px] text-text-muted bg-surface-muted px-1.5 py-0.2 rounded font-mono">
-                                Past
-                              </span>
+                      return (
+                        <div
+                          key={h.id}
+                          className={`group flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                            isPast
+                              ? "bg-surface-muted/30 border-border-light opacity-80"
+                              : "bg-surface-muted/50 border-border-light hover:bg-surface-muted"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <span
+                              className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dotColor}`}
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <h4 className="text-xs font-bold text-text truncate">
+                                  {h.name}
+                                </h4>
+                                {isPast && (
+                                  <span className="text-[9px] text-text-muted bg-surface-muted px-1.5 py-0.2 rounded font-mono">
+                                    Past
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] font-mono text-text-muted mt-0.5">
+                                {bsDate
+                                  ? `${bsDate.day} ${NEPALI_MONTHS[bsDate.month - 1]} ${bsDate.year}`
+                                  : h.date}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border capitalize ${badgeClass}`}
+                            >
+                              {h.category}
+                            </span>
+
+                            {isPast ? (
+                              <div
+                                className="p-1 text-text-faint"
+                                title="Past holidays cannot be edited"
+                              >
+                                <Lock size={12} />
+                              </div>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => openEditHoliday(h)}
+                                  className="p-1 text-text-muted hover:text-text rounded-lg hover:bg-surface-muted transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                                  title="Edit Holiday"
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Delete holiday "${h.name}"?`)) {
+                                      deleteHoliday(h.id);
+                                    }
+                                  }}
+                                  className="p-1 text-text-muted hover:text-alert rounded-lg hover:bg-alert-light transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                                  title="Delete Holiday"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </>
                             )}
                           </div>
-                          <p className="text-[11px] font-mono text-text-muted mt-0.5">
-                            {bsDate
-                              ? `${bsDate.day} ${NEPALI_MONTHS[bsDate.month - 1]} ${bsDate.year}`
-                              : h.date}
-                          </p>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+
+              {/* ADD HOLIDAY BUTTON */}
+              <button
+                onClick={() => openAddHoliday(todayStr)}
+                className="w-full py-2.5 rounded-xl border border-primary/30 text-primary hover:bg-primary-light/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Plus size={13} />
+                <span>Add Holiday</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {approvedLeavesForYear.length === 0 ? (
+                <div className="py-8 text-center text-xs text-text-muted">
+                  No approved employee leaves recorded for {bsYear}.
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                  {approvedLeavesForYear.map((l) => {
+                    const empColor = getEmployeeColor(l.employeeName || "User");
+                    const isHalf = isHalfDayLeave(l);
+                    const isSick = l.type === "Sick";
+                    const isPast = isPastDate(l.end_date);
+
+                    return (
+                      <div
+                        key={l.id}
+                        className={`p-3 rounded-xl border transition-colors space-y-1.5 ${
+                          isPast
+                            ? "bg-surface-muted/30 border-border-light opacity-80"
+                            : "bg-surface-muted/50 border-border-light hover:bg-surface-muted"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] text-white shrink-0 shadow-2xs"
+                              style={{ backgroundColor: empColor }}
+                            >
+                              {getInitials(l.employeeName || "Team")}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-text truncate block">
+                                {l.employeeName || "Employee"}
+                              </span>
+                              <span className="text-[10px] text-text-muted truncate block">
+                                {l.employeeTitle || l.employeeRole || "Staff"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                              isSick
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                                : "bg-purple-50 text-purple-700 border-purple-200"
+                            }`}
+                          >
+                            {l.type}
+                            {isHalf ? " (½d)" : ` (${l.days}d)`}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] font-mono text-text-muted">
+                          <span>{formatLeaveDates(l.start_date, l.end_date)}</span>
+                          {isPast && (
+                            <span className="text-[9px] text-text-muted bg-surface-muted px-1.5 py-0.2 rounded font-sans">
+                              Completed
+                            </span>
+                          )}
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border capitalize ${badgeClass}`}
-                        >
-                          {h.category}
-                        </span>
-
-                        {isPast ? (
-                          <div
-                            className="p-1 text-text-faint"
-                            title="Past holidays cannot be edited"
-                          >
-                            <Lock size={12} />
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => openEditHoliday(h)}
-                              className="p-1 text-text-muted hover:text-text rounded-lg hover:bg-surface-muted transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                              title="Edit Holiday"
-                            >
-                              <Pencil size={12} />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`Delete holiday "${h.name}"?`)) {
-                                  deleteHoliday(h.id);
-                                }
-                              }}
-                              className="p-1 text-text-muted hover:text-alert rounded-lg hover:bg-alert-light transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
-                              title="Delete Holiday"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+              <NavLink
+                to="/admin/leave"
+                className="w-full py-2.5 rounded-xl border border-primary/30 text-primary hover:bg-primary-light/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+              >
+                <span>Manage All Leave Requests</span>
+                <ArrowRight size={13} />
+              </NavLink>
+            </>
           )}
-
-          {/* ADD HOLIDAY BUTTON */}
-          <button
-            onClick={() => openAddHoliday(todayStr)}
-            className="w-full py-2.5 rounded-xl border border-primary/30 text-primary hover:bg-primary-light/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Plus size={13} />
-            <span>Add Holiday</span>
-          </button>
         </div>
       </div>
 
@@ -625,12 +812,13 @@ export function AdminCalendar({ me }) {
                 </h4>
 
                 {selectedDay.holidays.length === 0 &&
-                selectedDay.events.length === 0 ? (
+                selectedDay.events.length === 0 &&
+                (!selectedDay.leaves || selectedDay.leaves.length === 0) ? (
                   <div className="py-6 text-center text-xs text-text-muted bg-surface-muted rounded-xl border border-dashed border-border">
-                    No events or holidays scheduled for this date.
+                    No events, holidays, or leaves scheduled for this date.
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                     {selectedDay.holidays.map((h) => {
                       const isCompany = h.category === "company";
                       return (
@@ -716,6 +904,74 @@ export function AdminCalendar({ me }) {
                         </div>
                       );
                     })}
+
+                    {/* APPROVED LEAVES */}
+                    {selectedDay.leaves && selectedDay.leaves.length > 0 && (
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 block">
+                          On Leave ({selectedDay.leaves.length})
+                        </span>
+                        {selectedDay.leaves.map((l) => {
+                          const empColor = getEmployeeColor(l.employeeName || "User");
+                          const isHalf = isHalfDayLeave(l);
+                          const halfSession = getHalfDaySession(l);
+                          const cleanedReason = cleanLeaveReason(l.reason);
+
+                          return (
+                            <div
+                              key={l.id}
+                              className="p-3 rounded-xl border border-purple-200 bg-purple-50/70 text-text space-y-1.5 shadow-2xs"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div
+                                    className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] text-white shrink-0 shadow-2xs"
+                                    style={{ backgroundColor: empColor }}
+                                  >
+                                    {getInitials(l.employeeName || "Team")}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className="text-xs font-bold text-slate-900 block truncate">
+                                      {l.employeeName || "Employee"}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 block truncate">
+                                      {l.employeeTitle || l.employeeRole || "Staff"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border shrink-0 ${
+                                    l.type === "Sick"
+                                      ? "bg-rose-50 text-rose-700 border-rose-200"
+                                      : "bg-purple-100 text-purple-700 border-purple-200"
+                                  }`}
+                                >
+                                  {l.type} Leave
+                                  {isHalf && ` • ${SESSION_SHORT_LABELS[halfSession] || "Half Day"}`}
+                                </span>
+                              </div>
+
+                              <div className="text-[11px] text-slate-600 flex items-center justify-between">
+                                <span>
+                                  {fmtDate(l.start_date)}
+                                  {l.start_date !== l.end_date && ` → ${fmtDate(l.end_date)}`}
+                                </span>
+                                <span className="font-mono text-purple-700 font-semibold">
+                                  {formatLeaveDays(l.days)}
+                                </span>
+                              </div>
+
+                              {cleanedReason && (
+                                <p className="text-[11px] text-text-muted italic bg-white/70 p-2 rounded-lg border border-purple-100">
+                                  "{cleanedReason}"
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

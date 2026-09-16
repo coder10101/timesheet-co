@@ -7,6 +7,7 @@ const getCacheKey = (orgId) =>
   orgId ? `attendance_roster_cache_${orgId}` : "attendance_roster_cache";
 
 export const getCachedRoster = (orgId) => {
+  if (!orgId) return [];
   try {
     const key = getCacheKey(orgId);
     const raw = localStorage.getItem(key);
@@ -21,16 +22,16 @@ export const getCachedRoster = (orgId) => {
 };
 
 export const saveCachedRoster = (profiles, orgId) => {
-  if (!Array.isArray(profiles) || profiles.length === 0) return;
+  if (!orgId || !Array.isArray(profiles) || profiles.length === 0) return;
   try {
     const key = getCacheKey(orgId);
     const current = getCachedRoster(orgId);
     const map = new Map();
     current.forEach((p) => {
-      if (p?.id && (!orgId || p.org_id === orgId)) map.set(p.id, p);
+      if (p?.id && p.org_id === orgId) map.set(p.id, p);
     });
     profiles.forEach((p) => {
-      if (p?.id && (!orgId || p.org_id === orgId)) {
+      if (p?.id && p.org_id === orgId) {
         const existing = map.get(p.id) || {};
         map.set(p.id, { ...existing, ...p });
       }
@@ -42,26 +43,26 @@ export const saveCachedRoster = (profiles, orgId) => {
   } catch (_) {}
 };
 
-export function useRoster() {
+export function useRoster(explicitOrgId) {
   const qc = useQueryClient();
   const auth = useAuth();
-  const currentOrgId = auth?.profile?.org_id;
+  const currentOrgId = explicitOrgId || auth?.profile?.org_id;
   const key = ["roster", currentOrgId || "default"];
+
+  // Immediately purge legacy unscoped cache to prevent cross-org contamination
+  try {
+    localStorage.removeItem("attendance_roster_cache");
+  } catch (_) {}
 
   const query = useQuery({
     queryKey: key,
+    initialData: () => (currentOrgId ? getCachedRoster(currentOrgId) : undefined),
     queryFn: async () => {
-      // Clear legacy unscoped cache to prevent cross-org contamination
-      try {
-        localStorage.removeItem("attendance_roster_cache");
-      } catch (_) {}
-
       let queryBuilder = supabase
         .from("profiles")
         .select("*")
         .order("created_at", { ascending: true });
 
-      // Always scope to the current user's organization if known
       if (currentOrgId) {
         queryBuilder = queryBuilder.eq("org_id", currentOrgId);
       }
@@ -69,24 +70,24 @@ export function useRoster() {
       const { data, error } = await queryBuilder;
       if (error) throw error;
 
-      // Ensure strict organization isolation
-      let list = (data || []).filter(
-        (p) => !currentOrgId || p.org_id === currentOrgId,
-      );
+      // Ensure strict organization isolation when org_id is known
+      let list = currentOrgId
+        ? (data || []).filter((p) => p.org_id === currentOrgId)
+        : (data || []);
 
-      if (list.length > 1) {
+      if (currentOrgId && list.length > 0) {
         saveCachedRoster(list, currentOrgId);
-      } else {
+      } else if (currentOrgId) {
         const cached = getCachedRoster(currentOrgId);
-        if (cached.length > list.length) {
+        if (cached.length > 0) {
           const map = new Map();
           cached.forEach((p) => {
-            if (p?.id && (!currentOrgId || p.org_id === currentOrgId)) {
+            if (p?.id && p.org_id === currentOrgId) {
               map.set(p.id, p);
             }
           });
           list.forEach((p) => {
-            if (p?.id && (!currentOrgId || p.org_id === currentOrgId)) {
+            if (p?.id && p.org_id === currentOrgId) {
               map.set(p.id, { ...(map.get(p.id) || {}), ...p });
             }
           });

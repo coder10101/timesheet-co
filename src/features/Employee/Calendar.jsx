@@ -21,9 +21,17 @@ import {
   isoToBS,
   isoToBSLabel,
 } from "../../utils/nepaliCalendar";
-import { useHolidays, useEvents, useLeaveRequests } from "../../hooks/useOrgData";
+import {
+  useHolidays,
+  useEvents,
+  useLeaveRequests,
+  useTeamLeaves,
+} from "../../hooks/useOrgData";
 import { Card } from "../../components/Card";
 import { fmtDate, fmtTimeAmPm, todayISO } from "../../utils/workTime";
+import { getEmployeeColor } from "../../constants/colors";
+import { getInitials } from "../../constants/projectPresets";
+import { isHalfDayLeave, getHalfDaySession } from "../../utils/leaveUtils";
 
 export function EmployeeCalendar({ me }) {
   const todayBS = useMemo(() => getTodayBS(), []);
@@ -40,8 +48,9 @@ export function EmployeeCalendar({ me }) {
   const { holidays } = useHolidays();
   const { events } = useEvents();
   const { requests: myLeaves } = useLeaveRequests(me?.id, "mine");
+  const { teamLeaves } = useTeamLeaves(me?.org_id);
 
-  // Approved leave dates map
+  // Approved leave dates map for current user
   const approvedLeavesByIso = useMemo(() => {
     const map = new Map();
     (myLeaves || [])
@@ -62,6 +71,30 @@ export function EmployeeCalendar({ me }) {
       });
     return map;
   }, [myLeaves]);
+
+  // Approved leave dates map for teammates (coworkers)
+  const teammateLeavesByIso = useMemo(() => {
+    const map = new Map();
+    (teamLeaves || [])
+      .filter((r) => r.employee_id !== me?.id && r.status === "Approved")
+      .forEach((r) => {
+        const [sy, sm, sd] = r.start_date.split("-").map(Number);
+        const [ey, em, ed] = r.end_date.split("-").map(Number);
+        const start = new Date(sy, sm - 1, sd);
+        const end = new Date(ey, em - 1, ed);
+        const cur = new Date(start);
+        while (cur <= end) {
+          const y = cur.getFullYear();
+          const m = String(cur.getMonth() + 1).padStart(2, "0");
+          const d = String(cur.getDate()).padStart(2, "0");
+          const dateStr = `${y}-${m}-${d}`;
+          if (!map.has(dateStr)) map.set(dateStr, []);
+          map.get(dateStr).push(r);
+          cur.setDate(cur.getDate() + 1);
+        }
+      });
+    return map;
+  }, [teamLeaves, me?.id]);
 
   const holidaysByIso = useMemo(() => {
     const map = {};
@@ -114,6 +147,10 @@ export function EmployeeCalendar({ me }) {
   const selectedLeave = useMemo(() => {
     return approvedLeavesByIso.get(selectedDate);
   }, [approvedLeavesByIso, selectedDate]);
+
+  const selectedTeammateLeaves = useMemo(() => {
+    return teammateLeavesByIso.get(selectedDate) || [];
+  }, [teammateLeavesByIso, selectedDate]);
 
   const selectedEvents = useMemo(() => {
     return eventsByIso[selectedDate] || [];
@@ -171,16 +208,35 @@ export function EmployeeCalendar({ me }) {
         });
       });
 
-    // Approved leaves
+    // Approved personal leaves
     (myLeaves || [])
       .filter((l) => l.status === "Approved" && l.end_date >= today)
       .forEach((l) => {
         list.push({
           id: `leave-${l.id}`,
-          date: l.start_date,
+          date: l.start_date <= today ? today : l.start_date,
           time: null,
-          title: `${l.type} Leave (${l.days} days)`,
+          title: `My ${l.type} Leave (${l.days}d)`,
           category: "leave",
+          meta: l,
+        });
+      });
+
+    // Approved teammate leaves
+    (teamLeaves || [])
+      .filter(
+        (l) =>
+          l.employee_id !== me?.id &&
+          l.status === "Approved" &&
+          l.end_date >= today,
+      )
+      .forEach((l) => {
+        list.push({
+          id: `team-leave-${l.id}`,
+          date: l.start_date <= today ? today : l.start_date,
+          time: null,
+          title: `${l.employeeName || "Teammate"}: ${l.type} Leave`,
+          category: "team-leave",
           meta: l,
         });
       });
@@ -191,7 +247,10 @@ export function EmployeeCalendar({ me }) {
         if (feedFilter === "deadlines") return item.category === "deadline";
         if (feedFilter === "meetings") return item.category === "meeting";
         if (feedFilter === "holidays") return item.category === "holiday";
-        if (feedFilter === "leaves") return item.category === "leave";
+        if (feedFilter === "leaves")
+          return item.category === "leave" || item.category === "team-leave";
+        if (feedFilter === "team-leaves")
+          return item.category === "team-leave";
         return true;
       })
       .sort(
@@ -199,8 +258,8 @@ export function EmployeeCalendar({ me }) {
           a.date.localeCompare(b.date) ||
           (a.time || "").localeCompare(b.time || ""),
       )
-      .slice(0, 8);
-  }, [holidays, events, myLeaves, today, feedFilter]);
+      .slice(0, 10);
+  }, [holidays, events, myLeaves, teamLeaves, me?.id, today, feedFilter]);
 
   const jumpToDate = (iso) => {
     const bs = isoToBS(iso);
@@ -319,6 +378,8 @@ export function EmployeeCalendar({ me }) {
               const isSelected = cell.isoDate === selectedDate;
               const isHoliday = !!cell.holidayName;
               const isLeave = approvedLeavesByIso.has(cell.isoDate);
+              const cellTeammateLeaves = teammateLeavesByIso.get(cell.isoDate) || [];
+              const hasTeammateLeave = cellTeammateLeaves.length > 0;
               const isSaturday = cell.isWeekend;
 
               const cellEvents = cell.events || [];
@@ -362,7 +423,9 @@ export function EmployeeCalendar({ me }) {
                                 ? "border-alert/20 bg-alert-light/30 hover:border-alert/40"
                                 : isLeave
                                   ? "border-purple-200 bg-purple-50/50 hover:border-purple-300"
-                                  : "border-border-light bg-white hover:border-border hover:bg-surface-muted/40"
+                                  : hasTeammateLeave
+                                    ? "border-amber-200 bg-amber-50/40 hover:border-amber-300"
+                                    : "border-border-light bg-white hover:border-border hover:bg-surface-muted/40"
                     }
                   `}
                 >
@@ -378,7 +441,9 @@ export function EmployeeCalendar({ me }) {
                               ? "text-alert"
                               : isLeave
                                 ? "text-purple-700"
-                                : "text-text"
+                                : hasTeammateLeave
+                                  ? "text-amber-800"
+                                  : "text-text"
                       }`}
                     >
                       {cell.bsDay}
@@ -428,17 +493,36 @@ export function EmployeeCalendar({ me }) {
                       </div>
                     )}
 
-                    {/* LEAVE CHIP */}
+                    {/* PERSONAL LEAVE CHIP */}
                     {isLeave &&
                       !isHoliday &&
                       !hasDeadline &&
                       !hasMeeting && (
                         <div
                           className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200 text-[8px] font-semibold truncate leading-tight"
-                          title="Approved Leave"
+                          title="Your Approved Leave"
                         >
                           <Sun size={7} className="shrink-0 text-purple-600" />
-                          <span className="truncate">Leave</span>
+                          <span className="truncate">My Leave</span>
+                        </div>
+                      )}
+
+                    {/* TEAMMATE LEAVE CHIP */}
+                    {hasTeammateLeave &&
+                      !isLeave &&
+                      !isHoliday &&
+                      !hasDeadline &&
+                      !hasMeeting && (
+                        <div
+                          className="flex items-center gap-0.5 px-1 py-0.5 rounded bg-amber-100/70 text-amber-800 border border-amber-200 text-[8px] font-semibold truncate leading-tight shadow-2xs"
+                          title={`Teammate on Leave: ${cellTeammateLeaves.map((t) => t.employeeName).join(", ")}`}
+                        >
+                          <Users size={7} className="shrink-0 text-amber-700" />
+                          <span className="truncate">
+                            {cellTeammateLeaves.length === 1
+                              ? `${cellTeammateLeaves[0].employeeName?.split(" ")[0]} (Away)`
+                              : `${cellTeammateLeaves.length} Away`}
+                          </span>
                         </div>
                       )}
                   </div>
@@ -472,7 +556,13 @@ export function EmployeeCalendar({ me }) {
                     {isLeave && (
                       <span
                         className="w-1.5 h-1.5 rounded-full bg-purple-600 shrink-0"
-                        title="Approved Leave"
+                        title="Your Approved Leave"
+                      />
+                    )}
+                    {hasTeammateLeave && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"
+                        title={`${cellTeammateLeaves.length} teammate(s) on leave`}
                       />
                     )}
                     {isToday && (
@@ -508,7 +598,12 @@ export function EmployeeCalendar({ me }) {
             </span>
             <span className="flex items-center gap-1.5 font-medium">
               <span className="w-2.5 h-2.5 rounded-full bg-purple-600" />
-              Leave
+              My Leave
+            </span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <Users size={10} className="text-amber-600" />
+              Teammate on Leave
             </span>
           </div>
         </div>
@@ -548,7 +643,7 @@ export function EmployeeCalendar({ me }) {
                   <Sun size={16} className="shrink-0 mt-0.5 text-purple-600" />
                   <div>
                     <h4 className="text-xs font-semibold">
-                      Approved {selectedLeave.type} Leave
+                      Approved {selectedLeave.type} Leave (You)
                     </h4>
                     <p className="text-[11px] text-purple-600/80 mt-0.5">
                       {selectedLeave.days} day
@@ -562,6 +657,60 @@ export function EmployeeCalendar({ me }) {
                       </p>
                     )}
                   </div>
+                </div>
+              )}
+
+              {/* TEAMMATES ON LEAVE SECTION */}
+              {selectedTeammateLeaves.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                    <Users size={12} className="text-amber-600" />
+                    <span>Teammates Out of Office ({selectedTeammateLeaves.length})</span>
+                  </h4>
+                  {selectedTeammateLeaves.map((tl) => {
+                    const empColor = getEmployeeColor(tl.employeeName || "User");
+                    const isHalf = isHalfDayLeave(tl);
+                    const session = getHalfDaySession(tl);
+                    return (
+                      <div
+                        key={tl.id}
+                        className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 text-text space-y-1 shadow-2xs"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-[9px] text-white shrink-0"
+                              style={{ backgroundColor: empColor }}
+                            >
+                              {getInitials(tl.employeeName || "Team")}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs font-bold text-slate-900 block truncate">
+                                {tl.employeeName}
+                              </span>
+                              <span className="text-[10px] text-slate-500 block truncate">
+                                {tl.employeeTitle || tl.employeeRole || "Teammate"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold border shrink-0 ${
+                              tl.type === "Sick"
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}
+                          >
+                            {tl.type} Leave
+                            {isHalf && ` • ${session === "first" ? "1st Half" : "2nd Half"}`}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-600">
+                          {fmtDate(tl.start_date)} to {fmtDate(tl.end_date)} ({tl.days} day{tl.days !== 1 ? "s" : ""})
+                        </p>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -709,10 +858,10 @@ export function EmployeeCalendar({ me }) {
               {/* EMPTY DAY NOTE */}
               {!selectedHoliday &&
                 !selectedLeave &&
+                selectedTeammateLeaves.length === 0 &&
                 selectedEvents.length === 0 && (
                   <div className="py-6 text-center text-xs text-text-muted bg-surface-muted/40 rounded-xl border border-dashed border-border-light">
-                    Regular working day · No meetings, deadlines, or holidays
-                    scheduled.
+                    Regular working day · No meetings, deadlines, holidays, or leaves.
                   </div>
                 )}
             </div>
@@ -765,6 +914,26 @@ export function EmployeeCalendar({ me }) {
               >
                 Holidays
               </button>
+              <button
+                onClick={() => setFeedFilter("leaves")}
+                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
+                  feedFilter === "leaves"
+                    ? "bg-white text-purple-700 shadow-xs font-bold"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                My Leaves
+              </button>
+              <button
+                onClick={() => setFeedFilter("team-leaves")}
+                className={`px-2.5 py-1 rounded-lg font-semibold transition-colors shrink-0 ${
+                  feedFilter === "team-leaves"
+                    ? "bg-white text-amber-800 shadow-xs font-bold"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                Team Leaves
+              </button>
             </div>
 
             {upcomingFeed.length === 0 ? (
@@ -777,6 +946,7 @@ export function EmployeeCalendar({ me }) {
                 {upcomingFeed.map((item) => {
                   const isHoliday = item.category === "holiday";
                   const isLeave = item.category === "leave";
+                  const isTeamLeave = item.category === "team-leave";
                   const isDeadline = item.category === "deadline";
                   const isMeeting = item.category === "meeting";
 
@@ -788,7 +958,9 @@ export function EmployeeCalendar({ me }) {
                         ? "bg-[#EEF6F8] text-[#1E4E5F] border-[#C5DCE4]"
                         : isLeave
                           ? "bg-purple-50 text-purple-700 border border-purple-200"
-                          : "bg-warning-light text-warning border-warning/20";
+                          : isTeamLeave
+                            ? "bg-amber-50 text-amber-800 border border-amber-200"
+                            : "bg-warning-light text-warning border-warning/20";
 
                   const Icon = isHoliday
                     ? PartyPopper
@@ -798,7 +970,9 @@ export function EmployeeCalendar({ me }) {
                         ? Users
                         : isLeave
                           ? Sun
-                          : CalendarClock;
+                          : isTeamLeave
+                            ? Users
+                            : CalendarClock;
 
                   return (
                     <button
