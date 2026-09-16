@@ -1,4 +1,6 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./lib/AuthProvider";
 import Login from "./components/Login";
 import { Dashboard } from "./features/Dashboard";
@@ -27,6 +29,10 @@ export default function App() {
 }
 
 function Root() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+
   const {
     isAuthLoading,
     user,
@@ -35,6 +41,44 @@ function Root() {
     signOut,
     revokedNotice,
   } = useAuth();
+
+  // Listen for service worker notification clicks to refresh / invalidate queries
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    const handleMessage = (event) => {
+      if (event.data?.type === "NOTIFICATION_CLICK") {
+        const rawLink = event.data.link || "/";
+        const targetUrl = new URL(rawLink, window.location.origin);
+        const targetPath = targetUrl.pathname;
+
+        // Invalidate all query caches immediately
+        queryClient.invalidateQueries();
+
+        const normCurrent = location.pathname.replace(/\/+$/, "") || "/";
+        const normTarget = targetPath.replace(/\/+$/, "") || "/";
+
+        if (
+          normCurrent === normTarget ||
+          (normTarget === "/" && normCurrent === "/overview")
+        ) {
+          // If already on the target route, perform a clean reload to refresh all data & components
+          window.location.reload();
+        } else {
+          // Navigate to target route and invalidate queries
+          navigate(targetPath + targetUrl.search);
+          setTimeout(() => {
+            queryClient.invalidateQueries();
+          }, 100);
+        }
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleMessage);
+    };
+  }, [navigate, location.pathname, queryClient]);
 
   if (isAuthLoading || (user && profileLoading && !profile)) {
     return (

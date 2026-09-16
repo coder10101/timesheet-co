@@ -51,11 +51,17 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     clients
       .matchAll({ type: "window", includeUncontrolled: true })
-      .then((windowClients) => {
+      .then(async (windowClients) => {
         // Focus an existing tab if the app is already open
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin)) {
-            client.focus();
+            await client.focus();
+            client.postMessage({
+              type: "NOTIFICATION_CLICK",
+              link: rawLink,
+              url: targetUrl,
+              timestamp: Date.now(),
+            });
             return client.navigate(targetUrl);
           }
         }
