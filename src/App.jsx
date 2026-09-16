@@ -99,6 +99,9 @@ function Root() {
                 path="calendar"
                 element={<EmployeeCalendar me={profile} />}
               />
+              <Route path="worklogs" element={<Navigate to="/worklog" replace />} />
+              <Route path="work-logs" element={<Navigate to="/worklog" replace />} />
+              <Route path="leave-approvals" element={<Navigate to="/leave" replace />} />
             </>
           )}
           {isAdmin && (
@@ -109,7 +112,10 @@ function Root() {
                 path="leave-approvals"
                 element={<AdminLeave me={profile} />}
               />
+              <Route path="leave" element={<Navigate to="/leave-approvals" replace />} />
               <Route path="worklogs" element={<AdminWorklogs />} />
+              <Route path="worklog" element={<Navigate to="/worklogs" replace />} />
+              <Route path="work-logs" element={<Navigate to="/worklogs" replace />} />
               <Route path="projects" element={<AdminProjects me={profile} />} />
               <Route
                 path="projects/:projectId"
