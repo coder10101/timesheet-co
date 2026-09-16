@@ -17,10 +17,8 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { getEmployeeColor } from "../constants/colors";
 import { OfficeHoursProvider } from "../constants/officeHours";
 import { NotificationCenter } from "../components/NotificationCenter";
-import { useAttendanceReminders } from "../hooks/useAttendanceReminders";
 
 export function Dashboard({ me, onLogout }) {
-  useAttendanceReminders(me);
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
   const location = useLocation();
   const isAdmin = me.role === "admin";
