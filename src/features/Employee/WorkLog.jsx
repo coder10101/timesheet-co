@@ -575,75 +575,80 @@ export function EmployeeWorklog({ me }) {
         )}
 
         {/* CONTROLS ROW UNDER THE TEXT FIELD */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          {/* DATE PICKER & PROJECT */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
-            <div className="w-full sm:w-72 md:w-80 shrink-0">
-              <NepaliDatePicker
-                value={selectedDate}
-                max={todayISO()}
-                onChange={setSelectedDate}
-                placeholder="Select date"
-              />
+        <div className="space-y-2.5">
+          {/* INPUTS & DESKTOP ACTIONS */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            {/* DATE PICKER & PROJECT */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1 min-w-0">
+              <div className="w-full sm:w-72 md:w-80 shrink-0">
+                <NepaliDatePicker
+                  value={selectedDate}
+                  max={todayISO()}
+                  onChange={setSelectedDate}
+                  placeholder="Select date"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <select
+                  value={projectId}
+                  onChange={(e) => handleProjectChange(e.target.value)}
+                  className="h-10 w-full sm:w-44 bg-white border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary shadow-2xs cursor-pointer truncate min-w-0"
+                >
+                  <option value="">No Project</option>
+                  {activeProjects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}{project.current_stage ? ` • [${project.current_stage}]` : ""}
+                    </option>
+                  ))}
+                </select>
+
+                {projectId && projectMap.get(projectId) && (
+                  <span
+                    className={`hidden sm:inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold border shrink-0 ${getAssignedRoleBadgeClass(
+                      getArchitectAssignedRole(projectMap.get(projectId), me?.id)
+                    )}`}
+                    title={`Your assigned scope on this project: ${getArchitectAssignedRole(projectMap.get(projectId), me?.id)}`}
+                  >
+                    {getAssignedRoleBadgeText(getArchitectAssignedRole(projectMap.get(projectId), me?.id))}
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <select
-                value={projectId}
-                onChange={(e) => handleProjectChange(e.target.value)}
-                className="h-10 flex-1 sm:flex-initial sm:w-44 bg-white border border-border rounded-xl px-3 text-xs font-semibold text-text outline-none focus:border-primary shadow-2xs cursor-pointer truncate"
-              >
-                <option value="">No Project</option>
-                {activeProjects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}{project.current_stage ? ` • [${project.current_stage}]` : ""}
-                  </option>
-                ))}
-              </select>
-
-              {projectId && projectMap.get(projectId) && (
-                <span
-                  className={`hidden sm:inline-flex items-center px-2 py-1 rounded-lg text-[11px] font-semibold border shrink-0 ${getAssignedRoleBadgeClass(
-                    getArchitectAssignedRole(projectMap.get(projectId), me?.id)
-                  )}`}
-                  title={`Your assigned scope on this project: ${getArchitectAssignedRole(projectMap.get(projectId), me?.id)}`}
-                >
-                  {getAssignedRoleBadgeText(getArchitectAssignedRole(projectMap.get(projectId), me?.id))}
-                </span>
-              )}
-
-              {/* Mobile Action Buttons */}
-              <div className="flex sm:hidden items-center gap-1.5 shrink-0">
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="h-10 px-2.5 text-xs text-text-muted hover:text-text rounded-xl hover:bg-surface-muted transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                )}
-
+            {/* Desktop Action Buttons */}
+            <div className="hidden sm:flex items-center justify-end gap-2 shrink-0">
+              {editingId && (
                 <button
                   type="button"
-                  onClick={saveEntry}
-                  disabled={!text.trim() || saving}
-                  className="h-10 flex items-center gap-1 px-3 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 shrink-0 cursor-pointer"
+                  onClick={resetForm}
+                  className="h-10 px-3 text-xs text-text-muted hover:text-text rounded-xl hover:bg-surface-muted transition-colors cursor-pointer"
                 >
-                  {editingId ? <Check size={13} /> : <Plus size={13} />}
-                  <span>{saving ? "..." : editingId ? "Update" : "Add"}</span>
+                  Cancel
                 </button>
-              </div>
+              )}
+
+              <button
+                type="button"
+                onClick={saveEntry}
+                disabled={!text.trim() || saving}
+                className="h-10 flex items-center gap-1.5 px-4 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 shrink-0 cursor-pointer"
+              >
+                {editingId ? <Check size={13} /> : <Plus size={13} />}
+                <span>
+                  {saving ? "Saving..." : editingId ? "Update Log" : "Add Log"}
+                </span>
+              </button>
             </div>
           </div>
 
-          {/* Desktop Action Buttons */}
-          <div className="hidden sm:flex items-center justify-end gap-2 shrink-0">
+          {/* Dedicated Mobile Action Buttons (Full-width, touch-friendly, never squeezed) */}
+          <div className="flex sm:hidden items-center gap-2 pt-1">
             {editingId && (
               <button
                 type="button"
                 onClick={resetForm}
-                className="h-10 px-3 text-xs text-text-muted hover:text-text rounded-xl hover:bg-surface-muted transition-colors cursor-pointer"
+                className="h-11 px-4 text-xs font-semibold text-text-muted hover:text-text rounded-xl bg-surface-muted border border-border-light transition-colors cursor-pointer shrink-0"
               >
                 Cancel
               </button>
@@ -653,11 +658,15 @@ export function EmployeeWorklog({ me }) {
               type="button"
               onClick={saveEntry}
               disabled={!text.trim() || saving}
-              className="h-10 flex items-center gap-1.5 px-4 rounded-xl bg-primary hover:bg-primary-dark active:scale-95 text-white text-xs font-semibold shadow-xs transition-all disabled:opacity-40 shrink-0 cursor-pointer"
+              className="flex-1 h-11 flex items-center justify-center gap-1.5 px-4 rounded-xl bg-primary hover:bg-primary-dark active:scale-98 text-white text-xs font-bold shadow-xs transition-all disabled:opacity-40 cursor-pointer"
             >
-              {editingId ? <Check size={13} /> : <Plus size={13} />}
+              {editingId ? <Check size={15} /> : <Plus size={15} />}
               <span>
-                {saving ? "Saving..." : editingId ? "Update Log" : "Add Log"}
+                {saving
+                  ? "Saving..."
+                  : editingId
+                    ? "Update Work Log"
+                    : "Add Work Log"}
               </span>
             </button>
           </div>
@@ -923,6 +932,26 @@ export function EmployeeWorklog({ me }) {
                             </div>
                           );
                         })}
+                        {/* Action to add another log for this specific day */}
+                        <div className="pt-2 mt-1 border-t border-border-light flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedDate(date);
+                              setEditingId(null);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                              setTimeout(() => {
+                                textareaRef.current?.focus();
+                              }, 100);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-primary hover:bg-primary/5 active:scale-95 transition-all cursor-pointer"
+                          >
+                            <Plus size={13} />
+                            <span>Add log for this day</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

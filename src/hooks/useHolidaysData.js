@@ -244,14 +244,30 @@ export function useOrganization(orgId) {
   const updateOfficeHours = useMutation({
     mutationFn: async (newOfficeHours) => {
       if (!orgId) throw new Error("Organization ID is required.");
-      const { error } = await supabase
+      const currentHours = query.data?.office_hours || {};
+      const mergedHours = {
+        ...currentHours,
+        ...newOfficeHours,
+      };
+
+      const { data, error } = await supabase
         .from("organizations")
-        .update({ office_hours: newOfficeHours })
-        .eq("id", orgId);
+        .update({ office_hours: mergedHours })
+        .eq("id", orgId)
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Could not update office hours: no permission or record not found. Please run the SQL migration to enable admin RLS policies on organizations table.",
+        );
+      }
+      return data[0];
     },
-    onSuccess: () => {
+    onSuccess: (updatedOrg) => {
+      if (updatedOrg) {
+        qc.setQueryData(key, (old) => ({ ...(old || {}), ...updatedOrg }));
+      }
       qc.invalidateQueries({ queryKey: key });
       qc.invalidateQueries({ queryKey: ["attendance"] });
       qc.invalidateQueries({ queryKey: ["work-hours"] });
@@ -273,27 +289,42 @@ export function useOrganization(orgId) {
         projectConfig,
       };
 
-      try {
-        const { error } = await supabase
-          .from("organizations")
-          .update({ office_hours: newOfficeHours, settings: newSettings })
-          .eq("id", orgId);
-        if (error) {
-          const { error: err2 } = await supabase
-            .from("organizations")
-            .update({ office_hours: newOfficeHours })
-            .eq("id", orgId);
-          if (err2) throw err2;
-        }
-      } catch (err) {
-        const { error: err2 } = await supabase
+      let updatedOrg = null;
+      // Try updating both office_hours and settings
+      const res1 = await supabase
+        .from("organizations")
+        .update({ office_hours: newOfficeHours, settings: newSettings })
+        .eq("id", orgId)
+        .select();
+
+      if (res1.error) {
+        // If settings column doesn't exist yet (PGRST204), gracefully persist to office_hours
+        const res2 = await supabase
           .from("organizations")
           .update({ office_hours: newOfficeHours })
-          .eq("id", orgId);
-        if (err2) throw err2;
+          .eq("id", orgId)
+          .select();
+        if (res2.error) throw res2.error;
+        if (!res2.data || res2.data.length === 0) {
+          throw new Error(
+            "Could not update project settings: no permission or record not found. Please run the SQL migration.",
+          );
+        }
+        updatedOrg = res2.data[0];
+      } else {
+        if (!res1.data || res1.data.length === 0) {
+          throw new Error(
+            "Could not update project settings: no permission or record not found. Please run the SQL migration.",
+          );
+        }
+        updatedOrg = res1.data[0];
       }
+      return updatedOrg;
     },
-    onSuccess: () => {
+    onSuccess: (updatedOrg) => {
+      if (updatedOrg) {
+        qc.setQueryData(key, (old) => ({ ...(old || {}), ...updatedOrg }));
+      }
       qc.invalidateQueries({ queryKey: key });
     },
   });

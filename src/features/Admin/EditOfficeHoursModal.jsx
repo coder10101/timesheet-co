@@ -48,9 +48,13 @@ const PRESETS = [
 
 const GRACE_OPTIONS = [15, 30, 45, 60];
 
-export function EditOfficeHoursModal({ isOpen, onClose, orgId }) {
+export function EditOfficeHoursModal({ isOpen, onClose, orgId: propOrgId }) {
   const currentOfficeHours = useOfficeHours();
-  const { updateOfficeHours } = useOrganization(orgId);
+  const effectiveOrgId =
+    propOrgId ||
+    currentOfficeHours?.orgId ||
+    "00000000-0000-0000-0000-000000000001";
+  const { updateOfficeHours } = useOrganization(effectiveOrgId);
 
   const [workDayHours, setWorkDayHours] = useState(
     currentOfficeHours.workDayHours ?? 7,

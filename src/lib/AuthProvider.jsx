@@ -105,24 +105,57 @@ export function AuthProvider({ children }) {
   }, [fetchProfile]);
 
   // step 1: send a one-time code to the given email.
-  // `name` is only used the first time this email signs up (stored as raw_user_meta_data.name
+  // `name` is only used when signing up (stored as raw_user_meta_data.name
   // and picked up by the handle_new_user() trigger in schema.sql).
-  const sendOtp = async (email, name, orgCode) => {
-    const { data: isValid, error: codeError } = await supabase.rpc(
-      "validate_org_code",
-      { code: orgCode },
-    );
-    if (codeError) throw codeError;
-    if (!isValid)
-      throw new Error(
-        "That organization code isn't valid. Check with your admin.",
+  // `shouldCreateUser` defaults to false to prevent uninvited/wrong emails from creating ghost profiles.
+  const sendOtp = async (
+    email,
+    name,
+    orgCode,
+    { shouldCreateUser = false } = {},
+  ) => {
+    // Only validate organization code when a new employee is joining
+    if (shouldCreateUser) {
+      if (!orgCode || !orgCode.trim()) {
+        throw new Error("Organization code is required to join.");
+      }
+      const { data: isValid, error: codeError } = await supabase.rpc(
+        "validate_org_code",
+        { code: orgCode.trim() },
       );
+      if (codeError) throw codeError;
+      if (!isValid)
+        throw new Error(
+          "That organization code isn't valid. Check with your admin.",
+        );
+    }
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { data: { name, org_code: orgCode }, shouldCreateUser: true },
+      options: {
+        data: shouldCreateUser
+          ? { name: name || undefined, org_code: orgCode || undefined }
+          : undefined,
+        shouldCreateUser: Boolean(shouldCreateUser),
+      },
     });
-    if (error) throw error;
+
+    if (error) {
+      const msg = (error.message || "").toLowerCase();
+      if (
+        !shouldCreateUser &&
+        (msg.includes("user not found") ||
+          msg.includes("signups not allowed") ||
+          msg.includes("sign up") ||
+          error.status === 400 ||
+          error.code === "user_not_found")
+      ) {
+        throw new Error(
+          "No employee account found with this email. Please check your email or join as a new member.",
+        );
+      }
+      throw error;
+    }
   };
 
   // step 2: verify the 6-digit code the user received by email
