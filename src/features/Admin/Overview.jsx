@@ -61,7 +61,7 @@ export function AdminOverview({ me }) {
     return monthStart < weekStart ? monthStart : weekStart;
   }, [today, todayBS.year, todayBS.month]);
 
-  const { employees } = useRoster();
+  const { employees, activeStaff } = useRoster();
   const { requests: allLeave, decide: decideLeave } = useLeaveRequests(
     null,
     "org",
@@ -78,13 +78,17 @@ export function AdminOverview({ me }) {
   const [statusFilter, setStatusFilter] = useState("all"); // "all" | "Present" | "Late" | "On Leave" | "Absent"
   const [showHoursModal, setShowHoursModal] = useState(false);
 
-  // Trackable staff: exclude admins from absence counting
-  // Trackable staff: exclude admins from attendance tracking
+  // Trackable staff: exclude admins and inactive/revoked staff from attendance tracking & absence counting
   const trackableEmployees = useMemo(() => {
+    if (activeStaff && activeStaff.length > 0) return activeStaff;
     if (!employees) return [];
-    const regularStaff = employees.filter(isRegularStaff);
-    return regularStaff.length > 0 ? regularStaff : employees;
-  }, [employees]);
+    const regularActiveStaff = employees.filter(
+      (e) => isRegularStaff(e) && e.is_active !== false,
+    );
+    return regularActiveStaff.length > 0
+      ? regularActiveStaff
+      : employees.filter((e) => e.is_active !== false);
+  }, [activeStaff, employees]);
 
   // 7-day schedule horizon
   const horizonDates = useMemo(() => {
@@ -553,7 +557,7 @@ export function AdminOverview({ me }) {
               {/* FILTER PILLS */}
               <div className="flex flex-wrap items-center gap-1 text-[10px]">
                 {[
-                  { id: "all", label: `All (${employees?.length || 0})` },
+                  { id: "all", label: `All (${trackableEmployees.length})` },
                   { id: "Present", label: `Present (${onTimeCount})` },
                   { id: "On Break", label: `On Break (${onBreakCount})` },
                   { id: "Late", label: `Late (${lateCount})` },

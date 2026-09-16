@@ -56,6 +56,8 @@ export function ProjectTableView({
     const stats = projectStats?.get ? projectStats.get(p.id) : null;
     const currentStatus = stats?.status || p.status || "Active";
     const leadName = getLeadName(p, empMap);
+    const leadEmp = p.lead_architect_id && empMap?.get ? empMap.get(p.lead_architect_id) : null;
+    const isLeadInactive = leadEmp ? leadEmp.is_active === false : false;
     const subs = getSubArchitectsList(p, empMap, projectStats);
 
     const hasD = Boolean(
@@ -137,13 +139,17 @@ export function ProjectTableView({
               {leadName ? (
                 <div className="flex flex-col items-start gap-1 group/arch relative">
                   <span
-                    className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-300/80 text-xs font-semibold cursor-pointer transition-colors hover:bg-slate-200/80"
-                    title={`Lead ${leadLabel}: ${leadName}`}
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                      isLeadInactive
+                        ? "bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100"
+                        : "bg-slate-100 text-slate-800 border border-slate-300/80 hover:bg-slate-200/80"
+                    }`}
+                    title={`Lead ${leadLabel}: ${leadName}${isLeadInactive ? " (Inactive)" : ""}`}
                   >
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isLeadInactive ? "bg-rose-500" : "bg-slate-400"}`} />
                     <span>{getInitials(leadName)}</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                      Lead
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                      {isLeadInactive ? "Inactive Lead" : "Lead"}
                     </span>
                   </span>
                   <span
@@ -157,6 +163,7 @@ export function ProjectTableView({
                   <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/arch:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-900 text-white text-[10px] font-medium shadow-md whitespace-nowrap z-30 pointer-events-none">
                     <span>
                       Lead {leadLabel}: {leadName}
+                      {isLeadInactive ? " (Inactive)" : ""}
                     </span>
                     <span className="text-slate-400 font-bold">
                       • {p.lead_architect_role || "Design"}
@@ -177,6 +184,8 @@ export function ProjectTableView({
                   const isExt = Boolean(
                     typeof s === "object" && s.isExternal,
                   );
+                  const isInactive =
+                    typeof s === "object" && s.isActive === false;
                   return (
                     <div
                       key={idx}
@@ -184,21 +193,31 @@ export function ProjectTableView({
                     >
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
-                          isExt
-                            ? "bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100"
-                            : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                          isInactive
+                            ? "bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100"
+                            : isExt
+                              ? "bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100"
+                              : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900"
                         }`}
                         title={
-                          isExt
-                            ? `External Collaborator: ${sName}`
-                            : `Sub-${leadLabel}: ${sName}`
+                          isInactive
+                            ? `Inactive Contributor: ${sName}`
+                            : isExt
+                              ? `External Collaborator: ${sName}`
+                              : `Sub-${leadLabel}: ${sName}`
                         }
                       >
                         <span>{getInitials(sName)}</span>
                         <span
-                          className={`text-[9px] font-bold uppercase tracking-wider ${isExt ? "text-amber-700" : "text-slate-400"}`}
+                          className={`text-[9px] font-bold uppercase tracking-wider ${
+                            isInactive
+                              ? "text-rose-600"
+                              : isExt
+                                ? "text-amber-700"
+                                : "text-slate-400"
+                          }`}
                         >
-                          {isExt ? "Ext" : "Sub"}
+                          {isInactive ? "Inactive" : isExt ? "Ext" : "Sub"}
                         </span>
                       </span>
                       <span

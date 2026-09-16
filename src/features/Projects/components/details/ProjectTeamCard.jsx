@@ -41,8 +41,13 @@ export function ProjectTeamCard({
                 {getInitials(leadArchitect.name)}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-900 truncate">
-                  {leadArchitect.name}
+                <p className="text-xs font-bold text-slate-900 truncate flex items-center gap-1.5">
+                  <span className="truncate">{leadArchitect.name}</span>
+                  {leadArchitect.is_active === false && (
+                    <span className="text-[9px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.2 shrink-0">
+                      Inactive
+                    </span>
+                  )}
                 </p>
                 <p className="text-[10px] text-slate-400 truncate">
                   {leadArchitect.email || leadArchitect.role || "Lead Architect"}
@@ -89,8 +94,13 @@ export function ProjectTeamCard({
                     {getInitials(sub.name)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-900 truncate">
-                      {sub.name}
+                    <p className="text-xs font-semibold text-slate-900 truncate flex items-center gap-1.5">
+                      <span className="truncate">{sub.name}</span>
+                      {(sub.is_active === false || sub.isActive === false) && (
+                        <span className="text-[9px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.2 shrink-0">
+                          Inactive
+                        </span>
+                      )}
                     </p>
                     <p className="text-[10px] text-slate-400 truncate">
                       {sub.isExternal

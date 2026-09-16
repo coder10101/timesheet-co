@@ -206,14 +206,21 @@ export function ProjectFormModal({
   }, [project, isOpen]);
 
   // Exclude admin members from being assigned as lead/sub
+  // Also exclude revoked/inactive staff unless they are already assigned to this project
   const assignableEmployees = useMemo(() => {
-    return (employees || []).filter(
-      (emp) =>
-        (emp.role || "").toLowerCase() !== "admin" &&
-        !emp.is_admin &&
-        (emp.role || "").toLowerCase() !== "administrator",
-    );
-  }, [employees]);
+    return (employees || []).filter((emp) => {
+      const isRoleAdmin =
+        (emp.role || "").toLowerCase() === "admin" ||
+        emp.is_admin ||
+        (emp.role || "").toLowerCase() === "administrator";
+      if (isRoleAdmin) return false;
+
+      // Allow active employees OR staff already assigned as lead or sub on this project
+      const isAlreadyAssigned =
+        emp.id === leadArchitectId || selectedSubIds.includes(emp.id);
+      return emp.is_active !== false || isAlreadyAssigned;
+    });
+  }, [employees, leadArchitectId, selectedSubIds]);
 
   // Lead role options: primarily Design and Site, preserving any existing non-standard role
   const leadRoleOptions = useMemo(() => {
@@ -672,6 +679,7 @@ export function ProjectFormModal({
                   {assignableEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name} ({emp.role || "Architect"})
+                      {emp.is_active === false ? " (Inactive)" : ""}
                     </option>
                   ))}
                 </select>
@@ -737,7 +745,10 @@ export function ProjectFormModal({
                       ) : (
                         <Plus className="w-3.5 h-3.5 text-text-muted" />
                       )}
-                      <span>{emp.name}</span>
+                      <span>
+                        {emp.name}
+                        {emp.is_active === false ? " (Inactive)" : ""}
+                      </span>
                     </button>
                   );
                 })}

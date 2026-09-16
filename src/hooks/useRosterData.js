@@ -100,11 +100,19 @@ export function useRoster(explicitOrgId) {
   });
 
   const employees = query.data ?? null;
+  const activeEmployees = employees
+    ? employees.filter((e) => e.is_active !== false)
+    : null;
   const staff = employees ? employees.filter(isRegularStaff) : null;
+  const activeStaff = staff
+    ? staff.filter((e) => e.is_active !== false)
+    : null;
 
   return {
     employees,
+    activeEmployees,
     staff,
+    activeStaff,
     isLoading: query.isLoading,
   };
 }

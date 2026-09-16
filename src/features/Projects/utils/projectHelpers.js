@@ -52,7 +52,8 @@ export const getSubArchitectsList = (project, empMap, projectStats) => {
       if (!seen.has(name.toLowerCase())) {
         seen.add(name.toLowerCase());
         const role = project.sub_architect_roles?.[id] || "Design";
-        result.push({ id, name, role, isExternal: false });
+        const isActive = emp ? emp.is_active !== false : true;
+        result.push({ id, name, role, isExternal: false, isActive });
       }
     });
   }
@@ -66,7 +67,7 @@ export const getSubArchitectsList = (project, empMap, projectStats) => {
       .forEach((s) => {
         if (!seen.has(s.toLowerCase())) {
           seen.add(s.toLowerCase());
-          result.push({ name: s, role: "Design", isExternal: true });
+          result.push({ name: s, role: "Design", isExternal: true, isActive: true });
         }
       });
   }
@@ -85,7 +86,9 @@ export const getSubArchitectsList = (project, empMap, projectStats) => {
             : c.siteHours > 0
               ? "Site"
               : "Design";
-        result.push({ id: c.id, name: c.name, role: autoRole, isExternal: false });
+        const emp = c.id && empMap?.get ? empMap.get(c.id) : null;
+        const isActive = emp ? emp.is_active !== false : (c.isActive !== false);
+        result.push({ id: c.id, name: c.name, role: autoRole, isExternal: false, isActive });
       }
     });
   }

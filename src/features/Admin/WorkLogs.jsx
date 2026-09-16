@@ -45,13 +45,25 @@ const PROJECT_BORDER_COLORS = [
 ];
 
 export function AdminWorklogs() {
-  const { employees, staff } = useRoster();
+  const { employees, staff, activeStaff } = useRoster();
   const { projects } = useProjects();
 
-  const staffMembers = useMemo(() => {
+  const [memberStatusFilter, setMemberStatusFilter] = useState("active"); // "active" | "all"
+
+  const allStaffMembers = useMemo(() => {
     if (staff && staff.length > 0) return staff;
     return employees || [];
   }, [staff, employees]);
+
+  const activeStaffMembers = useMemo(() => {
+    if (activeStaff && activeStaff.length > 0) return activeStaff;
+    return allStaffMembers.filter((e) => e.is_active !== false);
+  }, [activeStaff, allStaffMembers]);
+
+  const staffMembers = useMemo(() => {
+    if (memberStatusFilter === "all") return allStaffMembers;
+    return activeStaffMembers;
+  }, [memberStatusFilter, allStaffMembers, activeStaffMembers]);
 
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState("");
@@ -67,8 +79,8 @@ export function AdminWorklogs() {
     }
   }, [staffMembers, selectedId]);
 
-  const selected = selectedId || staffMembers?.[0]?.id || null;
-  const employee = (staffMembers || []).find((e) => e.id === selected);
+  const selected = selectedId || staffMembers?.[0]?.id || allStaffMembers?.[0]?.id || null;
+  const employee = (allStaffMembers || []).find((e) => e.id === selected);
 
   const { entries } = useWorkLogs(selected);
   const { records } = useAttendance(selected);
@@ -196,13 +208,34 @@ export function AdminWorklogs() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* LEFT COLUMN: EMPLOYEES LIST */}
         <div className="lg:col-span-4 bg-white border border-border rounded-2xl p-3.5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between px-1">
+          <div className="flex items-center justify-between px-1 gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-text-muted">
               Employees
             </span>
-            <span className="text-[11px] text-text-muted font-mono font-medium">
-              {staffMembers.length} staff
-            </span>
+            <div className="flex items-center gap-1 bg-surface-muted p-0.5 rounded-lg border border-border-light text-[10px]">
+              <button
+                type="button"
+                onClick={() => setMemberStatusFilter("active")}
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                  memberStatusFilter === "active"
+                    ? "bg-primary text-white shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                Active ({activeStaffMembers.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setMemberStatusFilter("all")}
+                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                  memberStatusFilter === "all"
+                    ? "bg-primary text-white shadow-2xs"
+                    : "text-text-muted hover:text-text"
+                }`}
+              >
+                All ({allStaffMembers.length})
+              </button>
+            </div>
           </div>
 
           <div className="h-9 flex items-center gap-1.5 bg-surface-muted border border-border-light rounded-xl px-2.5 text-xs focus-within:border-primary">
@@ -253,8 +286,13 @@ export function AdminWorklogs() {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xs font-bold text-text truncate">
-                        {emp.name}
+                      <h4 className="text-xs font-bold text-text truncate flex items-center gap-1.5">
+                        <span className="truncate">{emp.name}</span>
+                        {emp.is_active === false && (
+                          <span className="text-[8px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded px-1 py-0.2 shrink-0">
+                            Inactive
+                          </span>
+                        )}
                       </h4>
                       <p className="text-[10px] text-text-muted truncate capitalize">
                         {emp.department || emp.title || emp.role || "Engineering"}
@@ -309,7 +347,14 @@ export function AdminWorklogs() {
                 </div>
 
                 <div className="min-w-0">
-                  <h2 className="text-base font-bold text-text truncate">{employee.name}</h2>
+                  <h2 className="text-base font-bold text-text truncate flex items-center gap-2">
+                    <span className="truncate">{employee.name}</span>
+                    {employee.is_active === false && (
+                      <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-md px-2 py-0.5 shrink-0">
+                        Inactive / Former Member
+                      </span>
+                    )}
+                  </h2>
                   <p className="text-xs text-text-muted truncate">
                     {employee.title || employee.role || "Team member"}
                     {employee.department && ` · ${employee.department}`}

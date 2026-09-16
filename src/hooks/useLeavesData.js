@@ -96,7 +96,7 @@ export function useLeaveRequests(employeeId, scope = "mine", explicitOrgId) {
       let q = supabase
         .from("leave_requests")
         .select(
-          "*, profiles!leave_requests_employee_id_fkey(name, role, title, org_id)",
+          "*, profiles!leave_requests_employee_id_fkey(name, role, title, org_id, is_active)",
         )
         .order("created_at", { ascending: false });
 
@@ -116,7 +116,7 @@ export function useLeaveRequests(employeeId, scope = "mine", explicitOrgId) {
         );
         let fallbackQ = supabase
           .from("leave_requests")
-          .select("*, profiles(name, role, title, org_id)")
+          .select("*, profiles(name, role, title, org_id, is_active)")
           .order("created_at", { ascending: false });
 
         if (scope === "mine") {
@@ -160,6 +160,14 @@ export function useLeaveRequests(employeeId, scope = "mine", explicitOrgId) {
           // For personal leaves, never filter out the user's own leaves
           if (scope === "mine") return true;
 
+          // For team leaves (employee calendar / overview / team schedule), exclude revoked employees
+          const isEmployeeRevoked =
+            r.profiles?.is_active === false ||
+            rosterMap.get(r.employee_id)?.is_active === false;
+          if ((scope === "team" || scope === "approved") && isEmployeeRevoked) {
+            return false;
+          }
+
           // For team or org leaves, filter out employees from other organizations if org_id is known
           const empOrgId = r.profiles?.org_id || rosterMap.get(r.employee_id)?.org_id;
           if (currentOrgId && empOrgId && empOrgId !== currentOrgId) {
@@ -176,12 +184,18 @@ export function useLeaveRequests(employeeId, scope = "mine", explicitOrgId) {
         .map((r) => {
           const isHalf = isHalfDayLeave(r);
           const rosterUser = rosterMap.get(r.employee_id);
+          const isActive =
+            r.profiles?.is_active !== undefined
+              ? r.profiles.is_active !== false
+              : rosterUser?.is_active !== false;
+
           return {
             ...r,
             days: isHalf ? 0.5 : Number(r.days),
             employeeName: r.profiles?.name || rosterUser?.name,
             employeeRole: r.profiles?.role || rosterUser?.role,
             employeeTitle: r.profiles?.title || rosterUser?.title,
+            employeeIsActive: isActive,
           };
         });
     },

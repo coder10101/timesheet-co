@@ -35,6 +35,8 @@ export function ProjectCardGrid({
         const stats = projectStats?.get ? projectStats.get(p.id) : null;
         const currentStatus = stats?.status || p.status || "Active";
         const leadName = getLeadName(p, empMap);
+        const leadEmp = p.lead_architect_id && empMap?.get ? empMap.get(p.lead_architect_id) : null;
+        const isLeadInactive = leadEmp ? leadEmp.is_active === false : false;
         const subs = getSubArchitectsList(p, empMap, projectStats);
 
         const hasD = Boolean(
@@ -276,9 +278,24 @@ export function ProjectCardGrid({
                     {leadLabel}:
                   </span>
                   {leadName ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shadow-2xs truncate max-w-[200px]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border shadow-2xs truncate max-w-[220px] ${
+                        isLeadInactive
+                          ? "bg-rose-50 text-rose-800 border-rose-200"
+                          : "bg-slate-100 text-slate-800 border border-slate-200"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                          isLeadInactive ? "bg-rose-500" : "bg-slate-400"
+                        }`}
+                      />
                       <span className="truncate">{leadName}</span>
+                      {isLeadInactive && (
+                        <span className="text-[8px] font-bold text-rose-600 uppercase tracking-wider shrink-0">
+                          Inactive
+                        </span>
+                      )}
                       <span
                         className={`px-1 py-0.1 rounded text-[9px] font-bold shrink-0 ${getAssignedRoleBadgeClass(p.lead_architect_role || "Design")}`}
                       >
@@ -308,29 +325,37 @@ export function ProjectCardGrid({
                       const isExt = Boolean(
                         typeof s === "object" && s.isExternal,
                       );
+                      const isInactive =
+                        typeof s === "object" && s.isActive === false;
                       return (
                         <span
                           key={idx}
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border truncate max-w-[150px] ${
-                            isExt
-                              ? "bg-amber-50 text-amber-900 border-amber-200"
-                              : "bg-slate-50 text-slate-700 border-slate-200/80"
+                            isInactive
+                              ? "bg-rose-50 text-rose-800 border-rose-200"
+                              : isExt
+                                ? "bg-amber-50 text-amber-900 border-amber-200"
+                                : "bg-slate-50 text-slate-700 border-slate-200/80"
                           }`}
                           title={
-                            isExt
-                              ? `External Collaborator: ${sName}`
-                              : `${sName} (${sRole})`
+                            isInactive
+                              ? `Inactive Contributor: ${sName}`
+                              : isExt
+                                ? `External Collaborator: ${sName}`
+                                : `${sName} (${sRole})`
                           }
                         >
                           <span className="truncate">{sName}</span>
                           <span
                             className={`px-1 py-0.1 rounded text-[8px] font-bold ${
-                              isExt
-                                ? "bg-amber-100 text-amber-800"
-                                : getAssignedRoleBadgeClass(sRole)
+                              isInactive
+                                ? "bg-rose-100 text-rose-700"
+                                : isExt
+                                  ? "bg-amber-100 text-amber-800"
+                                  : getAssignedRoleBadgeClass(sRole)
                             }`}
                           >
-                            {isExt ? "Ext" : sRole}
+                            {isInactive ? "Inactive" : isExt ? "Ext" : sRole}
                           </span>
                         </span>
                       );

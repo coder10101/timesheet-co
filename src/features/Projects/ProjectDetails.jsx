@@ -63,15 +63,6 @@ export function ProjectDetails({ me }) {
   const [showLogModal, setShowLogModal] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  // Filtered employees roster excluding admins
-  const assignableEmployees = useMemo(() => {
-    if (!employees || !Array.isArray(employees)) return [];
-    return employees.filter((e) => {
-      const r = (e.role || "").toLowerCase();
-      return r !== "admin" && r !== "superadmin";
-    });
-  }, [employees]);
-
   // Find target project
   const project = useMemo(() => {
     if (!projects || !projectId) return null;
@@ -91,6 +82,20 @@ export function ProjectDetails({ me }) {
       null
     );
   }, [projects, projectId]);
+
+  // Filtered employees roster excluding admins and inactive staff (unless already assigned)
+  const assignableEmployees = useMemo(() => {
+    if (!employees || !Array.isArray(employees)) return [];
+    return employees.filter((e) => {
+      const r = (e.role || "").toLowerCase();
+      if (r === "admin" || r === "superadmin" || e.is_admin) return false;
+      const isAssigned =
+        e.id === project?.lead_architect_id ||
+        (Array.isArray(project?.sub_architect_ids) &&
+          project.sub_architect_ids.includes(e.id));
+      return e.is_active !== false || isAssigned;
+    });
+  }, [employees, project?.lead_architect_id, project?.sub_architect_ids]);
 
   // Lead Architect resolution
   const leadArchitect = useMemo(() => {
@@ -302,13 +307,16 @@ export function ProjectDetails({ me }) {
   // Contributor Stats breakdown
   const contributorStats = useMemo(() => {
     const map = {};
+    const empMap = new Map((employees || []).map((e) => [e.id, e]));
     projectLogs.forEach((l) => {
       const key = l.employee_id || l.employeeName || "Unknown";
+      const emp = l.employee_id ? empMap.get(l.employee_id) : null;
       if (!map[key]) {
         map[key] = {
           id: l.employee_id,
-          name: l.employeeName || "Unknown",
-          role: l.employeeRole || "Team Member",
+          name: l.employeeName || emp?.name || "Unknown",
+          role: emp?.role || l.employeeRole || "Team Member",
+          isActive: emp ? emp.is_active !== false : true,
           hours: 0,
           deskHours: 0,
           siteHours: 0,
@@ -330,7 +338,7 @@ export function ProjectDetails({ me }) {
       }
     });
     return Object.values(map).sort((a, b) => b.hours - a.hours);
-  }, [projectLogs]);
+  }, [projectLogs, employees]);
 
   // Activity history
   const projectActivities = useMemo(() => {

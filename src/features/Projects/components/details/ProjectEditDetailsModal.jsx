@@ -612,6 +612,7 @@ export function ProjectEditDetailsModal({
                   {assignableEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
                       {emp.name}
+                      {emp.is_active === false ? " (Inactive)" : ""}
                     </option>
                   ))}
                 </select>
@@ -689,7 +690,10 @@ export function ProjectEditDetailsModal({
                         ) : (
                           <Plus size={12} className="text-text-muted" />
                         )}
-                        <span>{emp.name}</span>
+                        <span>
+                          {emp.name}
+                          {emp.is_active === false ? " (Inactive)" : ""}
+                        </span>
                         {isSelected && (
                           <X size={12} className="opacity-70 ml-0.5" />
                         )}

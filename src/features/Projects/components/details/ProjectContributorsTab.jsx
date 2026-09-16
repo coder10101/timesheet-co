@@ -49,7 +49,14 @@ export function ProjectContributorsTab({
                   {getInitials(c.name)}
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900">{c.name}</h4>
+                  <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span>{c.name}</span>
+                    {c.isActive === false && (
+                      <span className="text-[9px] font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded px-1.5 py-0.2">
+                        Inactive
+                      </span>
+                    )}
+                  </h4>
                   <p className="text-[10px] text-slate-400">{c.role}</p>
                 </div>
               </div>
