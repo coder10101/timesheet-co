@@ -6,6 +6,7 @@ import {
   formatRelativeTime,
 } from "../../../../constants/projectPresets";
 import { getEmployeeColor } from "../../../../constants/colors";
+import { isoToBSLabel } from "../../../../utils/nepaliCalendar";
 import EditHistoryModal from "../../../../components/EditHistoryModal";
 
 export function ProjectWorkLogsTab({
@@ -212,7 +213,7 @@ export function ProjectWorkLogsTab({
           onClose={() => setHistoryLog(null)}
           history={historyLog.edit_history}
           title="Work Log Edit History"
-          subtitle={`${historyLog.employeeName || "Team Member"} · ${historyLog.date}`}
+          subtitle={`${historyLog.employeeName || "Team Member"} · ${isoToBSLabel(historyLog.date)}`}
           type="work_log"
         />
       )}

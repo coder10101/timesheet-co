@@ -16,6 +16,7 @@ import {
 
 import {
   isoToBS,
+  isoToBSLabel,
   NEPALI_MONTHS,
   WEEKDAY_LABELS,
 } from "../../utils/nepaliCalendar";
@@ -1027,7 +1028,7 @@ export function EmployeeWorklog({ me }) {
         onClose={() => setHistoryModalEntry(null)}
         history={historyModalEntry.edit_history}
         title="Work Log Edit History"
-        subtitle={`Logged on ${historyModalEntry.date}`}
+        subtitle={`Logged on ${isoToBSLabel(historyModalEntry.date)}`}
         type="work_log"
         projectMap={projectMap}
       />

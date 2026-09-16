@@ -18,6 +18,7 @@ import {
   formatWorkLogEntryText,
 } from "../../../utils/workType";
 import { useOfficeHours } from "../../../constants/officeHours";
+import { isoToBSLabel } from "../../../utils/nepaliCalendar";
 import EditHistoryModal from "../../../components/EditHistoryModal";
 
 /** Stages that mean a project has been handed over — excluded from the log dropdown. */
@@ -504,7 +505,7 @@ export function TodaysWork({
           onClose={() => setHistoryModalEntry(null)}
           history={historyModalEntry.edit_history}
           title="Work Log Edit History"
-          subtitle={`Logged for today (${today})`}
+          subtitle={`Logged for today (${isoToBSLabel(today)})`}
           type="work_log"
           projectMap={new Map(projects.map((p) => [p.id, p]))}
         />

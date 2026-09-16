@@ -274,7 +274,7 @@ function AttendanceRecord({ date, record, result, onStartEdit }) {
           onClose={() => setShowHistory(false)}
           history={record.edit_history}
           title="Attendance Edit History"
-          subtitle={`${date.day} ${NEPALI_MONTHS[date.month - 1]} ${date.year} (${date.isoDate})`}
+          subtitle={`${date.day} ${NEPALI_MONTHS[date.month - 1]} ${date.year}`}
           type="attendance"
         />
       )}

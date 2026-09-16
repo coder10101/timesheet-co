@@ -3,10 +3,30 @@ import { X, History, User, Clock, ArrowRight, FileText, CheckCircle2 } from "luc
 import { fmtTime } from "../utils/workTime";
 import { getInitials } from "../constants/projectPresets";
 import { getEmployeeColor } from "../constants/colors";
+import { isoToBS, NEPALI_MONTHS } from "../utils/nepaliCalendar";
+import { toNepalDateTimeLocal } from "../utils/timezone";
 
 function formatDateTime(isoString) {
   if (!isoString) return "";
   try {
+    const nepalDt = toNepalDateTimeLocal(isoString);
+    const [datePart, timePart] = (nepalDt || "").split("T");
+    const bsDate = isoToBS(datePart);
+
+    let timeStr = "";
+    if (timePart) {
+      const [hStr, mStr] = timePart.split(":");
+      const h = parseInt(hStr, 10);
+      const ampm = h >= 12 ? "PM" : "AM";
+      const h12 = h % 12 || 12;
+      timeStr = `${h12}:${mStr} ${ampm}`;
+    }
+
+    if (bsDate && bsDate.year && bsDate.month && bsDate.day) {
+      const monthName = NEPALI_MONTHS[bsDate.month - 1] || `Month ${bsDate.month}`;
+      return `${bsDate.day} ${monthName} ${bsDate.year}${timeStr ? `, ${timeStr}` : ""}`;
+    }
+
     const d = new Date(isoString);
     return d.toLocaleString("en-US", {
       month: "short",

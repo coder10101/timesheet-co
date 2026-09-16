@@ -17,6 +17,7 @@ import {
 import { useOfficeHours } from "../../constants/officeHours";
 import {
   isoToBS,
+  isoToBSLabel,
   getTodayBS,
   NEPALI_MONTHS,
   WEEKDAY_LABELS,
@@ -919,7 +920,7 @@ export function AdminAttendance() {
           onClose={() => setHistoryRecord(null)}
           history={historyRecord.edit_history}
           title="Attendance Edit History"
-          subtitle={`${selectedEmployee?.name || "Staff"} · ${historyRecord.date}`}
+          subtitle={`${selectedEmployee?.name || "Staff"} · ${isoToBSLabel(historyRecord.date)}`}
           type="attendance"
         />
       )}

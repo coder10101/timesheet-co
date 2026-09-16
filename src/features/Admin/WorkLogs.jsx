@@ -661,7 +661,7 @@ export function AdminWorklogs() {
           onClose={() => setHistoryEntry(null)}
           history={historyEntry.edit_history}
           title="Work Log Edit History"
-          subtitle={`${employee?.name || "Staff"} · ${historyEntry.date}`}
+          subtitle={`${employee?.name || "Staff"} · ${isoToBSLabel(historyEntry.date)}`}
           type="work_log"
           projectMap={projectMap}
         />
