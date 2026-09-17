@@ -1,6 +1,8 @@
-import { WORK_DAY_MINUTES } from "./workTime";
+import { WORK_DAY_MINUTES, formatBreakTime, formatBreakDuration } from "./workTime";
 import { isHalfDayLeave, getHalfDaySession, HALF_DAY_SESSIONS } from "./leaveUtils";
 import { DEFAULT_SCHEDULE } from "../constants/officeHours";
+
+export { formatBreakTime, formatBreakDuration };
 
 export const OFFICE_START_HOUR = 10;
 

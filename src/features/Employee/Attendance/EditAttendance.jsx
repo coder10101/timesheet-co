@@ -16,6 +16,7 @@ import {
 import { NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import {
   formatDuration,
+  formatBreakTime,
   LUNCH_MINUTES,
 } from "../../../utils/workTime";
 import { formatDifference, getWeekday } from "../../../utils/attendance";
@@ -327,7 +328,7 @@ export default function AttendanceEditForm({
                 <span className="font-mono font-semibold text-xs">
                   {preview.breakMins > 0 ? (
                     <span className="text-amber-600 font-bold">
-                      -{formatDuration(preview.breakMins)}
+                      -{formatBreakTime(preview.breakMins)}
                     </span>
                   ) : (
                     <span className="text-text-muted">0m (none)</span>

@@ -11,6 +11,8 @@ import {
 
 import {
   formatDuration,
+  formatBreakTime,
+  formatBreakDuration,
   getWorkedMinutes,
   todayISO,
 } from "../../../utils/workTime";
@@ -288,7 +290,7 @@ export function Today({
 
               {totalBreaks > 0 && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-200 bg-amber-500/20 border border-amber-400/30 px-2 py-0.5 rounded-full">
-                  <Coffee size={9} /> {totalBreaks}m break today
+                  <Coffee size={9} /> {formatBreakTime(totalBreaks)} break today
                 </span>
               )}
             </div>
@@ -386,7 +388,7 @@ export function Today({
             {isOnBreak ? (
               <span className="text-amber-300 font-semibold">On Break</span>
             ) : totalBreaks > 0 ? (
-              `${totalBreaks} mins`
+              formatBreakDuration(totalBreaks)
             ) : todayRecord?.breaks?.length > 0 ? (
               "< 1 min"
             ) : (

@@ -15,6 +15,7 @@ import { NEPALI_MONTHS, WEEKDAY_LABELS } from "../../../utils/nepaliCalendar";
 import {
   fmtTime,
   formatDuration,
+  formatBreakTime,
   getWorkedMinutes,
   getEffectiveClockOut,
   todayISO,
@@ -325,7 +326,7 @@ function HoursCell({ record, worked, date, hasCheckout }) {
             <span>{formatDuration(worked)}</span>
             {breakMins > 0 && (
               <div className="text-[10px] text-amber-600 font-sans font-medium">
-                ☕ {breakMins}m break
+                ☕ {formatBreakTime(breakMins)} break
               </div>
             )}
           </div>
@@ -336,7 +337,7 @@ function HoursCell({ record, worked, date, hasCheckout }) {
             </span>
             {breakMins > 0 && (
               <div className="text-[10px] text-amber-600 font-sans font-medium">
-                ☕ {breakMins}m break
+                ☕ {formatBreakTime(breakMins)} break
               </div>
             )}
           </div>

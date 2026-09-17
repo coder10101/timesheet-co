@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Clock, Calendar, AlertCircle, CheckCircle2, Coffee, User } from "lucide-react";
 import { toNepalTimeString } from "../../utils/timezone";
 import { isoToBS, NEPALI_MONTHS } from "../../utils/nepaliCalendar";
+import { formatBreakTime } from "../../utils/workTime";
 
 export function AdminEditAttendanceModal({
   isOpen,
@@ -161,7 +162,7 @@ export function AdminEditAttendanceModal({
                 Personal Break (Minutes)
               </label>
               <span className="text-xs font-mono font-bold text-text">
-                {breakMinutes}m
+                {formatBreakTime(breakMinutes)}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -176,7 +177,7 @@ export function AdminEditAttendanceModal({
                       : "bg-surface-muted hover:bg-surface-muted/80 text-text-muted border-border-light"
                   }`}
                 >
-                  {mins === 0 ? "0m" : `${mins}m`}
+                  {mins === 0 ? "0m" : formatBreakTime(mins)}
                 </button>
               ))}
             </div>

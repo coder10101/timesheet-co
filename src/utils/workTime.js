@@ -120,6 +120,57 @@ export const formatDuration = (minutes) => {
   return `${hours}h ${String(mins).padStart(2, "0")}m`;
 };
 
+/**
+ * Formats break time compactly (e.g., "45m", "1h", "1h 15m").
+ * If minutes >= 60, displays hours and minutes.
+ */
+export const formatBreakTime = (minutes) => {
+  if (
+    minutes === null ||
+    minutes === undefined ||
+    Number.isNaN(Number(minutes)) ||
+    Number(minutes) <= 0
+  ) {
+    return "0m";
+  }
+
+  const totalMinutes = Math.round(Number(minutes));
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  if (hours > 0) {
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  }
+
+  return `${mins}m`;
+};
+
+/**
+ * Formats break duration for stat cards / detailed display.
+ * If minutes >= 60, displays as hours and minutes (e.g. "1h 15m", "1h").
+ * If minutes < 60, displays as minutes (e.g. "45 mins", "1 min").
+ */
+export const formatBreakDuration = (minutes) => {
+  if (
+    minutes === null ||
+    minutes === undefined ||
+    Number.isNaN(Number(minutes)) ||
+    Number(minutes) <= 0
+  ) {
+    return "0 mins";
+  }
+
+  const totalMinutes = Math.round(Number(minutes));
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  if (hours > 0) {
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  }
+
+  return `${mins} min${mins === 1 ? "" : "s"}`;
+};
+
 export const calculateLeaveDays = (startDate, endDate) => {
   if (!startDate || !endDate) {
     return 0;

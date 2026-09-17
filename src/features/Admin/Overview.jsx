@@ -10,6 +10,7 @@ import {
   fmtTime,
   todayISO,
   formatDuration,
+  formatBreakTime,
   getWorkedMinutes,
   getWeekDates,
 } from "../../utils/workTime";
@@ -625,9 +626,9 @@ export function AdminOverview({ me }) {
                               </span>
                               <p className="text-[9px] font-mono text-amber-700 font-medium">
                                 {info.totalBreaks > info.activeBreakMinutes
-                                  ? `${info.totalBreaks}m total (${info.activeBreakMinutes}m active)`
+                                  ? `${formatBreakTime(info.totalBreaks)} total (${formatBreakTime(info.activeBreakMinutes)} active)`
                                   : info.activeBreakMinutes > 0
-                                    ? `${info.activeBreakMinutes}m elapsed`
+                                    ? `${formatBreakTime(info.activeBreakMinutes)} elapsed`
                                     : `Since ${info.time}`}
                               </p>
                             </div>
@@ -645,7 +646,7 @@ export function AdminOverview({ me }) {
                               </p>
                               {info.breakMinutes > 0 && (
                                 <p className="text-[9px] font-mono text-amber-600">
-                                  ☕ {info.breakMinutes}m break
+                                  ☕ {formatBreakTime(info.breakMinutes)} break
                                 </p>
                               )}
                             </div>
@@ -663,7 +664,7 @@ export function AdminOverview({ me }) {
                               </p>
                               {info.breakMinutes > 0 && (
                                 <p className="text-[9px] font-mono text-amber-600">
-                                  ☕ {info.breakMinutes}m break
+                                  ☕ {formatBreakTime(info.breakMinutes)} break
                                 </p>
                               )}
                             </div>

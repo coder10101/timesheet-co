@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { X, History, User, Clock, ArrowRight, FileText, CheckCircle2 } from "lucide-react";
-import { fmtTime } from "../utils/workTime";
+import { fmtTime, formatBreakTime } from "../utils/workTime";
 import { getInitials } from "../constants/projectPresets";
 import { getEmployeeColor } from "../constants/colors";
 import { isoToBS, NEPALI_MONTHS } from "../utils/nepaliCalendar";
@@ -209,11 +209,11 @@ export default function EditHistoryModal({
                               <span className="text-text-muted font-medium">Break Time:</span>
                               <div className="flex items-center gap-2 font-mono">
                                 <span className="text-text-muted line-through">
-                                  {changes.break_minutes.old ?? 0}m
+                                  {formatBreakTime(changes.break_minutes.old ?? 0)}
                                 </span>
                                 <ArrowRight size={12} className="text-text-muted" />
                                 <span className="font-bold text-text">
-                                  {changes.break_minutes.new ?? 0}m
+                                  {formatBreakTime(changes.break_minutes.new ?? 0)}
                                 </span>
                               </div>
                             </div>

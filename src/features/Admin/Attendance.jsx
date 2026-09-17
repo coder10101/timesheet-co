@@ -11,6 +11,7 @@ import {
   fmtTime,
   todayISO,
   formatDuration,
+  formatBreakTime,
   getWorkedMinutes,
   getEffectiveClockOut,
 } from "../../utils/workTime";
@@ -791,8 +792,8 @@ export function AdminAttendance() {
                                 <div>{formatDuration(workedMinutes)}</div>
                                 {totalBreaks > 0 && (
                                   <div className="text-[10px] text-amber-600 font-sans font-medium">
-                                    ☕ {totalBreaks}m break
-                                    {isOnBreak && ` (${activeBreakMinutes}m active)`}
+                                    ☕ {formatBreakTime(totalBreaks)} break
+                                    {isOnBreak && ` (${formatBreakTime(activeBreakMinutes)} active)`}
                                   </div>
                                 )}
                               </div>
@@ -803,11 +804,11 @@ export function AdminAttendance() {
                                 </span>
                                 {isOnBreak ? (
                                   <div className="text-[10px] text-amber-600 font-sans font-medium">
-                                    ☕ {totalBreaks}m break ({activeBreakMinutes}m active)
+                                    ☕ {formatBreakTime(totalBreaks)} break ({formatBreakTime(activeBreakMinutes)} active)
                                   </div>
                                 ) : totalBreaks > 0 ? (
                                   <div className="text-[10px] text-amber-600 font-sans font-medium">
-                                    ☕ {totalBreaks}m break
+                                    ☕ {formatBreakTime(totalBreaks)} break
                                   </div>
                                 ) : null}
                               </div>
@@ -815,7 +816,7 @@ export function AdminAttendance() {
                               <div>
                                 <div>—</div>
                                 <div className="text-[10px] text-amber-600 font-sans font-medium">
-                                  ☕ {totalBreaks}m break
+                                  ☕ {formatBreakTime(totalBreaks)} break
                                 </div>
                               </div>
                             ) : (
