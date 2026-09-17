@@ -72,7 +72,13 @@ export function useAttendanceReminders(me) {
           return;
         }
 
-        // 3. Determine target employees to evaluate:
+        // 3. Skip during night / quiet hours (9:00 PM to 7:00 AM Nepal time)
+        // Strictly prevents any reminders from being evaluated or triggered at midnight or during sleep hours.
+        if (currentMins < 7 * 60 || currentMins >= 21 * 60) {
+          return;
+        }
+
+        // 4. Determine target employees to evaluate:
         // - Admin evaluates all active regular staff in the organization
         // - Employee evaluates themselves
         let targetEmployees = [];
@@ -101,7 +107,7 @@ export function useAttendanceReminders(me) {
 
         const empIds = targetEmployees.map((e) => e.id);
 
-        // 4. Fetch today's approved leaves for target employees
+        // 5. Fetch today's approved leaves for target employees
         const { data: approvedLeaves } = await supabase
           .from("leave_requests")
           .select("employee_id")
@@ -112,7 +118,7 @@ export function useAttendanceReminders(me) {
 
         const onLeaveEmpIds = new Set((approvedLeaves || []).map((l) => l.employee_id));
 
-        // 5. Authoritatively fetch today's attendance records directly from DB
+        // 6. Authoritatively fetch today's attendance records directly from DB
         const { data: attendanceRecords, error: attErr } = await supabase
           .from("attendance")
           .select("employee_id, clock_in, clock_out")
@@ -129,7 +135,7 @@ export function useAttendanceReminders(me) {
           attendanceMap.set(r.employee_id, r);
         });
 
-        // 6. Dynamic schedule thresholds from organization office_hours
+        // 7. Dynamic schedule thresholds from organization office_hours
         const startMins = officeHours.startTimeMinutes ?? 600; // e.g. 10:00 AM
         const graceEndMins = officeHours.graceMinutesTotal ?? (startMins + 30); // e.g. 10:30 AM
         const graceWarningMins = Math.max(startMins, graceEndMins - 5); // e.g. 10:25 AM
@@ -138,7 +144,7 @@ export function useAttendanceReminders(me) {
         const endMins = officeHours.endTimeMinutes ?? 1020; // e.g. 5:00 PM
         const overtimeAlertMins = endMins + 30; // e.g. 5:30 PM
 
-        // 7. Evaluate each employee
+        // 8. Evaluate each employee
         for (const emp of targetEmployees) {
           // Skip if on approved leave
           if (onLeaveEmpIds.has(emp.id)) {

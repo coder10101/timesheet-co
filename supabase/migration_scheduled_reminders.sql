@@ -66,11 +66,18 @@ DECLARE
   v_mins_until     int;
   v_reminder_key   text;
   v_date_str       text := v_today::text;
+  v_now_time       time := (now() AT TIME ZONE 'Asia/Kathmandu')::time;
 BEGIN
   v_dow := EXTRACT(DOW FROM v_today)::int;
 
   -- Skip Saturday (6 = Saturday, weekly holiday)
   IF v_dow = 6 THEN
+    RETURN;
+  END IF;
+
+  -- Quiet hours guard: Do NOT evaluate or send any reminders during night hours (9:00 PM to 7:00 AM Nepal time).
+  -- Strictly ensures that no reminders of any kind are triggered at midnight (00:00) or while employees are asleep.
+  IF v_now_time < time '07:00' OR v_now_time >= time '21:00' THEN
     RETURN;
   END IF;
 
@@ -214,7 +221,7 @@ BEGIN
     -- Event / meeting / deadline reminders
     -- -----------------------------------------------------------------------
     FOR v_event IN
-      SELECT e.id, e.title, e.event_type, e.date, e.time, e.all_org, e.created_by,
+      SELECT e.id, e.title, e.event_type, e.date, e.time, e.all_org, e.created_by, e.created_at,
              array_agg(ea.employee_id) FILTER (WHERE ea.employee_id IS NOT NULL) AS assignees
       FROM events e
       LEFT JOIN event_assignees ea ON ea.event_id = e.id
@@ -226,8 +233,16 @@ BEGIN
         WHERE p.org_id = v_org.id AND p.is_active = true
           AND (v_event.all_org = true OR p.role = 'admin' OR p.id = ANY(v_event.assignees))
       LOOP
-        -- 1-day prior
-        IF v_event.date = v_today + 1 THEN
+        -- 1-day prior (Upcoming event / meeting tomorrow)
+        -- Primary: Sends in the morning around 7:00 AM - 8:00 AM Nepal time for pre-scheduled events.
+        -- Fallback: Also sends during daytime office hours (until 8:00 PM) if newly scheduled today for tomorrow.
+        -- Strictly NEVER fires at midnight or during night/sleep hours.
+        IF v_event.date = v_today + 1
+           AND (
+             (v_now_time >= time '07:00' AND v_now_time <= time '08:00')
+             OR (v_event.created_at::date = v_today AND v_now_time >= time '07:00' AND v_now_time < time '20:00')
+           )
+        THEN
           v_reminder_key := 'event_1day_' || v_event.id::text;
           INSERT INTO notifications (org_id, recipient_id, actor_id, type, title, message, link, metadata)
           VALUES (v_org.id, v_emp.user_id, v_event.created_by, 'event_reminder',
